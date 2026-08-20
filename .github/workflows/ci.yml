@@ -1,0 +1,82 @@
+name: CI — Lint & Type Check
+
+on:
+  push:
+    branches: [master, main, develop]
+  pull_request:
+    branches: [master, main, develop]
+
+jobs:
+  lint-and-type-check:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # ── Install web dependencies ──────────────────────────────────────────
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm ci --prefer-offline
+
+      # ── Install API dependencies ──────────────────────────────────────────
+      - name: Install API dependencies
+        working-directory: apps/api
+        run: npm ci --prefer-offline
+
+      # ── Generate Prisma client (needed for type-check) ────────────────────
+      - name: Generate Prisma client
+        working-directory: apps/api
+        run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+
+      # ── Lint: Web ─────────────────────────────────────────────────────────
+      - name: Lint web
+        working-directory: apps/web
+        run: npm run lint
+
+      # ── Lint: API ─────────────────────────────────────────────────────────
+      - name: Lint API
+        working-directory: apps/api
+        run: npm run lint
+
+      # ── Type check: Web ───────────────────────────────────────────────────
+      - name: Type check web
+        working-directory: apps/web
+        run: npm run type-check
+
+      # ── Type check: API ───────────────────────────────────────────────────
+      - name: Type check API
+        working-directory: apps/api
+        run: npm run type-check
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Audit web dependencies
+        working-directory: apps/web
+        run: npm audit --audit-level=high
+        continue-on-error: true   # Warn but don't block on audit findings — fix manually
+
+      - name: Audit API dependencies
+        working-directory: apps/api
+        run: npm audit --audit-level=high
+        continue-on-error: true

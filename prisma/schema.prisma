@@ -1,0 +1,176 @@
+// Prisma Schema — School Management System
+// Single source of truth for all database tables.
+// Run `npm run prisma:generate` after changes.
+// Run `npm run prisma:migrate` to apply changes to the database.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 0 — Foundation tables (SCHOOL + AUDIT_LOG)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A single school — this system is single-tenant (one school only).
+/// Captures all fields needed for government reporting (section 3.17 of PRD).
+model School {
+  id            String   @id @default(uuid())
+  name          String
+  emisId        String?  @unique @map("emis_id")        // Ministry EMIS code
+  examCenterNo  String?  @map("exam_center_no")         // WAEC/NECO/Cambridge ID
+  gpsLat        Float?   @map("gps_lat")
+  gpsLng        Float?   @map("gps_lng")
+  lga           String?                                 // Local Government Area
+  ward          String?
+  district      String?
+  state         String?
+  ownershipType String?  @map("ownership_type")         // private / public / mission
+  operatingStatus String? @map("operating_status")      // active / inactive
+  levelsOffered  String[] @map("levels_offered")        // e.g. ["JSS", "SSS"]
+  address       String?
+  phone         String?
+  email         String?
+  website       String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations (added as modules are built)
+  users         User[]
+  students      Student[]
+
+  @@map("schools")
+}
+
+/// Audit log — records every sensitive action in the system.
+/// Written to by every module. NEVER deleted. Append-only.
+/// Required explicitly by PRD section 4.1.
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorId     String?  @map("actor_id")         // USER id who performed the action (null = system)
+  actorEmail  String?  @map("actor_email")       // Denormalized for readability even if user is deleted
+  action      String                             // e.g. GRADE_UPDATED, ATTENDANCE_EDITED, PAYMENT_RECORDED
+  targetType  String   @map("target_type")       // e.g. GRADE, ATTENDANCE, INVOICE
+  targetId    String?  @map("target_id")         // ID of the affected record
+  beforeValue Json?    @map("before_value")      // State before the change
+  afterValue  Json?    @map("after_value")       // State after the change
+  metadata    Json?                              // Any extra context (IP, user agent, etc.)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 1 — Auth & Roles (placeholders — fully built in Module 1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  TEACHER
+  NURSE
+  LIBRARIAN
+  TRANSPORT_COORDINATOR
+  PARENT
+  STUDENT
+}
+
+/// System users — only roles that interact with the portal get full accounts.
+/// Support/facility staff get a lightweight STAFF_RECORD (not this model).
+model User {
+  id           String    @id @default(uuid())
+  schoolId     String    @map("school_id")
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         UserRole
+  firstName    String    @map("first_name")
+  lastName     String    @map("last_name")
+  phone        String?
+  isActive     Boolean   @default(true) @map("is_active")
+  mfaEnabled   Boolean   @default(false) @map("mfa_enabled")
+  mfaSecret    String?   @map("mfa_secret")   // Never logged
+  inviteToken  String?   @unique @map("invite_token")
+  inviteExpiry DateTime? @map("invite_expiry")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  school       School    @relation(fields: [schoolId], references: [id])
+  refreshTokens RefreshToken[]
+
+  @@index([schoolId])
+  @@index([email])
+  @@map("users")
+}
+
+/// Refresh tokens — stored hashed, rotated on every use.
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @unique @map("token_hash")   // Stored hashed, never plaintext
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 2 — Students & Staff (placeholders — fully built in Module 2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum EnrollmentStatus {
+  ACTIVE
+  WITHDRAWN
+  GRADUATED
+}
+
+/// Student record — never hard-deleted, only status-flagged.
+model Student {
+  id               String           @id @default(uuid())
+  schoolId         String           @map("school_id")
+  firstName        String           @map("first_name")
+  lastName         String           @map("last_name")
+  dateOfBirth      DateTime?        @map("date_of_birth")
+  gender           String?
+  address          String?
+  enrollmentStatus EnrollmentStatus @default(ACTIVE) @map("enrollment_status")
+  admissionNumber  String?          @unique @map("admission_number")
+  enrolledAt       DateTime         @default(now()) @map("enrolled_at")
+  withdrawnAt      DateTime?        @map("withdrawn_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  school           School           @relation(fields: [schoolId], references: [id])
+  guardianLinks    GuardianLink[]
+
+  @@index([schoolId])
+  @@index([enrollmentStatus])
+  @@map("students")
+}
+
+/// Links students to parent/guardian USER accounts (many-to-many).
+model GuardianLink {
+  id           String   @id @default(uuid())
+  studentId    String   @map("student_id")
+  guardianId   String   @map("guardian_id")   // USER with role PARENT
+  relationship String?                         // e.g. mother, father, uncle
+  isPrimary    Boolean  @default(false) @map("is_primary")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  student      Student  @relation(fields: [studentId], references: [id])
+
+  @@unique([studentId, guardianId])
+  @@index([guardianId])
+  @@map("guardian_links")
+}

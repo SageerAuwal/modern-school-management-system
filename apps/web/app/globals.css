@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens from school-system-design-spec.md ─────────────────────── */
+:root {
+  /* Colors */
+  --color-ink: #10141A;
+  --color-page: #F7F6F3;
+  --color-surface: #FFFFFF;
+  --color-border: #E4E4E4;
+  --color-text-secondary: #5F5E5A;
+  --color-accent-blue: #83A2DB;
+  --color-accent-coral: #CE6969;
+
+  /* Status — success (present / paid / confirmed) */
+  --color-success-bg: #EAF3DE;
+  --color-success-text: #3B6D11;
+
+  /* Status — danger (absent / overdue / violation) */
+  --color-danger-bg: #FAECE7;
+  --color-danger-text: #993C1D;
+
+  /* Border radius */
+  --radius-card: 14px;
+  --radius-pill: 20px;
+  --radius-pill-badge: 14px;
+  --radius-control: 8px;
+
+  /* Border width — always 0.5px, never heavier */
+  --border-width: 0.5px;
+
+  /* Spacing */
+  --card-padding: 18px;
+  --grid-gap: 12px;
+}
+
+/* ─── Base Styles ──────────────────────────────────────────────────────────── */
+html,
+body {
+  background-color: var(--color-page);
+  color: var(--color-ink);
+  font-family: "Lufga", "Manrope", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Lufga Font (self-hosted — add font files to /public/fonts/) ──────────── */
+/* If Lufga is not available, Manrope from Google Fonts is the approved fallback */
+@font-face {
+  font-family: "Lufga";
+  src: url("/fonts/Lufga-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lufga";
+  src: url("/fonts/Lufga-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Lufga";
+  src: url("/fonts/Lufga-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── Utility: Card ────────────────────────────────────────────────────────── */
+.card {
+  background-color: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: var(--card-padding);
+  /* NO box-shadow — design spec forbids it */
+}
+
+/* ─── Utility: Status Pills ────────────────────────────────────────────────── */
+.pill-success {
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text);
+  border-radius: var(--radius-pill-badge);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.pill-danger {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  border-radius: var(--radius-pill-badge);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ─── Utility: Nav Pill ────────────────────────────────────────────────────── */
+.nav-pill-active {
+  background-color: var(--color-ink);
+  color: #ffffff;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 16px;
+}
+
+.nav-pill-inactive {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  padding: 6px 16px;
+}
+
+/* ─── Utility: Metric Card Number ──────────────────────────────────────────── */
+.metric-number {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Utility: List Row Divider ────────────────────────────────────────────── */
+.list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.list-row:last-child {
+  border-bottom: none;
+}
