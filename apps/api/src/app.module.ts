@@ -3,35 +3,42 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
+import { CommonModule } from './common/common.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { SchoolModule } from './school/school.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 @Module({
   imports: [
-    // ── Config: loads .env, available everywhere via ConfigService ────────────
+    // ── Config ────────────────────────────────────────────────────────────
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '../../.env',
     }),
 
-    // ── Rate limiting: applied globally to ALL endpoints ──────────────────────
-    // 100 requests per 60 seconds per IP by default.
-    // Auth endpoints will have stricter limits set per-route in Module 1.
+    // ── Rate limiting: global baseline (stricter limits on auth routes) ────
     ThrottlerModule.forRoot([
       {
         name: 'global',
-        ttl: 60000,   // 60 seconds
-        limit: 100,   // max 100 requests per ttl window
+        ttl: 60000,
+        limit: 100,
       },
     ]),
 
-    // ── Prisma: database connection, available everywhere ─────────────────────
+    // ── Infrastructure ────────────────────────────────────────────────────
     PrismaModule,
+    CommonModule,  // Provides AuditService globally
+
+    // ── Feature modules ───────────────────────────────────────────────────
+    AuthModule,
+    UsersModule,
+    SchoolModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    // ── Apply rate limiting globally as a guard ───────────────────────────────
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

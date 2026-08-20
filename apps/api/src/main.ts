@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
+import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -10,6 +11,9 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('API_PORT') ?? 3001;
   const webUrl = configService.get<string>('WEB_URL') ?? 'http://localhost:3000';
+
+  // ── Cookie parser — required to read httpOnly cookies for JWT auth ──────
+  app.use(cookieParser());
 
   // ── Security: Helmet (CSP, HSTS, X-Frame-Options, etc.) ────────────────────
   app.use(
