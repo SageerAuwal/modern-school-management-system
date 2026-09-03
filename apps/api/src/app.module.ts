@@ -11,6 +11,7 @@ import { StudentsModule } from './students/students.module';
 import { ClassesModule } from './classes/classes.module';
 import { EnrollmentsModule } from './enrollments/enrollments.module';
 import { StaffModule } from './staff/staff.module';
+import { AttendanceModule } from './attendance/attendance.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -27,6 +28,7 @@ import { AppService } from './app.service';
     ClassesModule,
     EnrollmentsModule,
     StaffModule,
+    AttendanceModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

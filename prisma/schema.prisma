@@ -43,6 +43,7 @@ model School {
   students      Student[]
   classSections ClassSection[]
   staffRecords  StaffRecord[]
+  attendanceRecords AttendanceRecord[]
 
   @@map("schools")
 }
@@ -103,6 +104,8 @@ model User {
   school        School         @relation(fields: [schoolId], references: [id])
   refreshTokens RefreshToken[]
   taughtClasses ClassSection[] @relation("ClassTeacher")
+  markedAttendance  AttendanceRecord[] @relation("AttendanceMarkedBy")
+  editedAttendance  AttendanceRecord[] @relation("AttendanceEditedBy")
 
   @@index([schoolId])
   @@index([email])
@@ -166,6 +169,7 @@ model Student {
   school        School        @relation(fields: [schoolId], references: [id])
   guardianLinks GuardianLink[]
   enrollments   Enrollment[]
+  attendanceRecords AttendanceRecord[]
 
   @@index([schoolId])
   @@index([enrollmentStatus])
@@ -206,6 +210,7 @@ model ClassSection {
   school      School       @relation(fields: [schoolId], references: [id])
   teacher     User?        @relation("ClassTeacher", fields: [teacherId], references: [id])
   enrollments Enrollment[]
+  attendanceRecords AttendanceRecord[]
 
   @@unique([schoolId, name, academicYear])
   @@index([schoolId])
@@ -259,4 +264,43 @@ model StaffRecord {
   @@index([schoolId])
   @@index([isActive])
   @@map("staff_records")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 3 — Attendance
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+/// One attendance record per student per class per date.
+/// Always audited — edits require a reason and are logged.
+model AttendanceRecord {
+  id             String           @id @default(uuid())
+  schoolId       String           @map("school_id")
+  classSectionId String           @map("class_section_id")
+  studentId      String           @map("student_id")
+  date           DateTime         @db.Date           // Date only — no time component
+  status         AttendanceStatus
+  note           String?                             // Optional teacher note / excuse reason
+  markedById     String           @map("marked_by_id")
+  editedById     String?          @map("edited_by_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+
+  school       School       @relation(fields: [schoolId], references: [id])
+  classSection ClassSection @relation(fields: [classSectionId], references: [id])
+  student      Student      @relation(fields: [studentId], references: [id])
+  markedBy     User         @relation("AttendanceMarkedBy", fields: [markedById], references: [id])
+  editedBy     User?        @relation("AttendanceEditedBy", fields: [editedById], references: [id])
+
+  @@unique([studentId, classSectionId, date])
+  @@index([schoolId, date])
+  @@index([classSectionId, date])
+  @@index([studentId])
+  @@map("attendance_records")
 }
