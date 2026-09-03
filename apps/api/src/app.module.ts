@@ -7,42 +7,28 @@ import { CommonModule } from './common/common.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { SchoolModule } from './school/school.module';
+import { StudentsModule } from './students/students.module';
+import { ClassesModule } from './classes/classes.module';
+import { EnrollmentsModule } from './enrollments/enrollments.module';
+import { StaffModule } from './staff/staff.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
 @Module({
   imports: [
-    // ── Config ────────────────────────────────────────────────────────────
-    ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '../../.env',
-    }),
-
-    // ── Rate limiting: global baseline (stricter limits on auth routes) ────
-    ThrottlerModule.forRoot([
-      {
-        name: 'global',
-        ttl: 60000,
-        limit: 100,
-      },
-    ]),
-
-    // ── Infrastructure ────────────────────────────────────────────────────
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env' }),
+    ThrottlerModule.forRoot([{ name: 'global', ttl: 60000, limit: 100 }]),
     PrismaModule,
-    CommonModule,  // Provides AuditService globally
-
-    // ── Feature modules ───────────────────────────────────────────────────
+    CommonModule,
     AuthModule,
     UsersModule,
     SchoolModule,
+    StudentsModule,
+    ClassesModule,
+    EnrollmentsModule,
+    StaffModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
-  ],
+  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
