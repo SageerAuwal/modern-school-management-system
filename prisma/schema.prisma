@@ -39,11 +39,14 @@ model School {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  users         User[]
-  students      Student[]
-  classSections ClassSection[]
-  staffRecords  StaffRecord[]
+  users             User[]
+  students          Student[]
+  classSections     ClassSection[]
+  staffRecords      StaffRecord[]
   attendanceRecords AttendanceRecord[]
+  subjects          Subject[]
+  terms             Term[]
+  scores            Score[]
 
   @@map("schools")
 }
@@ -101,11 +104,14 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  school        School         @relation(fields: [schoolId], references: [id])
-  refreshTokens RefreshToken[]
-  taughtClasses ClassSection[] @relation("ClassTeacher")
-  markedAttendance  AttendanceRecord[] @relation("AttendanceMarkedBy")
-  editedAttendance  AttendanceRecord[] @relation("AttendanceEditedBy")
+  school           School         @relation(fields: [schoolId], references: [id])
+  refreshTokens    RefreshToken[]
+  taughtClasses    ClassSection[] @relation("ClassTeacher")
+  markedAttendance AttendanceRecord[] @relation("AttendanceMarkedBy")
+  editedAttendance AttendanceRecord[] @relation("AttendanceEditedBy")
+  subjectClasses   ClassSubject[] @relation("SubjectTeacher")
+  enteredScores    Score[]        @relation("ScoreEnteredBy")
+  editedScores     Score[]        @relation("ScoreEditedBy")
 
   @@index([schoolId])
   @@index([email])
@@ -166,10 +172,11 @@ model Student {
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  school        School        @relation(fields: [schoolId], references: [id])
-  guardianLinks GuardianLink[]
-  enrollments   Enrollment[]
+  school            School        @relation(fields: [schoolId], references: [id])
+  guardianLinks     GuardianLink[]
+  enrollments       Enrollment[]
   attendanceRecords AttendanceRecord[]
+  scores            Score[]
 
   @@index([schoolId])
   @@index([enrollmentStatus])
@@ -207,10 +214,12 @@ model ClassSection {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  school      School       @relation(fields: [schoolId], references: [id])
-  teacher     User?        @relation("ClassTeacher", fields: [teacherId], references: [id])
-  enrollments Enrollment[]
+  school            School       @relation(fields: [schoolId], references: [id])
+  teacher           User?        @relation("ClassTeacher", fields: [teacherId], references: [id])
+  enrollments       Enrollment[]
   attendanceRecords AttendanceRecord[]
+  classSubjects     ClassSubject[]
+  scores            Score[]
 
   @@unique([schoolId, name, academicYear])
   @@index([schoolId])
@@ -303,4 +312,110 @@ model AttendanceRecord {
   @@index([classSectionId, date])
   @@index([studentId])
   @@map("attendance_records")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 4 — Grading & Results
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// An academic subject offered by the school (e.g. Mathematics, English).
+model Subject {
+  id          String   @id @default(uuid())
+  schoolId    String   @map("school_id")
+  name        String
+  code        String?                   // Short code e.g. "MTH", "ENG"
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  school        School         @relation(fields: [schoolId], references: [id])
+  classSubjects ClassSubject[]
+  scores        Score[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@map("subjects")
+}
+
+/// An academic term/semester (e.g. "First Term 2025/2026").
+model Term {
+  id           String   @id @default(uuid())
+  schoolId     String   @map("school_id")
+  name         String                    // "First Term", "Second Term", "Third Term"
+  academicYear String   @map("academic_year") // "2025/2026"
+  startDate    DateTime @map("start_date")
+  endDate      DateTime @map("end_date")
+  isCurrent    Boolean  @default(false) @map("is_current")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  school School  @relation(fields: [schoolId], references: [id])
+  scores Score[]
+
+  @@unique([schoolId, name, academicYear])
+  @@index([schoolId])
+  @@map("terms")
+}
+
+/// Links a subject to a class section — which subjects does each class offer?
+/// Also records who the subject teacher is for that class.
+model ClassSubject {
+  id             String   @id @default(uuid())
+  classSectionId String   @map("class_section_id")
+  subjectId      String   @map("subject_id")
+  teacherId      String?  @map("teacher_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  classSection ClassSection @relation(fields: [classSectionId], references: [id])
+  subject      Subject      @relation(fields: [subjectId], references: [id])
+  teacher      User?        @relation("SubjectTeacher", fields: [teacherId], references: [id])
+
+  @@unique([classSectionId, subjectId])
+  @@index([classSectionId])
+  @@map("class_subjects")
+}
+
+/// Student score for one subject in one term.
+/// CA components + exam score → auto-computed total + grade.
+model Score {
+  id             String  @id @default(uuid())
+  schoolId       String  @map("school_id")
+  studentId      String  @map("student_id")
+  subjectId      String  @map("subject_id")
+  classSectionId String  @map("class_section_id")
+  termId         String  @map("term_id")
+  academicYear   String  @map("academic_year")
+
+  // Continuous Assessment components (max configurable — default 30 total)
+  ca1   Float?  @map("ca1")
+  ca2   Float?  @map("ca2")
+  ca3   Float?  @map("ca3")
+
+  // Examination score (max 70)
+  exam  Float?
+
+  // Computed fields (filled by service after entry)
+  total   Float?
+  grade   String?  // A, B, C, D, E, F
+  remark  String?  // Excellent, Very Good, Good, Average, Below Average, Fail
+
+  enteredById String  @map("entered_by_id")
+  editedById  String? @map("edited_by_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  school       School       @relation(fields: [schoolId], references: [id])
+  student      Student      @relation(fields: [studentId], references: [id])
+  subject      Subject      @relation(fields: [subjectId], references: [id])
+  classSection ClassSection @relation(fields: [classSectionId], references: [id])
+  term         Term         @relation(fields: [termId], references: [id])
+  enteredBy    User         @relation("ScoreEnteredBy", fields: [enteredById], references: [id])
+  editedBy     User?        @relation("ScoreEditedBy", fields: [editedById], references: [id])
+
+  @@unique([studentId, subjectId, classSectionId, termId])
+  @@index([studentId, termId])
+  @@index([classSectionId, subjectId, termId])
+  @@map("scores")
 }

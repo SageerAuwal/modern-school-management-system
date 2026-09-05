@@ -12,6 +12,9 @@ import { ClassesModule } from './classes/classes.module';
 import { EnrollmentsModule } from './enrollments/enrollments.module';
 import { StaffModule } from './staff/staff.module';
 import { AttendanceModule } from './attendance/attendance.module';
+import { SubjectsModule } from './subjects/subjects.module';
+import { TermsModule } from './terms/terms.module';
+import { ScoresModule } from './scores/scores.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -29,6 +32,9 @@ import { AppService } from './app.service';
     EnrollmentsModule,
     StaffModule,
     AttendanceModule,
+    SubjectsModule,
+    TermsModule,
+    ScoresModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
