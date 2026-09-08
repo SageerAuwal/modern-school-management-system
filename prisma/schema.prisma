@@ -50,6 +50,8 @@ model School {
   feeStructures     FeeStructure[]
   invoices          Invoice[]
   payments          Payment[]
+  books             Book[]
+  bookLoans         BookLoan[]
 
   @@map("schools")
 }
@@ -117,6 +119,8 @@ model User {
   editedScores     Score[]        @relation("ScoreEditedBy")
   invoicesCreated  Invoice[]      @relation("InvoiceCreatedBy")
   paymentsRecorded Payment[]      @relation("PaymentRecordedBy")
+  issuedLoans      BookLoan[]     @relation("LoanIssuedBy")
+  returnedLoans    BookLoan[]     @relation("LoanReturnedBy")
 
   @@index([schoolId])
   @@index([email])
@@ -183,6 +187,7 @@ model Student {
   attendanceRecords AttendanceRecord[]
   scores            Score[]
   invoices          Invoice[]
+  bookLoans         BookLoan[]
 
   @@index([schoolId])
   @@index([enrollmentStatus])
@@ -546,4 +551,74 @@ model Payment {
   @@index([schoolId])
   @@index([reference])
   @@map("payments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 6 — Library Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum LoanStatus {
+  ACTIVE    // Currently borrowed — not yet due
+  RETURNED  // Returned (on time or overdue, fine paid/waived)
+  OVERDUE   // Past due date, not yet returned
+}
+
+/// A book in the school library catalogue.
+/// totalCopies and availableCopies are kept in sync on every borrow/return.
+model Book {
+  id              String   @id @default(uuid())
+  schoolId        String   @map("school_id")
+  title           String
+  author          String
+  isbn            String?  @unique
+  category        String?                      // "Science", "Fiction", "Mathematics", "Reference"
+  publisher       String?
+  publishYear     Int?     @map("publish_year")
+  totalCopies     Int      @default(1) @map("total_copies")
+  availableCopies Int      @default(1) @map("available_copies")
+  shelfLocation   String?  @map("shelf_location") // e.g. "A3", "Row 2 Shelf 4"
+  description     String?
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  school School     @relation(fields: [schoolId], references: [id])
+  loans  BookLoan[]
+
+  @@index([schoolId])
+  @@index([title])
+  @@index([isbn])
+  @@map("books")
+}
+
+/// A record of one copy of a book being borrowed by a student or staff.
+/// Fine = ₦50 per overdue day (applied on return).
+model BookLoan {
+  id           String     @id @default(uuid())
+  schoolId     String     @map("school_id")
+  bookId       String     @map("book_id")
+  studentId    String?    @map("student_id")   // if borrowed by/for a student
+  borrowerName String     @map("borrower_name") // Snapshot: "Amina Bello" (staff or student name)
+  dueDate      DateTime   @map("due_date")
+  returnedAt   DateTime?  @map("returned_at")
+  status       LoanStatus @default(ACTIVE)
+  fine         Float      @default(0)          // Naira — computed on return
+  finePaid     Boolean    @default(false) @map("fine_paid")
+  issuedById   String     @map("issued_by_id")
+  returnedById String?    @map("returned_by_id")
+  notes        String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  school      School   @relation(fields: [schoolId], references: [id])
+  book        Book     @relation(fields: [bookId], references: [id])
+  student     Student? @relation(fields: [studentId], references: [id])
+  issuedBy    User     @relation("LoanIssuedBy", fields: [issuedById], references: [id])
+  returnedBy  User?    @relation("LoanReturnedBy", fields: [returnedById], references: [id])
+
+  @@index([schoolId])
+  @@index([bookId])
+  @@index([studentId])
+  @@index([status])
+  @@map("book_loans")
 }

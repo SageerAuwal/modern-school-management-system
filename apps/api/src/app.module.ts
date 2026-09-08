@@ -16,6 +16,7 @@ import { SubjectsModule } from './subjects/subjects.module';
 import { TermsModule } from './terms/terms.module';
 import { ScoresModule } from './scores/scores.module';
 import { FeesModule } from './fees/fees.module';
+import { LibraryModule } from './library/library.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -37,6 +38,7 @@ import { AppService } from './app.service';
     TermsModule,
     ScoresModule,
     FeesModule,
+    LibraryModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
