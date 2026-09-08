@@ -6,7 +6,8 @@ import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true — required for Paystack webhook HMAC-SHA512 signature verification
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   const configService = app.get(ConfigService);
   const port = configService.get<number>('API_PORT') ?? 3001;

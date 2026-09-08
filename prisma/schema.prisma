@@ -47,6 +47,9 @@ model School {
   subjects          Subject[]
   terms             Term[]
   scores            Score[]
+  feeStructures     FeeStructure[]
+  invoices          Invoice[]
+  payments          Payment[]
 
   @@map("schools")
 }
@@ -112,6 +115,8 @@ model User {
   subjectClasses   ClassSubject[] @relation("SubjectTeacher")
   enteredScores    Score[]        @relation("ScoreEnteredBy")
   editedScores     Score[]        @relation("ScoreEditedBy")
+  invoicesCreated  Invoice[]      @relation("InvoiceCreatedBy")
+  paymentsRecorded Payment[]      @relation("PaymentRecordedBy")
 
   @@index([schoolId])
   @@index([email])
@@ -177,6 +182,7 @@ model Student {
   enrollments       Enrollment[]
   attendanceRecords AttendanceRecord[]
   scores            Score[]
+  invoices          Invoice[]
 
   @@index([schoolId])
   @@index([enrollmentStatus])
@@ -352,6 +358,8 @@ model Term {
 
   school School  @relation(fields: [schoolId], references: [id])
   scores Score[]
+  feeStructures FeeStructure[]
+  invoices      Invoice[]
 
   @@unique([schoolId, name, academicYear])
   @@index([schoolId])
@@ -418,4 +426,124 @@ model Score {
   @@index([studentId, termId])
   @@index([classSectionId, subjectId, termId])
   @@map("scores")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 5 — Fee Management & Payments
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  WAIVED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  PAYSTACK     // Online via Paystack (card, bank transfer, USSD)
+  CASH         // Physical cash recorded by bursar
+  BANK_DEPOSIT // Manual bank deposit (teller receipt)
+}
+
+enum PaymentStatus {
+  PENDING   // Paystack checkout opened, not yet confirmed
+  SUCCESS   // Confirmed (webhook or manual)
+  FAILED    // Paystack failure or cancelled
+}
+
+/// A fee type and amount for a given level/term (e.g. "Tuition — JSS1 — ₦25,000").
+/// Admin defines these; they are referenced when generating invoices.
+model FeeStructure {
+  id           String   @id @default(uuid())
+  schoolId     String   @map("school_id")
+  name         String                          // "Tuition Fee", "PTA Levy", "Sports Fee"
+  level        String?                         // "JSS1", "SS2" — null = all levels
+  termId       String?  @map("term_id")        // null = one-time / annual fee
+  academicYear String   @map("academic_year")
+  amount       Float
+  description  String?
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  school       School        @relation(fields: [schoolId], references: [id])
+  term         Term?         @relation(fields: [termId], references: [id])
+  invoiceItems InvoiceItem[]
+
+  @@index([schoolId])
+  @@index([academicYear])
+  @@map("fee_structures")
+}
+
+/// An invoice issued to a student for a term (or part of a term).
+/// Total = sum of all InvoiceItems. paidAmount updated on each Payment.
+model Invoice {
+  id           String        @id @default(uuid())
+  schoolId     String        @map("school_id")
+  studentId    String        @map("student_id")
+  termId       String?       @map("term_id")
+  academicYear String        @map("academic_year")
+  totalAmount  Float         @map("total_amount")
+  paidAmount   Float         @default(0) @map("paid_amount")
+  status       InvoiceStatus @default(UNPAID)
+  dueDate      DateTime?     @map("due_date")
+  notes        String?
+  createdById  String        @map("created_by_id")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  school     School        @relation(fields: [schoolId], references: [id])
+  student    Student       @relation(fields: [studentId], references: [id])
+  term       Term?         @relation(fields: [termId], references: [id])
+  createdBy  User          @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
+  items      InvoiceItem[]
+  payments   Payment[]
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([status])
+  @@map("invoices")
+}
+
+/// One line item on an invoice (e.g. Tuition ₦25,000, PTA ₦2,000).
+model InvoiceItem {
+  id             String  @id @default(uuid())
+  invoiceId      String  @map("invoice_id")
+  feeStructureId String? @map("fee_structure_id")  // null if manually added
+  name           String                             // Copied at invoice time
+  amount         Float
+
+  invoice      Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  feeStructure FeeStructure? @relation(fields: [feeStructureId], references: [id])
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+/// A payment made against an invoice — cash or Paystack.
+model Payment {
+  id           String        @id @default(uuid())
+  schoolId     String        @map("school_id")
+  invoiceId    String        @map("invoice_id")
+  amount       Float
+  method       PaymentMethod
+  status       PaymentStatus @default(PENDING)
+  reference    String        @unique              // Paystack ref or bursar receipt no.
+  paystackRef  String?       @map("paystack_ref") // Paystack transaction reference
+  paidAt       DateTime?     @map("paid_at")
+  recordedById String        @map("recorded_by_id")
+  notes        String?
+  metadata     Json?                              // Raw Paystack webhook payload
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  school     School  @relation(fields: [schoolId], references: [id])
+  invoice    Invoice @relation(fields: [invoiceId], references: [id])
+  recordedBy User    @relation("PaymentRecordedBy", fields: [recordedById], references: [id])
+
+  @@index([invoiceId])
+  @@index([schoolId])
+  @@index([reference])
+  @@map("payments")
 }
