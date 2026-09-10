@@ -1,92 +1,186 @@
-# 🏫 Modern School Management System
+<div align="center">
 
-A comprehensive, production-grade school management system built for a single Nigerian school — covering student/staff management, academics, fees, attendance, behavior tracking, messaging, AI-assisted insights, and government compliance reporting.
+# Modern School Management System
+### Enterprise School Information & Administrative Platform
 
----
+*A modular, multi-tenant ready school management system designed for Nigerian primary and secondary institutions.*
 
-## 📋 Project Status
-
-| Phase | Status | Description |
-|-------|--------|-------------|
-| **Phase 1 — Core** | 🟡 In Progress | Authentication, Students/Staff, Attendance, Grading, Fees |
-| **Phase 2 — Gated** | 🔴 Not Started | Facial recognition attendance, GPS staff enforcement *(gated — requires documented evidence + legal review)* |
-
----
-
-## 🧱 Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14+ (App Router) + TypeScript + Tailwind CSS |
-| Backend | NestJS (Node.js + TypeScript) |
-| Database | PostgreSQL via Prisma ORM |
-| Auth | JWT (access + refresh tokens), httpOnly cookies |
-| Payments | Paystack (hosted checkout) |
-| Mobile | Native Android — Kotlin + Jetpack Compose *(Phase 1 later)* |
-| i18n | next-intl (English + Hausa) |
+[![Next.js](https://img.shields.io/badge/Next.js-14+-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![NestJS](https://img.shields.io/badge/NestJS-10+-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)](https://nestjs.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.x-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
+[![License](https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge)](LICENSE)
 
 ---
 
-## 📁 Project Structure
+A production-grade, full-stack school management system built specifically for the Nigerian educational ecosystem. Covers student and staff information, automated termly grading and broadsheet generation, fee payments with Paystack, attendance logging, behavior tracking, and administrative governance compliant with the **Nigeria Data Protection Act 2023 (NDPA)**.
+
+</div>
+
+---
+
+## Core Modules
+
+| Module | Description | Key Capabilities |
+|---|---|---|
+| **Auth & RBAC** | Role-Based Access Control | Granular access for Super Admin, Principal, Teachers, Accountants, Parents, and Students. |
+| **Student Information (SIMS)** | Student Lifecycle Records | Enrollment, biodata, classroom allocation, guardian records, and health information. |
+| **Staff & HR Management** | Educator & Employee Directory | Subject assignment, department structuring, payroll profiles, and activity tracking. |
+| **Academics & Grading** | Examination & Assessment Hub | Continuous Assessment (CA1, CA2), Exam scoring, automated broadsheets, and printable report cards. |
+| **Fee Collection & Billing** | Financial Accounting | Termly school fees, levies, Paystack hosted checkout integration, manual cash reconciliation, and receipt generation. |
+| **Attendance Tracking** | Daily Registry System | Morning and afternoon attendance marking, excused absence tracking, and automated parent SMS alerts. |
+| **Multilingual Support** | Localization Engine | Full interface and notification support in English and Hausa (`next-intl`). |
+
+---
+
+## System Architecture
+
+```mermaid
+graph TB
+    Client["Client Devices (Web & Mobile)"]
+
+    subgraph Presentation["Frontend Layer (Next.js 14 App Router)"]
+        AdminPortal["Admin & Principal Portal"]
+        TeacherPortal["Teacher Grading & Attendance Portal"]
+        ParentPortal["Parent & Student Dashboard"]
+    end
+
+    subgraph Gateway["Backend & API Gateway (NestJS)"]
+        AuthService["Auth Module (JWT & Cookie Guard)"]
+        AcademicService["Academic & Grading Engine"]
+        FinanceService["Finance & Paystack Webhook Handler"]
+        AttendanceService["Attendance & Notification Service"]
+        AuditService["NDPA Audit Logging Module"]
+    end
+
+    subgraph DataLayer["Database & Storage"]
+        Prisma["Prisma ORM"]
+        Postgres["PostgreSQL Database"]
+        FileStore["Secure Document / PDF Storage"]
+    end
+
+    Client --> Presentation
+    Presentation --> Gateway
+    Gateway --> Prisma
+    Prisma --> Postgres
+    Gateway --> FileStore
+```
+
+---
+
+## Role-Based Access Control (RBAC)
+
+| Role | Student Management | Attendance | Grading & Reports | Fee Billing | System Configuration |
+|---|---|---|---|---|---|
+| **Super Admin** | Full Access | Full Access | Full Access | Full Access | Full Access |
+| **Principal** | Full Access | View & Approve | Review & Sign | View Reports | Manage Academic Terms |
+| **Teacher** | View Assigned Class | Mark Daily | Enter CA & Exam Marks | No Access | No Access |
+| **Accountant** | View Basic Data | No Access | No Access | Full Billing & Receipts | No Access |
+| **Parent** | View Own Children | View Records | View Report Cards | Pay Online & View History | No Access |
+| **Student** | View Own Profile | View Records | View Term Results | View Invoices | No Access |
+
+---
+
+## Security & Regulatory Compliance
+
+- **Role-Based Enforcement:** Strictly validated at the NestJS API controller and service layer.
+- **Session Security:** Short-lived JWT access tokens with secure `httpOnly` and `SameSite` refresh cookies.
+- **Audit Logging:** Permanent, immutable audit trails on all grade modifications, financial entries, and attendance overrides.
+- **Payment Compliance:** Payment processing uses Paystack hosted checkout and cryptographic webhook verification; zero card details are stored locally.
+- **Data Protection:** Architectural compliance with the **Nigeria Data Protection Act 2023 (NDPA)** regarding student and minor data handling.
+
+---
+
+## Project Structure
 
 ```
-school-management-system/
+modern-school-management-system/
 ├── apps/
-│   ├── web/          ← Next.js frontend
-│   └── api/          ← NestJS backend
+│   ├── web/                     # Next.js 14 frontend application (React, Tailwind)
+│   │   ├── src/app/             # App router pages (admin, teacher, parent portals)
+│   │   ├── src/components/      # UI components, data tables, report card templates
+│   │   └── src/lib/             # API client, auth utilities, localization
+│   └── api/                     # NestJS backend API service
+│       ├── src/modules/auth/    # Authentication and RBAC guards
+│       ├── src/modules/students/# Student enrollment and profile services
+│       ├── src/modules/grades/  # Assessment, broadsheet, and report card generators
+│       └── src/modules/finance/ # Invoicing, receipts, and Paystack integration
 ├── prisma/
-│   └── schema.prisma ← Database schema
-├── S.A.D folder/     ← System Analysis & Design documents
-└── .env.example      ← Environment variable template
+│   ├── schema.prisma            # Relational PostgreSQL database schema
+│   └── seed.ts                  # Initial school setup and demo dataset seed script
+├── S.A.D folder/                # System Analysis & Design specifications
+│   ├── school-management-system-prd.md   # Product Requirements Document
+│   ├── school-system-build-spec.md       # Module build specifications
+│   └── school_prd_full_erd.html          # Entity Relationship Diagram (ERD)
+├── .env.example                 # Environment variables configuration template
+└── package.json                 # Monorepo workspaces and script definitions
 ```
 
 ---
 
-## 🚀 Phase 1 — Build Modules
+## Getting Started
 
-| Module | Description | Status |
-|--------|-------------|--------|
-| 0 | Project Foundation (monorepo, DB, CI, security baseline) | ⬜ |
-| 1 | Auth, Roles & School Setup | ⬜ |
-| 2 | Student & Staff Management | ⬜ |
-| 3 | Manual Attendance | ⬜ |
-| 4 | Grading & Report Cards | ⬜ |
-| 5 | Fees & Paystack Integration | ⬜ |
+### Prerequisites
+- [Node.js](https://nodejs.org) (v18 or higher)
+- [PostgreSQL](https://www.postgresql.org) (v14 or higher) or Docker
+- `npm` or `pnpm`
 
----
+### Installation & Local Setup
 
-## 🔒 Security
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/SageerAuwal/modern-school-management-system.git
+   cd modern-school-management-system
+   ```
 
-- Role-based access control enforced at the API layer (not just the UI)
-- JWT tokens in httpOnly cookies — never localStorage
-- Helmet, rate limiting, and input validation applied globally from Module 0
-- Audit log on all sensitive actions (grade edits, payment entries, attendance changes)
-- Raw card data never touches this server — Paystack hosted checkout only
-- Nigeria Data Protection Act 2023 (NDPA) compliant by design
+2. **Install monorepo dependencies:**
+   ```bash
+   npm install
+   ```
 
----
+3. **Configure environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
+   *Update database credentials, JWT secret keys, and Paystack API keys in `.env`.*
 
-## 📄 S.A.D Documentation
+4. **Run database migrations and seed:**
+   ```bash
+   npx prisma migrate dev --name init
+   npx prisma db seed
+   ```
 
-All system analysis and design documents are in the [`S.A.D folder/`](./S.A.D%20folder/):
-
-- [`school-management-system-prd.md`](./S.A.D%20folder/school-management-system-prd%20(2).md) — Full Product Requirements Document
-- [`school-system-build-spec.md`](./S.A.D%20folder/school-system-build-spec.md) — Module-by-module build specification
-- [`school-system-design-spec.md`](./S.A.D%20folder/school-system-design-spec.md) — UI design tokens & component patterns
-- [`school_prd_full_erd.html`](./S.A.D%20folder/school_prd_full_erd.html) — Full Entity Relationship Diagram
-- [`school_prd_architecture.svg`](./S.A.D%20folder/school_prd_architecture.svg) — System architecture diagram
-
----
-
-## ⚠️ Phase 2 Gate
-
-Phase 2 (facial recognition + GPS enforcement) is **explicitly blocked** until:
-1. A documented real incident exists justifying these features
-2. Legal review of NDPA 2023 (DPIA + biometric consent for minors) is complete
-3. Phase 1 manual attendance has run for at least one full term
-4. A pilot-first rollout plan is agreed
-5. Auto-suspend vs. flag-for-review policy is explicitly decided
+5. **Start development servers:**
+   ```bash
+   # Run all workspaces concurrently
+   npm run dev
+   ```
+   - **Frontend (Web):** `http://localhost:3000`
+   - **Backend API:** `http://localhost:4000/api`
 
 ---
 
-*Built with ❤️ — August 2026*
+## Author
+
+**Sageer Auwal**  
+Federal University of Kashef, Gombe State  
+Faculty of Science and Computer Science  
+
+---
+
+## License
+
+This project is **proprietary software**. All rights reserved.
+
+Copyright (c) 2026 Sageer Auwal. All rights reserved.
+
+---
+
+<div align="center">
+
+**Empowering educational administration through robust technology**  
+*Modern School Management System — Designed for Nigerian Educational Institutions*
+
+</div>
