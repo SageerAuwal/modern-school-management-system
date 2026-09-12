@@ -52,6 +52,9 @@ model School {
   payments          Payment[]
   books             Book[]
   bookLoans         BookLoan[]
+  buses             Bus[]
+  transportRoutes   TransportRoute[]
+  studentTransports StudentTransport[]
 
   @@map("schools")
 }
@@ -188,6 +191,7 @@ model Student {
   scores            Score[]
   invoices          Invoice[]
   bookLoans         BookLoan[]
+  transportAssignments StudentTransport[]
 
   @@index([schoolId])
   @@index([enrollmentStatus])
@@ -621,4 +625,94 @@ model BookLoan {
   @@index([studentId])
   @@index([status])
   @@map("book_loans")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 7 — Transport Management
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A school bus / vehicle.
+model Bus {
+  id           String   @id @default(uuid())
+  schoolId     String   @map("school_id")
+  name         String                       // e.g. "Bus A", "Yellow Bus 1"
+  plateNumber  String   @map("plate_number") // e.g. "ABC-123-KN"
+  capacity     Int                           // Max number of students
+  driverName   String   @map("driver_name")
+  driverPhone  String?  @map("driver_phone")
+  assistantName String? @map("assistant_name")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  school              School               @relation(fields: [schoolId], references: [id])
+  routes              TransportRoute[]
+  studentAssignments  StudentTransport[]
+
+  @@unique([schoolId, plateNumber])
+  @@index([schoolId])
+  @@map("buses")
+}
+
+/// A named pickup/dropoff route served by one bus.
+model TransportRoute {
+  id          String   @id @default(uuid())
+  schoolId    String   @map("school_id")
+  busId       String   @map("bus_id")
+  name        String                       // e.g. "Tudun Wada Route", "GRA Morning"
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  school             School             @relation(fields: [schoolId], references: [id])
+  bus                Bus                @relation(fields: [busId], references: [id])
+  stops              RouteStop[]
+  studentAssignments StudentTransport[]
+
+  @@index([schoolId])
+  @@index([busId])
+  @@map("transport_routes")
+}
+
+/// An ordered stop on a route (e.g. stop 1 = "Market Junction").
+model RouteStop {
+  id          String @id @default(uuid())
+  routeId     String @map("route_id")
+  stopName    String @map("stop_name")
+  stopOrder   Int    @map("stop_order") // 1, 2, 3…
+  landmark    String?                   // Optional nearby landmark
+  pickupTime  String? @map("pickup_time") // "06:45" — morning pickup time
+
+  route TransportRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@unique([routeId, stopOrder])
+  @@index([routeId])
+  @@map("route_stops")
+}
+
+/// Assignment of a student to a bus route (pickup and dropoff stop).
+model StudentTransport {
+  id           String   @id @default(uuid())
+  schoolId     String   @map("school_id")
+  studentId    String   @map("student_id")
+  busId        String   @map("bus_id")
+  routeId      String   @map("route_id")
+  pickupStop   String   @map("pickup_stop")   // Stop name for morning pickup
+  dropoffStop  String   @map("dropoff_stop")  // Stop name for afternoon drop
+  academicYear String   @map("academic_year")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  school  School         @relation(fields: [schoolId], references: [id])
+  student Student        @relation(fields: [studentId], references: [id])
+  bus     Bus            @relation(fields: [busId], references: [id])
+  route   TransportRoute @relation(fields: [routeId], references: [id])
+
+  @@unique([studentId, academicYear])   // one assignment per student per year
+  @@index([schoolId])
+  @@index([busId])
+  @@index([routeId])
+  @@map("student_transport")
 }
