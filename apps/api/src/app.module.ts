@@ -18,6 +18,7 @@ import { ScoresModule } from './scores/scores.module';
 import { FeesModule } from './fees/fees.module';
 import { LibraryModule } from './library/library.module';
 import { TransportModule } from './transport/transport.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -41,6 +42,7 @@ import { AppService } from './app.service';
     FeesModule,
     LibraryModule,
     TransportModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
