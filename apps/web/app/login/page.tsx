@@ -38,12 +38,8 @@ export default function LoginPage() {
         return;
       }
 
-      // Redirect based on role
-      const role: string = data.user?.role ?? "";
-      if (role === "ADMIN") router.push("/dashboard/admin");
-      else if (role === "TEACHER") router.push("/dashboard/teacher");
-      else if (role === "PARENT") router.push("/dashboard/parent");
-      else router.push("/dashboard");
+      // Redirect all roles to the main dashboard
+      router.push("/dashboard");
     } catch {
       setError("Network error. Please check your connection.");
     } finally {

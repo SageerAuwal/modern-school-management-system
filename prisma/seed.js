@@ -27,7 +27,8 @@ async function main() {
         address: '1 School Road, Kano',
         phone: '08000000000',
         email: 'info@school.local',
-        currentAcademicYear: '2025/2026',
+        state: 'Kano',
+        lga: 'Kano Municipal',
       },
     });
     console.log(`✅  School created: ${school.name} (${school.id})`);
@@ -50,7 +51,6 @@ async function main() {
         lastName: 'Admin',
         role: 'ADMIN',
         isActive: true,
-        mustChangePassword: true,   // Forces password change on first login
       },
     });
     console.log(`✅  Admin user created: ${admin.email}`);
