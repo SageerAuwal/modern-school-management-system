@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import PosReceiptSlip from "../../components/PosReceiptSlip";
 
 interface Payment {
   id: string;
@@ -170,6 +171,7 @@ function InvoiceDetailContent() {
   const [error, setError] = useState("");
 
   // Payment actions state
+  const [showPosReceipt, setShowPosReceipt] = useState(false);
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
   const [cashAmount, setCashAmount] = useState("");
   const [cashMethod, setCashMethod] = useState<"CASH" | "BANK_DEPOSIT">("CASH");
@@ -263,6 +265,7 @@ function InvoiceDetailContent() {
       setCashAmount("");
       setCashNotes("");
       await loadInvoice();
+      setShowPosReceipt(true);
     } catch {
       setPayError("Network error. Please try again.");
     } finally {
@@ -419,25 +422,51 @@ function InvoiceDetailContent() {
           <p className="page-subtitle">Issued on {formatDate(invoice.createdAt)}</p>
         </div>
 
-        {isNotPaid && (
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={openCashModal}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowPosReceipt(true)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
             >
-              Record cash payment
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handlePaystack}
-              disabled={submittingPaystack}
-            >
-              {submittingPaystack ? "Connecting..." : "Pay via Paystack"}
-            </button>
-          </div>
-        )}
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+            Print POS Slip
+          </button>
+
+          {isNotPaid && (
+            <>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={openCashModal}
+              >
+                Record cash payment
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handlePaystack}
+                disabled={submittingPaystack}
+              >
+                {submittingPaystack ? "Connecting..." : "Pay via Paystack"}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {searchParams.get("paid") === "1" && (
@@ -876,6 +905,14 @@ function InvoiceDetailContent() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Thermal POS / ATM Receipt Slip Modal */}
+      {showPosReceipt && invoice && (
+        <PosReceiptSlip
+          invoice={invoice}
+          onClose={() => setShowPosReceipt(false)}
+        />
       )}
     </div>
   );

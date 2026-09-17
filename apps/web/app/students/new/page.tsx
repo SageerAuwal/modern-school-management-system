@@ -13,12 +13,32 @@ interface ClassOption {
   level: string;
 }
 
+interface TermOption {
+  id: string;
+  name: string;
+  isCurrent?: boolean;
+}
+
+interface FeeStructureItem {
+  id: string;
+  name: string;
+  amount: number;
+  level?: string | null;
+}
+
 export default function NewStudentPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
+
+  // Auto-invoice states
+  const [autoGenerateInvoice, setAutoGenerateInvoice] = useState(true);
+  const [terms, setTerms] = useState<TermOption[]>([]);
+  const [selectedTermId, setSelectedTermId] = useState("");
+  const [feeStructures, setFeeStructures] = useState<FeeStructureItem[]>([]);
+  const [selectedStructureIds, setSelectedStructureIds] = useState<string[]>([]);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -42,13 +62,18 @@ export default function NewStudentPage() {
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
-  // Load available classes for immediate assignment
+  // Load available classes, terms, and fee structures
   useEffect(() => {
-    async function loadClasses() {
+    async function loadData() {
       try {
-        const res = await fetch(`${API}/api/v1/classes`, { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
+        const [resClasses, resTerms, resFees] = await Promise.all([
+          fetch(`${API}/api/v1/classes`, { credentials: "include" }),
+          fetch(`${API}/api/v1/terms`, { credentials: "include" }),
+          fetch(`${API}/api/v1/fees/structures`, { credentials: "include" }),
+        ]);
+
+        if (resClasses.ok) {
+          const data = await resClasses.json();
           if (Array.isArray(data)) {
             setClasses(data);
             if (data.length > 0) {
@@ -56,13 +81,32 @@ export default function NewStudentPage() {
             }
           }
         }
+
+        if (resTerms.ok) {
+          const tData = await resTerms.json();
+          if (Array.isArray(tData)) {
+            setTerms(tData);
+            const cur = tData.find((t: TermOption) => t.isCurrent);
+            if (cur) setSelectedTermId(cur.id);
+            else if (tData.length > 0) setSelectedTermId(tData[0].id);
+          }
+        }
+
+        if (resFees.ok) {
+          const fData = await resFees.json();
+          if (Array.isArray(fData)) {
+            setFeeStructures(fData);
+            // Pre-select all active fee structures by default
+            setSelectedStructureIds(fData.map((f: FeeStructureItem) => f.id));
+          }
+        }
       } catch (err) {
-        console.error("Failed to load classes", err);
+        console.error("Failed to load classes or fee structures", err);
       } finally {
         setLoadingClasses(false);
       }
     }
-    loadClasses();
+    loadData();
   }, []);
 
   async function handleSubmit(e: FormEvent) {
@@ -97,6 +141,37 @@ export default function NewStudentPage() {
         setError(data.message ?? "Could not add student. Check required fields.");
         return;
       }
+
+      // If auto-generate invoice is enabled, create invoice and redirect to its POS receipt
+      if (autoGenerateInvoice && selectedStructureIds.length > 0) {
+        try {
+          const selectedItems = feeStructures
+            .filter((f) => selectedStructureIds.includes(f.id))
+            .map((f) => ({ feeStructureId: f.id, name: f.name, amount: f.amount }));
+
+          if (selectedItems.length > 0) {
+            const invRes = await fetch(`${API}/api/v1/fees/invoices`, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                studentId: data.id,
+                termId: selectedTermId || undefined,
+                academicYear: "2025/2026",
+                items: selectedItems,
+              }),
+            });
+            if (invRes.ok) {
+              const invData = await invRes.json();
+              router.push(`/fees/${invData.id}`);
+              return;
+            }
+          }
+        } catch (err) {
+          console.error("Auto-generate invoice error", err);
+        }
+      }
+
       router.push("/students");
     } catch {
       setError("Cannot reach the server.");
@@ -375,6 +450,121 @@ export default function NewStudentPage() {
           </div>
 
           <Field label="Parent Phone Number" k="guardianPhone" placeholder="e.g. 08012345678" />
+        </div>
+
+        {/* Tuition & Fee Billing Card */}
+        <div
+          className="card"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+            marginBottom: 24,
+            border: autoGenerateInvoice ? "1.5px solid var(--color-brand)" : undefined,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+            <div>
+              <p className="stat-label" style={{ marginBottom: 4, color: "var(--color-ink)", fontWeight: 700 }}>
+                School Fee Billing &amp; Invoice
+              </p>
+              <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
+                Automatically generate official school fee invoice upon admission and print the ATM/POS receipt slip immediately.
+              </p>
+            </div>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", fontWeight: 600, fontSize: 13, color: "var(--color-ink)", whiteSpace: "nowrap" }}>
+              <input
+                type="checkbox"
+                checked={autoGenerateInvoice}
+                onChange={(e) => setAutoGenerateInvoice(e.target.checked)}
+                style={{ width: 16, height: 16 }}
+              />
+              <span>Generate invoice</span>
+            </label>
+          </div>
+
+          {autoGenerateInvoice && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 10, borderTop: "1px solid var(--color-border)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div>
+                  <label className="label" style={{ fontSize: 12 }}>Academic Term</label>
+                  <select
+                    className="input"
+                    value={selectedTermId}
+                    onChange={(e) => setSelectedTermId(e.target.value)}
+                  >
+                    {terms.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} {t.isCurrent ? "(Current)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label" style={{ fontSize: 12 }}>Academic Session</label>
+                  <input className="input" value="2025/2026" readOnly />
+                </div>
+              </div>
+
+              <div>
+                <label className="label" style={{ fontSize: 12, marginBottom: 8 }}>Select Fee Structures to Apply</label>
+                {feeStructures.length === 0 ? (
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                    No fee structures defined yet. You can create them in <Link href="/fees/structures" style={{ textDecoration: "underline" }}>Fee Structures</Link>.
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {feeStructures.map((f) => {
+                      const isChecked = selectedStructureIds.includes(f.id);
+                      return (
+                        <label
+                          key={f.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "8px 12px",
+                            borderRadius: "var(--radius-control)",
+                            backgroundColor: isChecked ? "var(--color-brand-subtle, #f0f7ff)" : "var(--color-surface, #fff)",
+                            border: `1px solid ${isChecked ? "var(--color-brand)" : "var(--color-border)"}`,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                if (isChecked) {
+                                  setSelectedStructureIds((prev) => prev.filter((id) => id !== f.id));
+                                } else {
+                                  setSelectedStructureIds((prev) => [...prev, f.id]);
+                                }
+                              }}
+                            />
+                            <span style={{ fontSize: 13, fontWeight: 600 }}>{f.name}</span>
+                          </div>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)" }}>
+                            ₦{Number(f.amount).toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", backgroundColor: "var(--color-surface-subtle, #f9fafb)", borderRadius: "var(--radius-control)" }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>Total Initial Bill:</span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: "var(--color-brand)" }}>
+                  ₦{feeStructures
+                    .filter((f) => selectedStructureIds.includes(f.id))
+                    .reduce((sum, f) => sum + Number(f.amount), 0)
+                    .toLocaleString("en-NG", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 12 }}>

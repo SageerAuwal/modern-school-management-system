@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import PosReceiptSlip from "../components/PosReceiptSlip";
 
 interface Student {
   firstName: string;
@@ -83,6 +84,7 @@ export default function FeesPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedReceiptInvoice, setSelectedReceiptInvoice] = useState<Invoice | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -232,6 +234,7 @@ export default function FeesPage() {
                   <th>Paid</th>
                   <th>Balance</th>
                   <th>Status</th>
+                  <th style={{ textAlign: "center" }}>Slip</th>
                 </tr>
               </thead>
               <tbody>
@@ -280,6 +283,17 @@ export default function FeesPage() {
                           height: 20,
                           width: 64,
                           borderRadius: "var(--radius-pill-badge)",
+                        }}
+                      />
+                    </td>
+                    <td style={{ textAlign: "center" }}>
+                      <div
+                        className="skeleton"
+                        style={{
+                          height: 24,
+                          width: 60,
+                          borderRadius: "var(--radius-control)",
+                          margin: "0 auto",
                         }}
                       />
                     </td>
@@ -342,6 +356,7 @@ export default function FeesPage() {
                   <th>Paid</th>
                   <th>Balance</th>
                   <th>Status</th>
+                  <th style={{ textAlign: "center" }}>Slip</th>
                 </tr>
               </thead>
               <tbody>
@@ -402,6 +417,28 @@ export default function FeesPage() {
                         {formatNaira(Math.max(0, balance))}
                       </td>
                       <td>{renderStatusPill(invoice.status)}</td>
+                      <td onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedReceiptInvoice(invoice)}
+                          className="btn btn-secondary"
+                          style={{
+                            padding: "4px 10px",
+                            fontSize: 12,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 5,
+                          }}
+                          title="Print POS Thermal Receipt"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="6 9 6 2 18 2 18 9" />
+                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                            <rect x="6" y="14" width="12" height="8" />
+                          </svg>
+                          POS Slip
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -409,6 +446,14 @@ export default function FeesPage() {
             </table>
           </div>
         </div>
+      )}
+
+      {/* POS / ATM Thermal Receipt Modal */}
+      {selectedReceiptInvoice && (
+        <PosReceiptSlip
+          invoice={selectedReceiptInvoice}
+          onClose={() => setSelectedReceiptInvoice(null)}
+        />
       )}
     </div>
   );
