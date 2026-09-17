@@ -50,7 +50,7 @@ export class StaffService {
       data: {
         ...dto,
         startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+        endDate: dto.isActive === true ? null : (dto.endDate ? new Date(dto.endDate) : undefined),
       },
     });
     await this.auditService.log({
@@ -79,5 +79,37 @@ export class StaffService {
       targetId: id,
     });
     return updated;
+  }
+
+  async reactivate(id: string, schoolId: string, actorId: string, actorEmail: string) {
+    await this.findOne(id, schoolId);
+    const updated = await this.prisma.staffRecord.update({
+      where: { id },
+      data: { isActive: true, endDate: null },
+    });
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'STAFF_RECORD_REACTIVATED',
+      targetType: 'STAFF_RECORD',
+      targetId: id,
+    });
+    return updated;
+  }
+
+  async delete(id: string, schoolId: string, actorId: string, actorEmail: string) {
+    const existing = await this.findOne(id, schoolId);
+    const deleted = await this.prisma.staffRecord.delete({
+      where: { id },
+    });
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'STAFF_RECORD_DELETED',
+      targetType: 'STAFF_RECORD',
+      targetId: id,
+      beforeValue: { firstName: existing.firstName, lastName: existing.lastName, role: existing.role } as Record<string, unknown>,
+    });
+    return deleted;
   }
 }

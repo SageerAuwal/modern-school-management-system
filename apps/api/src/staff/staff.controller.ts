@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { StaffService } from './staff.service';
 import { CreateStaffRecordDto } from './dto/create-staff.dto';
@@ -40,5 +40,17 @@ export class StaffController {
   @Roles(UserRole.ADMIN)
   deactivate(@Param('id') id: string, @CurrentUser() actor: { id: string; email: string; schoolId: string }) {
     return this.staffService.deactivate(id, actor.schoolId, actor.id, actor.email);
+  }
+
+  @Patch(':id/reactivate')
+  @Roles(UserRole.ADMIN)
+  reactivate(@Param('id') id: string, @CurrentUser() actor: { id: string; email: string; schoolId: string }) {
+    return this.staffService.reactivate(id, actor.schoolId, actor.id, actor.email);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  remove(@Param('id') id: string, @CurrentUser() actor: { id: string; email: string; schoolId: string }) {
+    return this.staffService.delete(id, actor.schoolId, actor.id, actor.email);
   }
 }

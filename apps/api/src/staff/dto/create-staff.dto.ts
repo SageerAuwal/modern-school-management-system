@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEnum, IsDateString, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsDateString, MinLength, IsBoolean } from 'class-validator';
 import { Gender } from '@prisma/client';
 
 export class CreateStaffRecordDto {
@@ -34,7 +34,12 @@ export class CreateStaffRecordDto {
   @IsOptional()
   endDate?: string;
 
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+
   @IsString()
   @IsOptional()
   notes?: string;
 }
+
