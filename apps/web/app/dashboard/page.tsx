@@ -22,7 +22,7 @@ type Alerts = {
   unpaidFees: { count: number; items: any[] };
   busesNearFull: { count: number; items: any[] };
 };
-type Activity = { id: string; action: string; actorEmail: string; targetType: string; createdAt: string }[];
+type Activity = { id: string; action: string; actorEmail: string | null; targetType: string; createdAt: string }[];
 
 export default function DashboardPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -36,11 +36,11 @@ export default function DashboardPage() {
     async function fetchData() {
       try {
         const [overviewRes, enrollmentRes, feesRes, alertsRes, activityRes] = await Promise.all([
-          fetch(`${API}/api/v1/dashboard/overview`, { credentials: "include" }).then(res => res.json()),
-          fetch(`${API}/api/v1/dashboard/enrollment`, { credentials: "include" }).then(res => res.json()),
-          fetch(`${API}/api/v1/dashboard/fees`, { credentials: "include" }).then(res => res.json()),
-          fetch(`${API}/api/v1/dashboard/alerts`, { credentials: "include" }).then(res => res.json()),
-          fetch(`${API}/api/v1/dashboard/activity`, { credentials: "include" }).then(res => res.json()),
+          fetch(`${API}/api/v1/dashboard/overview`, { credentials: "include" }).then(res => res.json()).catch(() => null),
+          fetch(`${API}/api/v1/dashboard/enrollment`, { credentials: "include" }).then(res => res.json()).catch(() => null),
+          fetch(`${API}/api/v1/dashboard/fees`, { credentials: "include" }).then(res => res.json()).catch(() => null),
+          fetch(`${API}/api/v1/dashboard/alerts`, { credentials: "include" }).then(res => res.json()).catch(() => null),
+          fetch(`${API}/api/v1/dashboard/activity`, { credentials: "include" }).then(res => res.json()).catch(() => null),
         ]);
 
         setOverview(overviewRes);
@@ -58,16 +58,16 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  const formatNaira = (amount: number) => `₦${amount.toLocaleString()}`;
+  const formatNaira = (amount: number) => `₦${Number(amount || 0).toLocaleString()}`;
 
   const formatAction = (action: string) => {
     const actions: Record<string, string> = {
-      ATTENDANCE_MARKED: "Marked attendance",
-      SCORES_ENTERED: "Entered scores",
-      PAYMENT_RECEIVED: "Recorded payment",
-      STUDENT_ENROLLED: "Enrolled student",
-      BOOK_LOANED: "Loaned book",
-      BOOK_RETURNED: "Returned book",
+      ATTENDANCE_MARKED: "marked attendance",
+      SCORES_ENTERED: "entered scores",
+      PAYMENT_RECEIVED: "recorded payment",
+      STUDENT_ENROLLED: "enrolled student",
+      BOOK_LOANED: "loaned book",
+      BOOK_RETURNED: "returned book",
     };
     return actions[action] || action;
   };
@@ -95,8 +95,10 @@ export default function DashboardPage() {
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Your school at a glance</h1>
-        <p className="page-subtitle">{today}</p>
+        <div>
+          <h1 className="page-title">Your school at a glance</h1>
+          <p className="page-subtitle">{today}</p>
+        </div>
       </div>
 
       <div className="stats-grid" style={{ marginBottom: '2rem' }}>
@@ -130,16 +132,16 @@ export default function DashboardPage() {
           <div className="stat-value">{overview?.library?.onLoan || 0}</div>
           <div className="stat-sub">{overview?.library?.overdue || 0} overdue</div>
         </Link>
-        <Link href="/buses" className="card" style={{ textDecoration: 'none' }}>
+        <Link href="/transport" className="card" style={{ textDecoration: 'none' }}>
           <div className="stat-label">Buses</div>
           <div className="stat-value">{overview?.buses || 0}</div>
           <div className="stat-sub">Active fleet</div>
         </Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
         <div className="card">
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', fontWeight: 600 }}>Enrollment by Class</h2>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 600 }}>Enrollment by Class</h2>
           {enrollment && enrollment.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {enrollment.map(item => (
@@ -148,14 +150,14 @@ export default function DashboardPage() {
                     <span style={{ fontSize: '0.875rem' }}>{item.name}</span>
                     <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{item.count}</span>
                   </div>
-                  <div style={{ width: '100%', backgroundColor: 'var(--color-surface)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', backgroundColor: 'var(--color-page)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
                     <div style={{ width: `${(item.count / maxEnrollment) * 100}%`, backgroundColor: 'var(--color-ink)', height: '100%' }} />
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-             <div className="empty-state">
+            <div className="empty-state" style={{ padding: '32px 16px' }}>
               <div className="empty-state-title">No enrollment data</div>
               <div className="empty-state-text">Add your first student to start tracking enrollment.</div>
             </div>
@@ -163,7 +165,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="card">
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', fontWeight: 600 }}>Fee Collection</h2>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 600 }}>Fee Collection</h2>
           {fees && fees.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {fees.map((fee, i) => {
@@ -174,8 +176,8 @@ export default function DashboardPage() {
                       <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{fee.term} {fee.academicYear}</span>
                       <span style={{ fontSize: '0.875rem' }}>{percent}% Collected</span>
                     </div>
-                    <div style={{ width: '100%', backgroundColor: 'var(--color-surface)', height: '8px', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.25rem' }}>
-                      <div style={{ width: `${percent}%`, backgroundColor: 'var(--color-success-bg, #10b981)', height: '100%' }} />
+                    <div style={{ width: '100%', backgroundColor: 'var(--color-page)', height: '8px', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.25rem' }}>
+                      <div style={{ width: `${percent}%`, backgroundColor: 'var(--color-success-text)', height: '100%' }} />
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
                       <span>Collected: {formatNaira(fee.collected)}</span>
@@ -186,7 +188,7 @@ export default function DashboardPage() {
               })}
             </div>
           ) : (
-            <div className="empty-state">
+            <div className="empty-state" style={{ padding: '32px 16px' }}>
               <div className="empty-state-title">No fee data</div>
               <div className="empty-state-text">Issue invoices to start tracking fee collection.</div>
             </div>
@@ -194,12 +196,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Action Needed</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Action Needed</h2>
           
-          <Link href="/library" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-            <div style={{ padding: '1rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
+          <Link href="/library/loans" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+            <div style={{ padding: '0.875rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 500 }}>Overdue Books</span>
                 <span className="pill-danger">{alerts?.overdueBooks?.count || 0}</span>
@@ -208,7 +210,7 @@ export default function DashboardPage() {
           </Link>
           
           <Link href="/fees" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-            <div style={{ padding: '1rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
+            <div style={{ padding: '0.875rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 500 }}>Unpaid Fees</span>
                 <span className="pill-warning">{alerts?.unpaidFees?.count || 0}</span>
@@ -216,8 +218,8 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          <Link href="/buses" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-            <div style={{ padding: '1rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
+          <Link href="/transport" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+            <div style={{ padding: '0.875rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 500 }}>Buses Near Capacity</span>
                 <span className="pill-info">{alerts?.busesNearFull?.count || 0}</span>
@@ -227,29 +229,33 @@ export default function DashboardPage() {
         </div>
 
         <div className="card">
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', fontWeight: 600 }}>Recent Activity</h2>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 600 }}>Recent Activity</h2>
           {activity && activity.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {activity.slice(0, 10).map((act) => (
-                <div key={act.id} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)' }}>
-                  <div className="avatar" style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--color-surface)', borderRadius: '50%', fontWeight: 600 }}>
-                    {act.actorEmail.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.875rem' }}>
-                      <span style={{ fontWeight: 600 }}>{act.actorEmail}</span> {formatAction(act.action)}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {activity.slice(0, 8).map((act) => {
+                const email = act.actorEmail || "System";
+                const initial = email.charAt(0).toUpperCase();
+                return (
+                  <div key={act.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', paddingBottom: '0.75rem', borderBottom: '1px solid var(--color-border)' }}>
+                    <div className="avatar" style={{ width: 28, height: 28, fontSize: '0.75rem', flexShrink: 0 }}>
+                      {initial}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                      {new Date(act.createdAt).toLocaleString()}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: '0.85rem', lineHeight: 1.3 }}>
+                        <span style={{ fontWeight: 600 }}>{email}</span> {formatAction(act.action)}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                        {new Date(act.createdAt).toLocaleString()}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            <div className="empty-state">
+            <div className="empty-state" style={{ padding: '32px 16px' }}>
               <div className="empty-state-title">No recent activity</div>
-              <div className="empty-state-text">Check back later for updates.</div>
+              <div className="empty-state-text">System events will appear here as actions occur.</div>
             </div>
           )}
         </div>
