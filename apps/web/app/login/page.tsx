@@ -25,8 +25,11 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.message ?? "Incorrect email or password."); return; }
-      if (data.mfaRequired) { router.push(`/mfa?token=${data.preAuthToken}`); return; }
-      router.push("/dashboard");
+      const role: string = data.user?.role ?? "";
+      if (role === "TEACHER") router.push("/portal/teacher");
+      else if (role === "STUDENT") router.push("/portal/student");
+      else if (role === "PARENT") router.push("/portal/parent");
+      else router.push("/dashboard");
     } catch {
       setError("Cannot reach the server. Is the API running?");
     } finally {

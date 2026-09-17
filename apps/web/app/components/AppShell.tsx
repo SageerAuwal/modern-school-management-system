@@ -19,6 +19,11 @@ const ROUTE_LABELS: Record<string, string> = {
   "/library/loans": "Library / Loans",
   "/transport": "Transport",
   "/transport/routes": "Transport / Routes",
+  "/results": "Online Results & Report Cards",
+  "/exams": "Exam & Term Management",
+  "/portal/teacher": "Teacher Portal",
+  "/portal/student": "Student Portal",
+  "/portal/parent": "Parent & Guardian Portal",
 };
 
 export default function AppShell({ children }: { children: React.ReactNode }) {

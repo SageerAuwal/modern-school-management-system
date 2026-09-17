@@ -334,3 +334,24 @@ a { color: inherit; text-decoration: none; }
   .page { padding: 20px 16px; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ─── Print Styles (for Official Report Cards & Receipts) ─────────────────── */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+  }
+  nav, header, .no-print, button {
+    display: none !important;
+  }
+  .page {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .card {
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    padding: 12px !important;
+  }
+}
+
