@@ -103,6 +103,30 @@ function getSubjectTheme(name: string = ""): { bg: string; border: string; text:
   return { bg: "#EAE6FD", border: "#DDD6FA", text: "#4338CA", badgeBg: "#D1C8FA" };
 }
 
+/* ── Compact Subject Name for Master Single-A4 Grid ──────────────────────── */
+function getSubjectShortName(name: string = ""): string {
+  const n = name.trim();
+  if (n.length <= 11) return n;
+  const lower = n.toLowerCase();
+  if (lower.includes("math")) return "Math";
+  if (lower.includes("english")) return "English";
+  if (lower.includes("biology")) return "Biology";
+  if (lower.includes("chemistry")) return "Chemistry";
+  if (lower.includes("physics")) return "Physics";
+  if (lower.includes("geography")) return "Geography";
+  if (lower.includes("economics")) return "Economics";
+  if (lower.includes("commerce")) return "Commerce";
+  if (lower.includes("account")) return "Accounts";
+  if (lower.includes("government")) return "Govt";
+  if (lower.includes("literature")) return "Literature";
+  if (lower.includes("basic sci")) return "Basic Sci";
+  if (lower.includes("civic")) return "Civic Edu";
+  if (lower.includes("computer") || lower.includes("ict")) return "ICT/Comp";
+  if (lower.includes("agric")) return "Agric Sci";
+  if (lower.includes("phe") || lower.includes("physical")) return "PHE";
+  return n.slice(0, 10) + ".";
+}
+
 export default function TimetablePage() {
   const [timetable, setTimetable] = useState<TimetableData | null>(null);
   const [classes, setClasses] = useState<ClassSection[]>([]);
@@ -114,6 +138,7 @@ export default function TimetablePage() {
   // Views: 'class' (Weekly Routine) | 'teacher' (Teacher Roster) | 'master' (Master Day Matrix)
   const [activeView, setActiveView] = useState<"class" | "teacher" | "master">("class");
   const [selectedClassId, setSelectedClassId] = useState<string>("all"); // Default to "all" so generated timetable shows weekly for all classes
+  const [printMode, setPrintMode] = useState<"single-master" | "booklet">("single-master"); // "single-master": fits all classes on 1 A4 page; "booklet": 1 page per class
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
   const [selectedMasterDay, setSelectedMasterDay] = useState<string>("WEDNESDAY");
 
@@ -924,6 +949,57 @@ export default function TimetablePage() {
                 </select>
               )}
 
+              {/* Mode Switcher for All Classes */}
+              {activeView === "class" && selectedClassId === "all" && (
+                <div
+                  className="no-print"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                    border: "1px solid var(--color-border, #E8ECE9)",
+                    borderRadius: 9999,
+                    padding: 3,
+                    gap: 3,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setPrintMode("single-master")}
+                    style={{
+                      border: "none",
+                      backgroundColor: printMode === "single-master" ? "var(--color-brand-teal, #0E7D75)" : "transparent",
+                      color: printMode === "single-master" ? "#FFFFFF" : "var(--color-text-secondary, #70817B)",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      padding: "5px 12px",
+                      borderRadius: 9999,
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    Single A4 Master
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPrintMode("booklet")}
+                    style={{
+                      border: "none",
+                      backgroundColor: printMode === "booklet" ? "var(--color-brand-teal, #0E7D75)" : "transparent",
+                      color: printMode === "booklet" ? "#FFFFFF" : "var(--color-text-secondary, #70817B)",
+                      fontWeight: 700,
+                      fontSize: 12,
+                      padding: "5px 12px",
+                      borderRadius: 9999,
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    Class Booklet
+                  </button>
+                </div>
+              )}
+
               {/* Auto-Generate Button */}
               <button
                 type="button"
@@ -952,7 +1028,11 @@ export default function TimetablePage() {
                 onClick={() => window.print()}
                 title="Print clean official A4 timetable"
               >
-                {selectedClassId === "all" ? "Print All Classes (A4)" : "Print Timetable (A4)"}
+                {selectedClassId === "all"
+                  ? printMode === "single-master"
+                    ? "Print Master Sheet (1 A4 Page)"
+                    : `Print All Classes Booklet (${classes.length} Pages)`
+                  : `Print ${classes.find((c) => c.id === selectedClassId)?.name || "Class"} (1 Page)`}
               </button>
             </div>
           </div>
@@ -978,240 +1058,549 @@ export default function TimetablePage() {
               WEEKLY ROUTINE FOR ALL CLASSES (SCREEN & A4 PRINT READY)
           ══════════════════════════════════════════════════════════════════════ */}
           {timetable && activeView === "class" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-              {/* If "all" is selected on screen, show a quick index navigation */}
-              {selectedClassId === "all" && classes.length > 1 && (
-                <div
-                  className="no-print"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    flexWrap: "wrap",
-                    padding: "12px 16px",
-                    backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
-                    borderRadius: 16,
-                    border: "1px solid var(--color-border, #E8ECE9)",
-                  }}
-                >
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    Quick Jump:
-                  </span>
-                  {classes.map((c) => (
-                    <a
-                      key={c.id}
-                      href={`#class-section-${c.id}`}
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: 9999,
-                        backgroundColor: "#FFFFFF",
-                        border: "1px solid var(--color-border, #E8ECE9)",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "var(--color-brand-teal, #0E7D75)",
-                        textDecoration: "none",
-                      }}
-                    >
-                      {c.name}
-                    </a>
-                  ))}
-                </div>
-              )}
-
-              {/* Loop through classesToDisplay: If "all", renders ALL classes! */}
-              {classesToDisplay.map((cls, clsIndex) => {
-                const classLessonsMap = getLessonsMapForClass(cls.id);
-
-                return (
+            <>
+              {/* ── OPTION A: SINGLE A4 MASTER SHEET (ALL CLASSES ON 1 A4 PAGE) ── */}
+              {selectedClassId === "all" && printMode === "single-master" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {/* Screen Info Banner */}
                   <div
-                    key={cls.id}
-                    id={`class-section-${cls.id}`}
-                    className="print-a4-sheet"
+                    className="no-print"
                     style={{
                       display: "flex",
-                      flexDirection: "column",
-                      gap: 12,
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "14px 20px",
+                      backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                      borderRadius: 16,
+                      border: "1px solid var(--color-border, #E8ECE9)",
                     }}
                   >
-                    {/* ── Official School Letterhead (Appears on every A4 Print Sheet) ── */}
-                    <div
-                      className="print-header"
-                      style={{
-                        paddingBottom: 8,
-                        borderBottom: "2px solid #182220",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                        Single A4 Master Routine View
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
+                        All {classes.length} classes and assigned subjects across Monday–Friday are formatted to fit standard A4 landscape paper on a single page.
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => setPrintMode("booklet")}
+                        style={{ fontSize: 12, padding: "6px 14px", fontWeight: 700, backgroundColor: "#FFFFFF" }}
+                      >
+                        Switch to Full Class Booklet View
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => window.print()}
+                        style={{ fontSize: 12, padding: "6px 16px", fontWeight: 700, backgroundColor: "var(--color-brand-teal, #0E7D75)" }}
+                      >
+                        Print Master Sheet (1 A4)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ── Official Single A4 Master Sheet ── */}
+                  <div
+                    className="print-single-master-sheet card"
+                    style={{
+                      padding: "16px 20px",
+                      borderRadius: 20,
+                      backgroundColor: "#FFFFFF",
+                      overflowX: "auto",
+                    }}
+                  >
+                    {/* School Letterhead */}
+                    <div className="master-print-header">
                       <div>
-                        <div style={{ fontSize: 16, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--color-ink)" }}>
+                        <div style={{ fontSize: 14, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--color-ink)" }}>
                           Modern School Management System
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--color-text-secondary, #70817B)", fontWeight: 600 }}>
-                          Official Weekly Academic Routine · {timetable.academicYear} Academic Session
+                        <div style={{ fontSize: 9.5, color: "var(--color-text-secondary)", fontWeight: 700 }}>
+                          Official Master Weekly Academic Routine · {timetable.academicYear} Academic Session · All Classes
                         </div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 15, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)" }}>
-                          {cls.name}
+                        <div style={{ fontSize: 10.5, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)", textTransform: "uppercase" }}>
+                          Institutional Master Schedule
                         </div>
-                        <div style={{ fontSize: 11, color: "var(--color-text-secondary, #70817B)" }}>
-                          Level: {cls.level} {cls.stream ? `· Arm: ${cls.stream}` : ""}
+                        <div style={{ fontSize: 8.5, color: "var(--color-text-secondary)" }}>
+                          5 Days · {classes.length} Class Sections · Constraint Satisfaction Verified
                         </div>
                       </div>
                     </div>
 
-                    {/* ── Standard 5-Day Weekly Timetable Grid ── */}
-                    <div style={{ overflowX: "auto" }}>
-                      <table
-                        className="print-table"
-                        style={{
-                          width: "100%",
-                          borderCollapse: "collapse",
-                          border: "1px solid var(--color-border, #E8ECE9)",
-                        }}
-                      >
-                        <thead>
-                          <tr style={{ backgroundColor: "var(--color-surface-subtle, #F4F7F5)" }}>
-                            <th style={{ width: 110, padding: "8px 6px", textAlign: "center", borderRight: "1px solid var(--color-border)" }}>
-                              Day / Time
+                    {/* Master Grid Table */}
+                    <table
+                      className="master-print-table"
+                      style={{
+                        width: "100%",
+                        borderCollapse: "collapse",
+                        marginTop: 6,
+                      }}
+                    >
+                      <thead>
+                        <tr style={{ backgroundColor: "var(--color-surface-subtle, #F4F7F5)" }}>
+                          <th style={{ width: 44, padding: "4px 2px", textAlign: "center", border: "1px solid #182220", fontSize: 9, fontWeight: 800 }}>
+                            Day
+                          </th>
+                          <th style={{ width: 75, padding: "4px 4px", textAlign: "left", border: "1px solid #182220", fontSize: 9, fontWeight: 800 }}>
+                            Class
+                          </th>
+                          {periodSlots.map((slot, sIdx) => (
+                            <th
+                              key={sIdx}
+                              style={{
+                                padding: "4px 2px",
+                                textAlign: "center",
+                                border: "1px solid #182220",
+                                backgroundColor: slot.isBreak ? "var(--color-warning-bg, #FEF3C7)" : "inherit",
+                                width: slot.isBreak ? 46 : undefined,
+                              }}
+                            >
+                              <div style={{ fontSize: 8.5, fontWeight: 800, color: slot.isBreak ? "var(--color-warning-text, #92400E)" : "var(--color-ink)" }}>
+                                {slot.isBreak ? "Break" : `P${slot.periodNumber}`}
+                              </div>
+                              <div style={{ fontSize: 7, fontWeight: 600, color: slot.isBreak ? "var(--color-warning-text)" : "var(--color-text-secondary)", marginTop: 1 }}>
+                                {slot.startTime.replace(":00", "")} - {slot.endTime.replace(":00", "")}
+                              </div>
                             </th>
-                            {periodSlots.map((slot, sIdx) => (
-                              <th
-                                key={sIdx}
-                                style={{
-                                  textAlign: "center",
-                                  padding: "8px 4px",
-                                  borderRight: sIdx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                                  backgroundColor: slot.isBreak ? "var(--color-warning-bg, #FEF3C7)" : "inherit",
-                                  width: slot.isBreak ? 75 : 120,
-                                }}
-                              >
-                                <div style={{ fontSize: 11, fontWeight: 800, color: slot.isBreak ? "var(--color-warning-text, #92400E)" : "var(--color-ink)" }}>
-                                  {slot.label}
-                                </div>
-                                <div style={{ fontSize: 9, fontWeight: 500, color: slot.isBreak ? "var(--color-warning-text)" : "var(--color-text-secondary)", marginTop: 2 }}>
-                                  {slot.startTime} - {slot.endTime}
-                                </div>
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {DAYS_OF_WEEK.map((day) => (
-                            <tr key={day.key} style={{ borderTop: "1px solid var(--color-border)" }}>
-                              {/* Day Label */}
-                              <td
-                                style={{
-                                  textAlign: "center",
-                                  padding: "10px 6px",
-                                  backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
-                                  borderRight: "1px solid var(--color-border)",
-                                  fontWeight: 800,
-                                  fontSize: 12,
-                                  color: "var(--color-ink)",
-                                }}
-                              >
-                                <div>{day.label}</div>
-                              </td>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {DAYS_OF_WEEK.map((day) => {
+                          return classes.map((cls, cIdx) => {
+                            const classLessonsMap = getLessonsMapForClass(cls.id);
+                            const isFirstClass = cIdx === 0;
+                            const isLastClass = cIdx === classes.length - 1;
 
-                              {/* Periods */}
-                              {periodSlots.map((slot, pIdx) => {
-                                if (slot.isBreak) {
+                            return (
+                              <tr
+                                key={`${day.key}_${cls.id}`}
+                                style={{
+                                  borderTop: isFirstClass ? "2px solid #182220" : "1px solid var(--color-border, #E8ECE9)",
+                                  borderBottom: isLastClass ? "2px solid #182220" : undefined,
+                                }}
+                              >
+                                {/* Day Header Column with rowSpan */}
+                                {isFirstClass && (
+                                  <td
+                                    rowSpan={classes.length}
+                                    style={{
+                                      textAlign: "center",
+                                      verticalAlign: "middle",
+                                      backgroundColor: "#182220",
+                                      color: "#FFFFFF",
+                                      fontWeight: 900,
+                                      fontSize: 10,
+                                      letterSpacing: "0.08em",
+                                      border: "1px solid #182220",
+                                      padding: "2px 0",
+                                    }}
+                                  >
+                                    <div style={{ textTransform: "uppercase" }}>{day.short}</div>
+                                  </td>
+                                )}
+
+                                {/* Class Name */}
+                                <td
+                                  style={{
+                                    padding: "2px 4px",
+                                    fontSize: 8.5,
+                                    fontWeight: 800,
+                                    backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                                    border: "1px solid #182220",
+                                    whiteSpace: "nowrap",
+                                    color: "var(--color-ink)",
+                                  }}
+                                >
+                                  {cls.name}
+                                </td>
+
+                                {/* Periods */}
+                                {periodSlots.map((slot, pIdx) => {
+                                  if (slot.isBreak) {
+                                    if (!isFirstClass) return null; // Handled by rowSpan
+                                    return (
+                                      <td
+                                        key={pIdx}
+                                        rowSpan={classes.length}
+                                        style={{
+                                          backgroundColor: "var(--color-warning-bg, #FEF3C7)",
+                                          color: "var(--color-warning-text, #92400E)",
+                                          textAlign: "center",
+                                          verticalAlign: "middle",
+                                          fontWeight: 900,
+                                          fontSize: 8,
+                                          letterSpacing: "0.1em",
+                                          border: "1px solid #182220",
+                                          padding: 0,
+                                        }}
+                                      >
+                                        RECESS
+                                      </td>
+                                    );
+                                  }
+
+                                  const lesson = classLessonsMap.get(`${day.key}_${slot.periodNumber}`);
+                                  const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
+
                                   return (
                                     <td
                                       key={pIdx}
+                                      onClick={() => lesson && openEditModal(lesson)}
                                       style={{
-                                        backgroundColor: "var(--color-warning-bg, #FEF3C7)",
-                                        textAlign: "center",
-                                        borderRight: pIdx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
+                                        padding: "2px 3px",
                                         verticalAlign: "middle",
-                                        padding: 2,
+                                        textAlign: "center",
+                                        backgroundColor: theme ? theme.bg : "#FFFFFF",
+                                        border: "1px solid #182220",
+                                        cursor: lesson ? "pointer" : "default",
+                                        height: 18,
                                       }}
+                                      title={lesson ? `${lesson.subject.name} · ${lesson.teacher ? `${lesson.teacher.firstName} ${lesson.teacher.lastName}` : "Unassigned"}` : undefined}
                                     >
-                                      <div style={{ fontSize: 9, fontWeight: 800, color: "var(--color-warning-text, #92400E)", letterSpacing: "0.08em" }}>
-                                        RECESS
-                                      </div>
+                                      {lesson ? (
+                                        <div style={{ lineHeight: 1.15 }}>
+                                          <div style={{ fontSize: 8, fontWeight: 800, color: theme?.text, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                            {getSubjectShortName(lesson.subject.name)}
+                                          </div>
+                                          {lesson.teacher && (
+                                            <div style={{ fontSize: 6.8, fontWeight: 600, color: "#444444", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                              {lesson.teacher.firstName[0]}. {lesson.teacher.lastName}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <span style={{ color: "#CCCCCC", fontSize: 8 }}>—</span>
+                                      )}
                                     </td>
                                   );
-                                }
+                                })}
+                              </tr>
+                            );
+                          });
+                        })}
+                      </tbody>
+                    </table>
 
-                                const lesson = classLessonsMap.get(`${day.key}_${slot.periodNumber}`);
-                                const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
-
-                                return (
-                                  <td
-                                    key={pIdx}
-                                    onClick={() => lesson && openEditModal(lesson)}
-                                    style={{
-                                      padding: 5,
-                                      verticalAlign: "top",
-                                      borderRight: pIdx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                                      backgroundColor: theme ? theme.bg : "transparent",
-                                      cursor: lesson ? "pointer" : "default",
-                                    }}
-                                  >
-                                    {lesson ? (
-                                      <div style={{ display: "flex", flexDirection: "column", gap: 2, minHeight: 48 }}>
-                                        <div style={{ fontSize: 11, fontWeight: 800, color: theme?.text, lineHeight: 1.2 }}>
-                                          {lesson.subject.name}
-                                        </div>
-                                        <div style={{ fontSize: 9, color: "var(--color-text-secondary)", fontWeight: 600, marginTop: "auto" }}>
-                                          {lesson.teacher ? `${lesson.teacher.firstName[0]}. ${lesson.teacher.lastName}` : "Unassigned"}
-                                        </div>
-                                        {lesson.room && (
-                                          <div style={{ fontSize: 8, color: "var(--color-text-secondary)" }}>
-                                            Venue: {lesson.room}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <div style={{ textAlign: "center", padding: "12px 0", color: "var(--color-border)", fontSize: 11 }}>
-                                        —
-                                      </div>
-                                    )}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* ── Official A4 Signatures Block ── */}
+                    {/* Single Master Signatures Block */}
                     <div
-                      className="print-signatures"
+                      className="print-master-signatures"
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "flex-end",
-                        paddingTop: 12,
+                        paddingTop: 8,
                         marginTop: 4,
                       }}
                     >
                       <div style={{ textAlign: "center" }}>
-                        <div style={{ width: 180, borderBottom: "1px solid #182220", marginBottom: 4 }} />
-                        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Form Master / Class Teacher</div>
+                        <div style={{ width: 140, borderBottom: "1px solid #182220", marginBottom: 2 }} />
+                        <div style={{ fontSize: 8, fontWeight: 700, textTransform: "uppercase" }}>Timetable Coordinator</div>
                       </div>
 
                       <div style={{ textAlign: "center" }}>
-                        <div style={{ width: 100, height: 36, border: "1px dashed #70817B", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#70817B", margin: "0 auto 4px" }}>
-                          School Stamp
+                        <div style={{ width: 80, height: 26, border: "1px dashed #70817B", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7.5, color: "#70817B", margin: "0 auto 2px" }}>
+                          School Seal
                         </div>
-                        <div style={{ fontSize: 9, color: "var(--color-text-secondary)" }}>Official Seal</div>
+                        <div style={{ fontSize: 7.5, color: "var(--color-text-secondary)" }}>Official Stamp</div>
                       </div>
 
                       <div style={{ textAlign: "center" }}>
-                        <div style={{ width: 180, borderBottom: "1px solid #182220", marginBottom: 4, marginLeft: "auto" }} />
-                        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Principal / Vice-Principal Academics</div>
+                        <div style={{ width: 140, borderBottom: "1px solid #182220", marginBottom: 2, marginLeft: "auto" }} />
+                        <div style={{ fontSize: 8, fontWeight: 700, textTransform: "uppercase" }}>Principal / Vice-Principal Academics</div>
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              )}
+
+              {/* ── OPTION B: FULL CLASS BOOKLET OR INDIVIDUAL CLASS VIEW ── */}
+              {(selectedClassId !== "all" || printMode === "booklet") && (
+                <div className="timetable-class-routine-wrapper" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+                  {/* Screen Info Banner (when booklet is selected for all classes) */}
+                  {selectedClassId === "all" && (
+                    <div
+                      className="no-print"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "14px 20px",
+                        backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                        borderRadius: 16,
+                        border: "1px solid var(--color-border, #E8ECE9)",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                          Class-by-Class Booklet View
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
+                          Displaying full individual weekly timetable sheets for all {classes.length} classes. Each class prints onto its own dedicated A4 landscape sheet.
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => setPrintMode("single-master")}
+                          style={{ fontSize: 12, padding: "6px 14px", fontWeight: 700, backgroundColor: "#FFFFFF" }}
+                        >
+                          Switch to Single A4 Master Sheet
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => window.print()}
+                          style={{ fontSize: 12, padding: "6px 16px", fontWeight: 700, backgroundColor: "var(--color-brand-teal, #0E7D75)" }}
+                        >
+                          Print All Classes ({classes.length} Pages)
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* If "all" is selected on screen, show quick index navigation */}
+                  {selectedClassId === "all" && classes.length > 1 && (
+                    <div
+                      className="no-print"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                        padding: "12px 16px",
+                        backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                        borderRadius: 16,
+                        border: "1px solid var(--color-border, #E8ECE9)",
+                      }}
+                    >
+                      <span style={{ fontSize: 12, fontWeight: 800, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        Quick Jump:
+                      </span>
+                      {classes.map((c) => (
+                        <a
+                          key={c.id}
+                          href={`#class-section-${c.id}`}
+                          style={{
+                            padding: "4px 10px",
+                            borderRadius: 9999,
+                            backgroundColor: "#FFFFFF",
+                            border: "1px solid var(--color-border, #E8ECE9)",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "var(--color-brand-teal, #0E7D75)",
+                            textDecoration: "none",
+                          }}
+                        >
+                          {c.name}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Loop through classesToDisplay: If "all", renders ALL classes! */}
+                  {classesToDisplay.map((cls) => {
+                    const classLessonsMap = getLessonsMapForClass(cls.id);
+
+                    return (
+                      <div
+                        key={cls.id}
+                        id={`class-section-${cls.id}`}
+                        className="print-a4-sheet"
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 12,
+                        }}
+                      >
+                        {/* ── Official School Letterhead (Appears on every A4 Print Sheet) ── */}
+                        <div
+                          className="print-header"
+                          style={{
+                            paddingBottom: 8,
+                            borderBottom: "2px solid #182220",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: 16, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--color-ink)" }}>
+                              Modern School Management System
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--color-text-secondary, #70817B)", fontWeight: 600 }}>
+                              Official Weekly Academic Routine · {timetable.academicYear} Academic Session
+                            </div>
+                          </div>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 15, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)" }}>
+                              {cls.name}
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--color-text-secondary, #70817B)" }}>
+                              Level: {cls.level} {cls.stream ? `· Arm: ${cls.stream}` : ""}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ── Standard 5-Day Weekly Timetable Grid ── */}
+                        <div style={{ overflowX: "auto" }}>
+                          <table
+                            className="print-table"
+                            style={{
+                              width: "100%",
+                              borderCollapse: "collapse",
+                              border: "1px solid var(--color-border, #E8ECE9)",
+                            }}
+                          >
+                            <thead>
+                              <tr style={{ backgroundColor: "var(--color-surface-subtle, #F4F7F5)" }}>
+                                <th style={{ width: 110, padding: "8px 6px", textAlign: "center", borderRight: "1px solid var(--color-border)" }}>
+                                  Day / Time
+                                </th>
+                                {periodSlots.map((slot, sIdx) => (
+                                  <th
+                                    key={sIdx}
+                                    style={{
+                                      textAlign: "center",
+                                      padding: "8px 4px",
+                                      borderRight: sIdx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
+                                      backgroundColor: slot.isBreak ? "var(--color-warning-bg, #FEF3C7)" : "inherit",
+                                      width: slot.isBreak ? 75 : 120,
+                                    }}
+                                  >
+                                    <div style={{ fontSize: 11, fontWeight: 800, color: slot.isBreak ? "var(--color-warning-text, #92400E)" : "var(--color-ink)" }}>
+                                      {slot.label}
+                                    </div>
+                                    <div style={{ fontSize: 9, fontWeight: 500, color: slot.isBreak ? "var(--color-warning-text)" : "var(--color-text-secondary)", marginTop: 2 }}>
+                                      {slot.startTime} - {slot.endTime}
+                                    </div>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {DAYS_OF_WEEK.map((day) => (
+                                <tr key={day.key} style={{ borderTop: "1px solid var(--color-border)" }}>
+                                  {/* Day Label */}
+                                  <td
+                                    style={{
+                                      textAlign: "center",
+                                      padding: "10px 6px",
+                                      backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                                      borderRight: "1px solid var(--color-border)",
+                                      fontWeight: 800,
+                                      fontSize: 12,
+                                      color: "var(--color-ink)",
+                                    }}
+                                  >
+                                    <div>{day.label}</div>
+                                  </td>
+
+                                  {/* Periods */}
+                                  {periodSlots.map((slot, pIdx) => {
+                                    if (slot.isBreak) {
+                                      return (
+                                        <td
+                                          key={pIdx}
+                                          style={{
+                                            backgroundColor: "var(--color-warning-bg, #FEF3C7)",
+                                            textAlign: "center",
+                                            borderRight: pIdx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
+                                            verticalAlign: "middle",
+                                            padding: 2,
+                                          }}
+                                        >
+                                          <div style={{ fontSize: 9, fontWeight: 800, color: "var(--color-warning-text, #92400E)", letterSpacing: "0.08em" }}>
+                                            RECESS
+                                          </div>
+                                        </td>
+                                      );
+                                    }
+
+                                    const lesson = classLessonsMap.get(`${day.key}_${slot.periodNumber}`);
+                                    const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
+
+                                    return (
+                                      <td
+                                        key={pIdx}
+                                        onClick={() => lesson && openEditModal(lesson)}
+                                        style={{
+                                          padding: 5,
+                                          verticalAlign: "top",
+                                          borderRight: pIdx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
+                                          backgroundColor: theme ? theme.bg : "transparent",
+                                          cursor: lesson ? "pointer" : "default",
+                                        }}
+                                      >
+                                        {lesson ? (
+                                          <div style={{ display: "flex", flexDirection: "column", gap: 2, minHeight: 48 }}>
+                                            <div style={{ fontSize: 11, fontWeight: 800, color: theme?.text, lineHeight: 1.2 }}>
+                                              {lesson.subject.name}
+                                            </div>
+                                            <div style={{ fontSize: 9, color: "var(--color-text-secondary)", fontWeight: 600, marginTop: "auto" }}>
+                                              {lesson.teacher ? `${lesson.teacher.firstName[0]}. ${lesson.teacher.lastName}` : "Unassigned"}
+                                            </div>
+                                            {lesson.room && (
+                                              <div style={{ fontSize: 8, color: "var(--color-text-secondary)" }}>
+                                                Venue: {lesson.room}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <div style={{ textAlign: "center", padding: "12px 0", color: "var(--color-border)", fontSize: 11 }}>
+                                            —
+                                          </div>
+                                        )}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* ── Official A4 Signatures Block ── */}
+                        <div
+                          className="print-signatures"
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-end",
+                            paddingTop: 12,
+                            marginTop: 4,
+                          }}
+                        >
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ width: 180, borderBottom: "1px solid #182220", marginBottom: 4 }} />
+                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Form Master / Class Teacher</div>
+                          </div>
+
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ width: 100, height: 36, border: "1px dashed #70817B", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#70817B", margin: "0 auto 4px" }}>
+                              School Stamp
+                            </div>
+                            <div style={{ fontSize: 9, color: "var(--color-text-secondary)" }}>Official Seal</div>
+                          </div>
+
+                          <div style={{ textAlign: "center" }}>
+                            <div style={{ width: 180, borderBottom: "1px solid #182220", marginBottom: 4, marginLeft: "auto" }} />
+                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Principal / Vice-Principal Academics</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
 
           {/* ── TEACHER ROSTER VIEW ─────────────────────────────────────────── */}
@@ -1703,12 +2092,14 @@ export default function TimetablePage() {
         @media print {
           @page {
             size: A4 landscape;
-            margin: 8mm 10mm;
+            margin: 5mm 8mm;
           }
           html, body {
             background: #ffffff !important;
             color: #000000 !important;
-            font-size: 11px !important;
+            font-size: 10px !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           /* Completely hide all screen chrome, navigation, cards, and buttons */
           nav,
@@ -1717,6 +2108,10 @@ export default function TimetablePage() {
           button,
           select,
           input,
+          .app-sidebar,
+          .app-topbar {
+            display: none !important;
+          }
           .app-canvas {
             padding: 0 !important;
             margin: 0 !important;
@@ -1733,6 +2128,7 @@ export default function TimetablePage() {
           .timetable-page-container {
             padding: 0 !important;
             margin: 0 !important;
+            width: 100% !important;
           }
           .timetable-grid-layout {
             display: block !important;
@@ -1740,14 +2136,76 @@ export default function TimetablePage() {
             margin: 0 !important;
             padding: 0 !important;
           }
-          /* Each class fits cleanly on a single A4 landscape sheet */
+          .timetable-class-routine-wrapper {
+            display: block !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          /* ── 1. Single Master Sheet Print Styling (Fits on Exactly 1 A4 Page) ── */
+          .print-single-master-sheet {
+            display: block !important;
+            width: 100% !important;
+            max-height: 195mm !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+          }
+          .master-print-header {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            border-bottom: 2px solid #000000 !important;
+            padding-bottom: 3px !important;
+            margin-bottom: 4px !important;
+          }
+          .master-print-table {
+            display: table !important;
+            width: 100% !important;
+            border-collapse: collapse !important;
+            border: 1.5px solid #000000 !important;
+            margin-bottom: 4px !important;
+          }
+          .master-print-table th,
+          .master-print-table td {
+            border: 1px solid #000000 !important;
+            padding: 2px 3px !important;
+            font-size: 8px !important;
+            line-height: 1.15 !important;
+            color: #000000 !important;
+          }
+          .master-print-table th {
+            background-color: #F0F2F1 !important;
+            font-weight: 800 !important;
+            text-align: center !important;
+          }
+          .print-master-signatures {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: flex-end !important;
+            margin-top: 4px !important;
+            padding-top: 4px !important;
+          }
+
+          /* ── 2. Booklet Mode Print Styling (1 Full Page Per Class) ── */
           .print-a4-sheet {
             display: block !important;
             page-break-after: always !important;
             break-after: page !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            clear: both !important;
             width: 100% !important;
             margin: 0 !important;
-            padding: 0 0 8mm 0 !important;
+            padding: 0 0 6mm 0 !important;
             box-sizing: border-box !important;
           }
           .print-a4-sheet:last-child {
@@ -1756,37 +2214,37 @@ export default function TimetablePage() {
           }
           .print-header {
             display: flex !important;
-            justifyContent: space-between !important;
+            justify-content: space-between !important;
             border-bottom: 2px solid #000000 !important;
-            padding-bottom: 6px !important;
-            margin-bottom: 8px !important;
+            padding-bottom: 4px !important;
+            margin-bottom: 6px !important;
           }
           .print-table {
             display: table !important;
             width: 100% !important;
             border-collapse: collapse !important;
             border: 1.5px solid #000000 !important;
-            margin-bottom: 8px !important;
+            margin-bottom: 6px !important;
           }
           .print-table th,
           .print-table td {
             border: 1px solid #000000 !important;
-            padding: 4px 5px !important;
-            font-size: 10px !important;
+            padding: 3px 5px !important;
+            font-size: 9.5px !important;
             line-height: 1.2 !important;
             color: #000000 !important;
           }
           .print-table th {
-            background-color: #f2f2f2 !important;
+            background-color: #F0F2F1 !important;
             font-weight: 800 !important;
             text-align: center !important;
           }
           .print-signatures {
             display: flex !important;
-            justifyContent: space-between !important;
+            justify-content: space-between !important;
             align-items: flex-end !important;
-            margin-top: 10px !important;
-            padding-top: 8px !important;
+            margin-top: 8px !important;
+            padding-top: 6px !important;
           }
         }
       `}</style>
