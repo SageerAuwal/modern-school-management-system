@@ -103,6 +103,7 @@ model User {
   firstName    String    @map("first_name")
   lastName     String    @map("last_name")
   phone        String?
+  photoUrl     String?   @map("photo_url")
   isActive     Boolean   @default(true) @map("is_active")
   mfaEnabled   Boolean   @default(false) @map("mfa_enabled")
   mfaSecret    String?   @map("mfa_secret")
@@ -179,6 +180,10 @@ model Student {
   enrolledAt       DateTime         @default(now()) @map("enrolled_at")
   withdrawnAt      DateTime?        @map("withdrawn_at")
   photoUrl         String?          @map("photo_url")
+  guardianName     String?          @map("guardian_name")
+  guardianPhone    String?          @map("guardian_phone")
+  guardianRelationship String?      @map("guardian_relationship")
+  guardianPhotoUrl String?          @map("guardian_photo_url")
   bloodGroup       String?          @map("blood_group")
   medicalNotes     String?          @map("medical_notes")
   createdAt        DateTime         @default(now()) @map("created_at")
@@ -276,6 +281,7 @@ model StaffRecord {
   phone      String?
   address    String?
   gender     Gender?
+  photoUrl   String?   @map("photo_url")
   startDate  DateTime? @map("start_date")
   endDate    DateTime? @map("end_date")
   isActive   Boolean   @default(true) @map("is_active")

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, FormEvent } from "react";
+import PhotoCaptureInput from "../components/PhotoCaptureInput";
 
 interface StaffMember {
   id: string;
@@ -11,6 +12,7 @@ interface StaffMember {
   role: string;
   designation?: string | null;
   gender?: string | null;
+  photoUrl?: string | null;
   notes?: string | null;
   isActive: boolean;
   user?: {
@@ -46,6 +48,7 @@ export default function StaffPage() {
     role: "",
     phone: "",
     gender: "",
+    photoUrl: "",
     notes: "",
   });
 
@@ -59,6 +62,7 @@ export default function StaffPage() {
     role: "",
     phone: "",
     gender: "",
+    photoUrl: "",
     notes: "",
   });
 
@@ -113,6 +117,7 @@ export default function StaffPage() {
       };
       if (addFormData.phone.trim()) payload.phone = addFormData.phone.trim();
       if (addFormData.gender.trim()) payload.gender = addFormData.gender.trim();
+      if (addFormData.photoUrl) payload.photoUrl = addFormData.photoUrl;
       if (addFormData.notes.trim()) payload.notes = addFormData.notes.trim();
 
       const res = await fetch(`${API}/api/v1/staff`, {
@@ -135,6 +140,7 @@ export default function StaffPage() {
         role: "",
         phone: "",
         gender: "",
+        photoUrl: "",
         notes: "",
       });
       setIsAddModalOpen(false);
@@ -154,6 +160,7 @@ export default function StaffPage() {
       role: member.role,
       phone: member.phone ?? "",
       gender: member.gender ?? "",
+      photoUrl: member.photoUrl ?? "",
       notes: member.notes ?? "",
     });
     setEditFormError(null);
@@ -178,6 +185,7 @@ export default function StaffPage() {
       };
       if (editFormData.phone.trim()) payload.phone = editFormData.phone.trim();
       if (editFormData.gender.trim()) payload.gender = editFormData.gender.trim();
+      payload.photoUrl = editFormData.photoUrl;
       if (editFormData.notes.trim()) payload.notes = editFormData.notes.trim();
 
       const res = await fetch(`${API}/api/v1/staff/${editingStaff.id}`, {
@@ -576,8 +584,25 @@ export default function StaffPage() {
                       <tr key={member.id}>
                         {/* Avatar */}
                         <td style={{ width: 56 }}>
-                          <div className="avatar">
-                            {getInitials(member.firstName, member.lastName)}
+                          <div
+                            className="avatar"
+                            style={{
+                              overflow: "hidden",
+                              padding: 0,
+                              backgroundColor: "var(--color-page)",
+                              border: "1px solid var(--color-border)",
+                            }}
+                          >
+                            {member.photoUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={member.photoUrl}
+                                alt=""
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              />
+                            ) : (
+                              getInitials(member.firstName, member.lastName)
+                            )}
                           </div>
                         </td>
 
@@ -737,8 +762,10 @@ export default function StaffPage() {
             className="card"
             style={{
               width: "100%",
-              maxWidth: 480,
+              maxWidth: 500,
               backgroundColor: "var(--color-surface)",
+              maxHeight: "90vh",
+              overflowY: "auto",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -818,6 +845,14 @@ export default function StaffPage() {
             )}
 
             <form onSubmit={handleAddStaff}>
+              {/* Photo Input (Camera or Upload) */}
+              <PhotoCaptureInput
+                photoUrl={addFormData.photoUrl || null}
+                onChange={(url) =>
+                  setAddFormData((prev) => ({ ...prev, photoUrl: url || "" }))
+                }
+                label="Staff Passport Photo (Camera or Upload)"
+              />
               <div
                 style={{
                   display: "grid",
@@ -1001,8 +1036,10 @@ export default function StaffPage() {
             className="card"
             style={{
               width: "100%",
-              maxWidth: 480,
+              maxWidth: 500,
               backgroundColor: "var(--color-surface)",
+              maxHeight: "90vh",
+              overflowY: "auto",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1082,6 +1119,14 @@ export default function StaffPage() {
             )}
 
             <form onSubmit={handleSaveEdit}>
+              {/* Photo Input (Camera or Upload) */}
+              <PhotoCaptureInput
+                photoUrl={editFormData.photoUrl || null}
+                onChange={(url) =>
+                  setEditFormData((prev) => ({ ...prev, photoUrl: url || "" }))
+                }
+                label="Staff Passport Photo (Camera or Upload)"
+              />
               <div
                 style={{
                   display: "grid",

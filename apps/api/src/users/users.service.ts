@@ -89,6 +89,7 @@ export class UsersService {
         firstName: true,
         lastName: true,
         phone: true,
+        photoUrl: true,
         isActive: true,
         mfaEnabled: true,
         lastLoginAt: true,
@@ -111,6 +112,7 @@ export class UsersService {
         firstName: true,
         lastName: true,
         phone: true,
+        photoUrl: true,
         isActive: true,
         mfaEnabled: true,
         lastLoginAt: true,
@@ -119,6 +121,50 @@ export class UsersService {
     });
     if (!user) throw new NotFoundException('User not found');
     return user;
+  }
+
+  /**
+   * Update profile (for self / parent / staff)
+   */
+  async updateProfile(
+    userId: string,
+    schoolId: string,
+    dto: { firstName?: string; lastName?: string; phone?: string; photoUrl?: string },
+    actorId: string,
+    actorEmail: string,
+  ) {
+    const existing = await this.findOne(userId, schoolId);
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName: dto.firstName !== undefined ? dto.firstName : existing.firstName,
+        lastName: dto.lastName !== undefined ? dto.lastName : existing.lastName,
+        phone: dto.phone !== undefined ? dto.phone : existing.phone,
+        photoUrl: dto.photoUrl !== undefined ? dto.photoUrl : existing.photoUrl,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        photoUrl: true,
+        isActive: true,
+      },
+    });
+
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'USER_PROFILE_UPDATED',
+      targetType: 'USER',
+      targetId: userId,
+      afterValue: { firstName: updated.firstName, lastName: updated.lastName, photoUrl: updated.photoUrl ? 'UPDATED' : 'REMOVED' },
+    });
+
+    return updated;
   }
 
   /**

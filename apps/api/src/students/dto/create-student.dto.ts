@@ -57,4 +57,29 @@ export class CreateStudentDto {
   @IsString()
   @IsOptional()
   medicalNotes?: string;
+
+  @IsString()
+  @IsOptional()
+  photoUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  guardianName?: string;
+
+  @IsString()
+  @IsOptional()
+  guardianPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  guardianRelationship?: string;
+
+  @IsString()
+  @IsOptional()
+  guardianPhotoUrl?: string;
+
+  @IsString()
+  @IsOptional()
+  classSectionId?: string;
 }
+

@@ -62,6 +62,18 @@ export class UsersController {
   }
 
   /**
+   * PATCH /api/v1/users/profile
+   * Any authenticated user: update own profile (firstName, lastName, phone, photoUrl)
+   */
+  @Patch('profile')
+  updateProfile(
+    @Body() dto: { firstName?: string; lastName?: string; phone?: string; photoUrl?: string },
+    @CurrentUser() actor: { id: string; schoolId: string; email: string },
+  ) {
+    return this.usersService.updateProfile(actor.id, actor.schoolId, dto, actor.id, actor.email);
+  }
+
+  /**
    * PATCH /api/v1/users/:id/deactivate
    * Admin-only: deactivate a user and revoke all their sessions
    */

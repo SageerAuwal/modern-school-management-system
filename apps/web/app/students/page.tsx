@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import PhotoCaptureInput from "../components/PhotoCaptureInput";
 
 interface Enrollment {
   classSection: {
@@ -19,6 +20,11 @@ interface Student {
   lastName: string;
   admissionNumber: string | null;
   gender: string | null;
+  photoUrl?: string | null;
+  guardianName?: string | null;
+  guardianPhone?: string | null;
+  guardianRelationship?: string | null;
+  guardianPhotoUrl?: string | null;
   enrollmentStatus: string;
   enrollments: Enrollment[];
 }
@@ -49,6 +55,7 @@ function getStatusPillClass(status: string): string {
 export default function StudentsPage() {
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
+  const [classes, setClasses] = useState<Array<{ id: string; name: string; level: string }>>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -60,6 +67,12 @@ export default function StudentsPage() {
   const [editLastName, setEditLastName] = useState("");
   const [editAdmissionNo, setEditAdmissionNo] = useState("");
   const [editGender, setEditGender] = useState("FEMALE");
+  const [editPhotoUrl, setEditPhotoUrl] = useState<string | null>(null);
+  const [editClassSectionId, setEditClassSectionId] = useState<string>("");
+  const [editGuardianName, setEditGuardianName] = useState<string>("");
+  const [editGuardianPhone, setEditGuardianPhone] = useState<string>("");
+  const [editGuardianRelationship, setEditGuardianRelationship] = useState<string>("Mother");
+  const [editGuardianPhotoUrl, setEditGuardianPhotoUrl] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState("");
 
@@ -102,12 +115,27 @@ export default function StudentsPage() {
     fetchStudents();
   }, [search]);
 
+  useEffect(() => {
+    fetch(`${API}/api/v1/classes`, { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setClasses(data);
+      })
+      .catch(() => {});
+  }, []);
+
   function openEditModal(student: Student) {
     setEditingStudent(student);
     setEditFirstName(student.firstName);
     setEditLastName(student.lastName);
     setEditAdmissionNo(student.admissionNumber ?? "");
     setEditGender(student.gender ?? "FEMALE");
+    setEditPhotoUrl(student.photoUrl ?? null);
+    setEditClassSectionId(student.enrollments?.[0]?.classSection?.id ?? "");
+    setEditGuardianName(student.guardianName ?? "");
+    setEditGuardianPhone(student.guardianPhone ?? "");
+    setEditGuardianRelationship(student.guardianRelationship ?? "Mother");
+    setEditGuardianPhotoUrl(student.guardianPhotoUrl ?? null);
     setEditError("");
   }
 
@@ -127,6 +155,12 @@ export default function StudentsPage() {
           lastName: editLastName,
           admissionNumber: editAdmissionNo || undefined,
           gender: editGender,
+          classSectionId: editClassSectionId || undefined,
+          photoUrl: editPhotoUrl,
+          guardianName: editGuardianName || null,
+          guardianPhone: editGuardianPhone || null,
+          guardianRelationship: editGuardianRelationship || null,
+          guardianPhotoUrl: editGuardianPhotoUrl,
         }),
       });
 
@@ -314,8 +348,25 @@ export default function StudentsPage() {
                 return (
                   <tr key={student.id}>
                     <td style={{ width: 48 }}>
-                      <div className="avatar">
-                        {getInitials(student.firstName, student.lastName)}
+                      <div
+                        className="avatar"
+                        style={{
+                          overflow: "hidden",
+                          padding: 0,
+                          backgroundColor: "var(--color-page)",
+                          border: "1px solid var(--color-border)",
+                        }}
+                      >
+                        {student.photoUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={student.photoUrl}
+                            alt=""
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        ) : (
+                          getInitials(student.firstName, student.lastName)
+                        )}
                       </div>
                     </td>
                     <td style={{ fontWeight: 600, color: "var(--color-ink)" }}>
@@ -385,7 +436,7 @@ export default function StudentsPage() {
             zIndex: 100,
           }}
         >
-          <div className="card" style={{ maxWidth: 480, width: "100%", backgroundColor: "#ffffff" }}>
+          <div className="card" style={{ maxWidth: 520, width: "100%", backgroundColor: "#ffffff", maxHeight: "90vh", overflowY: "auto" }}>
             <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 14 }}>Edit Student Details</h3>
 
             {editError && (
@@ -394,10 +445,17 @@ export default function StudentsPage() {
               </div>
             )}
 
-            <form onSubmit={handleSaveEdit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <form onSubmit={handleSaveEdit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Student Photo */}
+              <PhotoCaptureInput
+                photoUrl={editPhotoUrl}
+                onChange={(url) => setEditPhotoUrl(url)}
+                label="Student Photo (Camera or Upload)"
+              />
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-                  <label className="label">First Name</label>
+                  <label className="label">First Name *</label>
                   <input
                     type="text"
                     required
@@ -407,7 +465,7 @@ export default function StudentsPage() {
                   />
                 </div>
                 <div>
-                  <label className="label">Last Name</label>
+                  <label className="label">Last Name *</label>
                   <input
                     type="text"
                     required
@@ -429,17 +487,106 @@ export default function StudentsPage() {
                 />
               </div>
 
+              {/* Gender Pills */}
               <div>
-                <label className="label">Gender</label>
+                <label className="label" style={{ marginBottom: 6, display: "block" }}>Gender *</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[
+                    { id: "FEMALE", label: "Female" },
+                    { id: "MALE", label: "Male" },
+                    { id: "OTHER", label: "Other" },
+                  ].map((g) => {
+                    const isSelected = editGender === g.id;
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => setEditGender(g.id)}
+                        style={{
+                          flex: 1,
+                          padding: "7px 10px",
+                          borderRadius: "var(--radius-control)",
+                          border: isSelected ? "2px solid var(--color-ink)" : "1px solid var(--color-border)",
+                          backgroundColor: isSelected ? "var(--color-ink)" : "var(--color-surface)",
+                          color: isSelected ? "#ffffff" : "var(--color-ink)",
+                          fontWeight: isSelected ? 700 : 500,
+                          fontSize: 12,
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {g.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Assigned Class Dropdown */}
+              <div>
+                <label className="label">Assigned Class</label>
                 <select
-                  value={editGender}
-                  onChange={(e) => setEditGender(e.target.value)}
+                  value={editClassSectionId}
+                  onChange={(e) => setEditClassSectionId(e.target.value)}
                   className="input"
+                  style={{ fontWeight: 600 }}
                 >
-                  <option value="MALE">MALE</option>
-                  <option value="FEMALE">FEMALE</option>
-                  <option value="OTHER">OTHER</option>
+                  <option value="">No class assigned</option>
+                  {classes.map((cls) => (
+                    <option key={cls.id} value={cls.id}>
+                      {cls.name} ({cls.level})
+                    </option>
+                  ))}
                 </select>
+              </div>
+
+              {/* Parent / Guardian Section */}
+              <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 14, marginTop: 4 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, margin: "0 0 10px", color: "var(--color-ink)" }}>
+                  Parent / Guardian Details &amp; Photo
+                </p>
+
+                <PhotoCaptureInput
+                  photoUrl={editGuardianPhotoUrl}
+                  onChange={(url) => setEditGuardianPhotoUrl(url)}
+                  label="Parent / Guardian Photo (Camera or Upload)"
+                />
+
+                <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 10, marginTop: 10 }}>
+                  <div>
+                    <label className="label">Parent Name</label>
+                    <input
+                      type="text"
+                      value={editGuardianName}
+                      onChange={(e) => setEditGuardianName(e.target.value)}
+                      className="input"
+                      placeholder="e.g. Alhaji Ibrahim Auwal"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Relationship</label>
+                    <select
+                      value={editGuardianRelationship}
+                      onChange={(e) => setEditGuardianRelationship(e.target.value)}
+                      className="input"
+                    >
+                      {["Father", "Mother", "Guardian", "Uncle", "Aunt", "Sibling", "Grandparent", "Other"].map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 10 }}>
+                  <label className="label">Parent Phone Number</label>
+                  <input
+                    type="text"
+                    value={editGuardianPhone}
+                    onChange={(e) => setEditGuardianPhone(e.target.value)}
+                    className="input"
+                    placeholder="e.g. 08012345678"
+                  />
+                </div>
               </div>
 
               <div style={{ display: "flex", gap: 10, marginTop: 12 }}>

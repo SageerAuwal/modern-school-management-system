@@ -40,6 +40,11 @@ export class CreateStaffRecordDto {
 
   @IsString()
   @IsOptional()
+  photoUrl?: string;
+
+  @IsString()
+  @IsOptional()
   notes?: string;
 }
+
 

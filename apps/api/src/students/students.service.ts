@@ -22,6 +22,10 @@ const STUDENT_LIST_SELECT = {
   enrollmentStatus: true,
   enrolledAt: true,
   photoUrl: true,
+  guardianName: true,
+  guardianPhone: true,
+  guardianRelationship: true,
+  guardianPhotoUrl: true,
   enrollments: {
     where: { status: EnrollmentStatus.ACTIVE },
     select: {
@@ -58,13 +62,31 @@ export class StudentsService {
       }
     }
 
+    const { classSectionId, ...studentData } = dto;
+
     const student = await this.prisma.student.create({
       data: {
-        ...dto,
+        ...studentData,
         schoolId,
-        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+        dateOfBirth: studentData.dateOfBirth ? new Date(studentData.dateOfBirth) : undefined,
       },
     });
+
+    if (classSectionId) {
+      const classSection = await this.prisma.classSection.findFirst({
+        where: { id: classSectionId, schoolId },
+      });
+      if (classSection) {
+        await this.prisma.enrollment.create({
+          data: {
+            studentId: student.id,
+            classSectionId: classSection.id,
+            academicYear: classSection.academicYear || '2025/2026',
+            status: EnrollmentStatus.ACTIVE,
+          },
+        });
+      }
+    }
 
     await this.auditService.log({
       actorId,
@@ -72,7 +94,7 @@ export class StudentsService {
       action: 'STUDENT_CREATED',
       targetType: 'STUDENT',
       targetId: student.id,
-      afterValue: { firstName: student.firstName, lastName: student.lastName, admissionNumber: student.admissionNumber } as Record<string, unknown>,
+      afterValue: { firstName: student.firstName, lastName: student.lastName, admissionNumber: student.admissionNumber, classSectionId } as Record<string, unknown>,
     });
 
     return student;
@@ -151,14 +173,49 @@ export class StudentsService {
     actorEmail: string,
   ) {
     const existing = await this.findOne(id, schoolId);
+    const { classSectionId, ...studentData } = dto;
 
     const updated = await this.prisma.student.update({
       where: { id },
       data: {
-        ...dto,
-        dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+        ...studentData,
+        dateOfBirth: studentData.dateOfBirth ? new Date(studentData.dateOfBirth) : undefined,
       },
     });
+
+    if (classSectionId) {
+      const classSection = await this.prisma.classSection.findFirst({
+        where: { id: classSectionId, schoolId },
+      });
+      if (classSection) {
+        const activeEnrollment = await this.prisma.enrollment.findFirst({
+          where: { studentId: id, status: EnrollmentStatus.ACTIVE },
+        });
+        if (activeEnrollment && activeEnrollment.classSectionId !== classSectionId) {
+          await this.prisma.enrollment.update({
+            where: { id: activeEnrollment.id },
+            data: { status: EnrollmentStatus.TRANSFERRED, exitedAt: new Date(), exitReason: 'Reassigned to ' + classSection.name },
+          });
+          await this.prisma.enrollment.create({
+            data: {
+              studentId: id,
+              classSectionId: classSection.id,
+              academicYear: classSection.academicYear || '2025/2026',
+              status: EnrollmentStatus.ACTIVE,
+            },
+          });
+        } else if (!activeEnrollment) {
+          await this.prisma.enrollment.create({
+            data: {
+              studentId: id,
+              classSectionId: classSection.id,
+              academicYear: classSection.academicYear || '2025/2026',
+              status: EnrollmentStatus.ACTIVE,
+            },
+          });
+        }
+      }
+    }
 
     await this.auditService.log({
       actorId,
