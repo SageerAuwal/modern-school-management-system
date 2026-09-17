@@ -1,89 +1,99 @@
 @echo off
-title School Management System - Starting...
+setlocal enabledelayedexpansion
+title School Management System - Launcher
 color 0A
 
+:: Use UTF-8 code page so characters display cleanly
+chcp 65001 >nul
+
 echo.
-echo  ╔══════════════════════════════════════════════╗
-echo  ║   School Management System - Launcher        ║
-echo  ╚══════════════════════════════════════════════╝
+echo  ================================================
+echo    School Management System - Launcher
+echo  ================================================
 echo.
 
-:: ─── 1. Check & Start PostgreSQL ─────────────────────────────────────────
-echo [1/3] Checking PostgreSQL...
+:: --- 1. Check & Start PostgreSQL -----------------------------------------
+echo [1/3] Checking PostgreSQL service...
 
-:: Find the PostgreSQL service name dynamically
-for /f "tokens=*" %%s in ('sc query type= service state= all ^| findstr /i "postgresql"') do (
-    for /f "tokens=2" %%n in ("%%s") do set PG_SERVICE=%%n
+set PG_SERVICE=postgresql-x64-18
+
+:: Check if the default service exists
+sc query %PG_SERVICE% >nul 2>&1
+if not %errorlevel%==0 (
+    for /f "usebackq delims=" %%s in (`powershell -NoProfile -Command "(Get-Service postgresql* -ErrorAction SilentlyContinue).Name"`) do (
+        set PG_SERVICE=%%s
+    )
 )
 
 if not defined PG_SERVICE (
-    echo  ERROR: PostgreSQL service not found. Is PostgreSQL installed?
-    pause
-    exit /b 1
+    set PG_SERVICE=postgresql-x64-18
 )
 
 :: Check if already running
-sc query %PG_SERVICE% | findstr "RUNNING" >nul 2>&1
+sc query !PG_SERVICE! | findstr /i "RUNNING" >nul 2>&1
 if %errorlevel%==0 (
-    echo  OK - PostgreSQL is already running.
+    echo  [OK] PostgreSQL service is running: !PG_SERVICE!
 ) else (
-    echo  Starting PostgreSQL...
-    net start %PG_SERVICE% >nul 2>&1
-    if %errorlevel%==0 (
-        echo  OK - PostgreSQL started.
+    echo  Starting PostgreSQL service: !PG_SERVICE!...
+    net start !PG_SERVICE! >nul 2>&1
+    sc query !PG_SERVICE! | findstr /i "RUNNING" >nul 2>&1
+    if !errorlevel!==0 (
+        echo  [OK] PostgreSQL started successfully.
     ) else (
-        echo  WARNING: Could not start PostgreSQL. Try running this file as Administrator.
-        pause
-        exit /b 1
+        echo  [!] Note: If PostgreSQL runs under a different configuration,
+        echo      ensure your PostgreSQL server is active. Continuing...
     )
 )
 
 echo.
 
-:: ─── 2. Set environment variables ────────────────────────────────────────
+:: --- 2. Free ports if previous instances are lingering ------------------
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr ":3001 " ^| findstr "LISTENING"') do (
+    taskkill /PID %%p /F >nul 2>&1
+)
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr ":3000 " ^| findstr "LISTENING"') do (
+    taskkill /PID %%p /F >nul 2>&1
+)
+
+:: Set environment variables
 set DATABASE_URL=postgresql://postgres:SageerBH@localhost:5432/school_db?schema=public
 set NODE_ENV=development
 
-:: ─── 3. Start API Server ─────────────────────────────────────────────────
-echo [2/3] Starting API server (http://localhost:3001)...
+:: --- 3. Start API Server -------------------------------------------------
+echo [2/3] Starting Backend API on port 3001...
 
 cd /d "%~dp0apps\api"
 start "School API - Port 3001" cmd /k "set DATABASE_URL=%DATABASE_URL% && npm run start:dev"
 
-:: Wait a moment for API to begin starting
-timeout /t 3 /nobreak >nul
-
-echo  OK - API server launching in background.
+ping -n 4 127.0.0.1 >nul
+echo  [OK] API server launched.
 echo.
 
-:: ─── 4. Start Web Server ─────────────────────────────────────────────────
-echo [3/3] Starting Web server (http://localhost:3000)...
+:: --- 4. Start Web Server -------------------------------------------------
+echo [3/3] Starting Frontend Web on port 3000...
 
 cd /d "%~dp0apps\web"
 start "School Web - Port 3000" cmd /k "npm run dev"
 
-:: Wait for web to begin
-timeout /t 3 /nobreak >nul
-
-echo  OK - Web server launching in background.
+ping -n 4 127.0.0.1 >nul
+echo  [OK] Web server launched.
 echo.
 
-:: ─── 5. Open browser ─────────────────────────────────────────────────────
-echo ──────────────────────────────────────────────────
+:: --- 5. Open Browser -----------------------------------------------------
+echo ------------------------------------------------
+echo  All systems starting! Opening browser in 8 seconds...
 echo.
-echo  All services starting! Opening browser in 10s...
+echo  Web URL:  http://localhost:3000
+echo  API URL:  http://localhost:3001/api/v1
 echo.
-echo  Web:   http://localhost:3000
-echo  API:   http://localhost:3001/api/v1
-echo.
-echo  Login: admin@school.local / Admin@1234
-echo.
-echo  To stop: close the two terminal windows that opened.
-echo ──────────────────────────────────────────────────
+echo  Default Login:
+echo    Email:    admin@school.local
+echo    Password: Admin@1234
+echo ------------------------------------------------
 echo.
 
-timeout /t 10 /nobreak >nul
+ping -n 9 127.0.0.1 >nul
 start "" http://localhost:3000
 
-echo  Browser opened. You can close this window now.
-timeout /t 5 /nobreak >nul
+echo  Browser launched. You can close this launcher window anytime.
+ping -n 5 127.0.0.1 >nul
