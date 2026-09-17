@@ -101,85 +101,85 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="stats-grid" style={{ marginBottom: '2rem' }}>
-        <Link href="/students" className="card" style={{ textDecoration: 'none' }}>
+      <div className="stats-grid" style={{ marginBottom: "2rem" }}>
+        <Link href="/students" className="card" style={{ textDecoration: "none", borderRadius: 20, transition: "transform 0.15s ease" }}>
           <div className="stat-label">Students</div>
           <div className="stat-value">{overview?.students?.total || 0}</div>
           <div className="stat-sub">{overview?.students?.enrolled || 0} enrolled</div>
         </Link>
-        <Link href="/classes" className="card" style={{ textDecoration: 'none' }}>
+        <Link href="/classes" className="card" style={{ textDecoration: "none", borderRadius: 20, transition: "transform 0.15s ease" }}>
           <div className="stat-label">Classes</div>
           <div className="stat-value">{overview?.classes || 0}</div>
           <div className="stat-sub">Active classes</div>
         </Link>
-        <Link href="/staff" className="card" style={{ textDecoration: 'none' }}>
+        <Link href="/staff" className="card" style={{ textDecoration: "none", borderRadius: 20, transition: "transform 0.15s ease" }}>
           <div className="stat-label">Staff</div>
           <div className="stat-value">{overview?.staff?.records || 0}</div>
           <div className="stat-sub">{overview?.staff?.teachers || 0} teachers</div>
         </Link>
-        <Link href="/attendance" className="card" style={{ textDecoration: 'none' }}>
+        <Link href="/attendance" className="card" style={{ textDecoration: "none", borderRadius: 20, transition: "transform 0.15s ease" }}>
           <div className="stat-label">Attendance Today</div>
           <div className="stat-value">{overview?.attendance?.todayMarked || 0}</div>
           <div className="stat-sub">{overview?.attendance?.rate || 0}% rate</div>
         </Link>
-        <Link href="/fees" className="card" style={{ textDecoration: 'none' }}>
+        <Link href="/fees" className="card" style={{ textDecoration: "none", borderRadius: 20, transition: "transform 0.15s ease" }}>
           <div className="stat-label">Outstanding Fees</div>
           <div className="stat-value">{formatNaira(overview?.fees?.outstandingAmount || 0)}</div>
           <div className="stat-sub">{overview?.fees?.unpaidCount || 0} unpaid invoices</div>
         </Link>
-        <Link href="/library" className="card" style={{ textDecoration: 'none' }}>
+        <Link href="/library" className="card" style={{ textDecoration: "none", borderRadius: 20, transition: "transform 0.15s ease" }}>
           <div className="stat-label">Books on Loan</div>
           <div className="stat-value">{overview?.library?.onLoan || 0}</div>
           <div className="stat-sub">{overview?.library?.overdue || 0} overdue</div>
         </Link>
-        <Link href="/transport" className="card" style={{ textDecoration: 'none' }}>
+        <Link href="/transport" className="card" style={{ textDecoration: "none", borderRadius: 20, transition: "transform 0.15s ease" }}>
           <div className="stat-label">Buses</div>
           <div className="stat-value">{overview?.buses || 0}</div>
           <div className="stat-sub">Active fleet</div>
         </Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        <div className="card">
-          <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 600 }}>Enrollment by Class</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "1.5rem", marginBottom: "1.5rem" }}>
+        <div className="card" style={{ borderRadius: 24 }}>
+          <h2 style={{ fontSize: "1.1rem", marginBottom: "1rem", fontWeight: 700, color: "var(--color-ink)" }}>Enrollment by Class</h2>
           {enrollment && enrollment.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {enrollment.map(item => (
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              {enrollment.map((item) => (
                 <div key={item.id}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                    <span style={{ fontSize: '0.875rem' }}>{item.name}</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{item.count}</span>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.35rem" }}>
+                    <span style={{ fontSize: "0.875rem", fontWeight: 600 }}>{item.name}</span>
+                    <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--color-brand-teal)" }}>{item.count}</span>
                   </div>
-                  <div style={{ width: '100%', backgroundColor: 'var(--color-page)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ width: `${(item.count / maxEnrollment) * 100}%`, backgroundColor: 'var(--color-ink)', height: '100%' }} />
+                  <div style={{ width: "100%", backgroundColor: "var(--color-surface-subtle, #F4F7F5)", height: "8px", borderRadius: 9999, overflow: "hidden" }}>
+                    <div style={{ width: `${(item.count / maxEnrollment) * 100}%`, backgroundColor: "var(--color-brand-teal, #0E7D75)", height: "100%", borderRadius: 9999 }} />
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="empty-state" style={{ padding: '32px 16px' }}>
+            <div className="empty-state" style={{ padding: "32px 16px" }}>
               <div className="empty-state-title">No enrollment data</div>
               <div className="empty-state-text">Add your first student to start tracking enrollment.</div>
             </div>
           )}
         </div>
 
-        <div className="card">
-          <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 600 }}>Fee Collection</h2>
+        <div className="card" style={{ borderRadius: 24 }}>
+          <h2 style={{ fontSize: "1.1rem", marginBottom: "1rem", fontWeight: 700, color: "var(--color-ink)" }}>Fee Collection</h2>
           {fees && fees.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
               {fees.map((fee, i) => {
                 const percent = fee.invoiced > 0 ? Math.round((fee.collected / fee.invoiced) * 100) : 0;
                 return (
                   <div key={i}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                      <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{fee.term} {fee.academicYear}</span>
-                      <span style={{ fontSize: '0.875rem' }}>{percent}% Collected</span>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.35rem" }}>
+                      <span style={{ fontSize: "0.875rem", fontWeight: 700 }}>{fee.term} {fee.academicYear}</span>
+                      <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--color-brand-teal)" }}>{percent}% Collected</span>
                     </div>
-                    <div style={{ width: '100%', backgroundColor: 'var(--color-page)', height: '8px', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.25rem' }}>
-                      <div style={{ width: `${percent}%`, backgroundColor: 'var(--color-success-text)', height: '100%' }} />
+                    <div style={{ width: "100%", backgroundColor: "var(--color-surface-subtle, #F4F7F5)", height: "8px", borderRadius: 9999, overflow: "hidden", marginBottom: "0.35rem" }}>
+                      <div style={{ width: `${percent}%`, backgroundColor: "var(--color-accent-gold, #F7C844)", height: "100%", borderRadius: 9999 }} />
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--color-text-secondary)" }}>
                       <span>Collected: {formatNaira(fee.collected)}</span>
                       <span>Target: {formatNaira(fee.invoiced)}</span>
                     </div>
@@ -188,7 +188,7 @@ export default function DashboardPage() {
               })}
             </div>
           ) : (
-            <div className="empty-state" style={{ padding: '32px 16px' }}>
+            <div className="empty-state" style={{ padding: "32px 16px" }}>
               <div className="empty-state-title">No fee data</div>
               <div className="empty-state-text">Issue invoices to start tracking fee collection.</div>
             </div>
@@ -196,32 +196,32 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Action Needed</h2>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "1.5rem" }}>
+        <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.75rem", borderRadius: 24 }}>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.25rem", color: "var(--color-ink)" }}>Action Needed</h2>
           
-          <Link href="/library/loans" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-            <div style={{ padding: '0.875rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 500 }}>Overdue Books</span>
+          <Link href="/library/loans" style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+            <div style={{ padding: "0.875rem 1rem", border: "1px solid var(--color-border)", borderRadius: 16, backgroundColor: "var(--color-surface-subtle, #F4F7F5)", transition: "background 0.15s" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600 }}>Overdue Books</span>
                 <span className="pill-danger">{alerts?.overdueBooks?.count || 0}</span>
               </div>
             </div>
           </Link>
           
-          <Link href="/fees" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-            <div style={{ padding: '0.875rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 500 }}>Unpaid Fees</span>
+          <Link href="/fees" style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+            <div style={{ padding: "0.875rem 1rem", border: "1px solid var(--color-border)", borderRadius: 16, backgroundColor: "var(--color-surface-subtle, #F4F7F5)", transition: "background 0.15s" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600 }}>Unpaid Fees</span>
                 <span className="pill-warning">{alerts?.unpaidFees?.count || 0}</span>
               </div>
             </div>
           </Link>
 
-          <Link href="/transport" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-            <div style={{ padding: '0.875rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 500 }}>Buses Near Capacity</span>
+          <Link href="/transport" style={{ textDecoration: "none", color: "inherit", display: "block" }}>
+            <div style={{ padding: "0.875rem 1rem", border: "1px solid var(--color-border)", borderRadius: 16, backgroundColor: "var(--color-surface-subtle, #F4F7F5)", transition: "background 0.15s" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontWeight: 600 }}>Buses Near Capacity</span>
                 <span className="pill-info">{alerts?.busesNearFull?.count || 0}</span>
               </div>
             </div>

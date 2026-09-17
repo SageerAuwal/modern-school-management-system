@@ -3,42 +3,59 @@
 
 /* ─── Design Tokens ────────────────────────────────────────────────────────── */
 :root {
-  --color-ink: #10141A;
-  --color-page: #F7F6F3;
+  --color-canvas: #D4E5DC; /* Sage-mint outer backdrop */
+  --color-ink: #182220;
+  --color-page: #FFFFFF;
   --color-surface: #FFFFFF;
-  --color-border: #E4E4E4;
-  --color-text-secondary: #5F5E5A;
-  --color-accent-blue: #83A2DB;
-  --color-accent-coral: #CE6969;
+  --color-surface-subtle: #F4F7F5;
+  --color-border: #E8ECE9;
+  --color-text-secondary: #70817B;
+
+  /* Reference Branding & Accent Colors */
+  --color-brand-teal: #0E7D75;
+  --color-brand-teal-dark: #0A635D;
+  --color-brand-teal-bg: #E6F3F1;
+  --color-accent-gold: #F7C844; /* Sunny Gold CTA & Active indicator */
+  --color-accent-gold-hover: #EBB832;
+
+  /* Soft Pastel Palette for Subjects & Module Cards */
+  --color-pastel-lavender: #E3DCFA;
+  --color-pastel-lavender-text: #4C3A96;
+  --color-pastel-blue: #D1F0FA;
+  --color-pastel-blue-text: #13637B;
+  --color-pastel-pink: #FDE2F2;
+  --color-pastel-pink-text: #96286B;
+  --color-pastel-peach: #FDE6D2;
+  --color-pastel-peach-text: #8F5419;
+  --color-pastel-mint: #DDF5E9;
+  --color-pastel-mint-text: #166E4E;
 
   --color-success-bg: #EAF3DE;
   --color-success-text: #3B6D11;
   --color-danger-bg: #FAECE7;
   --color-danger-text: #993C1D;
-  --color-warning-bg: #FEF9C3;
-  --color-warning-text: #854D0E;
-  --color-info-bg: #E0F2FE;
-  --color-info-text: #075985;
-  --color-neutral-bg: #F1F5F9;
-  --color-neutral-text: #475569;
+  --color-warning-bg: #FEF3C7;
+  --color-warning-text: #92400E;
+  --color-info-bg: #D1F0FA;
+  --color-info-text: #13637B;
+  --color-neutral-bg: #F4F7F5;
+  --color-neutral-text: #52635E;
 
-  --radius-card: 14px;
-  --radius-pill: 20px;
-  --radius-pill-badge: 14px;
-  --radius-control: 8px;
-  --border-width: 0.5px;
-  --card-padding: 18px;
-  --grid-gap: 12px;
-
-  --sidebar-width: 230px;
-  --topbar-height: 0px;
+  --radius-shell: 28px;
+  --radius-card: 20px;
+  --radius-pill: 9999px;
+  --radius-pill-badge: 9999px;
+  --radius-control: 9999px;
+  --border-width: 1px;
+  --card-padding: 20px;
+  --grid-gap: 14px;
 }
 
 /* ─── Reset & Base ─────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
-  background-color: var(--color-page);
+  background-color: var(--color-canvas);
   color: var(--color-ink);
   font-family: "Manrope", system-ui, -apple-system, sans-serif;
   font-size: 14px;
@@ -52,9 +69,10 @@ a { color: inherit; text-decoration: none; }
 /* ─── Cards ────────────────────────────────────────────────────────────────── */
 .card {
   background-color: var(--color-surface);
-  border: var(--border-width) solid var(--color-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   padding: var(--card-padding);
+  box-shadow: 0 4px 20px rgba(18, 50, 38, 0.03);
 }
 
 /* ─── Status Pills ─────────────────────────────────────────────────────────── */
@@ -62,8 +80,8 @@ a { color: inherit; text-decoration: none; }
   background-color: var(--color-success-bg);
   color: var(--color-success-text);
   border-radius: var(--radius-pill-badge);
-  font-size: 11px; font-weight: 600;
-  padding: 2px 10px;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 12px;
   display: inline-flex; align-items: center;
 }
 
@@ -71,8 +89,8 @@ a { color: inherit; text-decoration: none; }
   background-color: var(--color-danger-bg);
   color: var(--color-danger-text);
   border-radius: var(--radius-pill-badge);
-  font-size: 11px; font-weight: 600;
-  padding: 2px 10px;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 12px;
   display: inline-flex; align-items: center;
 }
 
@@ -80,8 +98,8 @@ a { color: inherit; text-decoration: none; }
   background-color: var(--color-warning-bg);
   color: var(--color-warning-text);
   border-radius: var(--radius-pill-badge);
-  font-size: 11px; font-weight: 600;
-  padding: 2px 10px;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 12px;
   display: inline-flex; align-items: center;
 }
 
@@ -89,8 +107,8 @@ a { color: inherit; text-decoration: none; }
   background-color: var(--color-neutral-bg);
   color: var(--color-neutral-text);
   border-radius: var(--radius-pill-badge);
-  font-size: 11px; font-weight: 600;
-  padding: 2px 10px;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 12px;
   display: inline-flex; align-items: center;
 }
 
@@ -98,34 +116,45 @@ a { color: inherit; text-decoration: none; }
   background-color: var(--color-info-bg);
   color: var(--color-info-text);
   border-radius: var(--radius-pill-badge);
-  font-size: 11px; font-weight: 600;
-  padding: 2px 10px;
+  font-size: 11px; font-weight: 700;
+  padding: 3px 12px;
   display: inline-flex; align-items: center;
 }
 
 /* ─── Buttons ──────────────────────────────────────────────────────────────── */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 9px 18px;
-  border-radius: var(--radius-control);
-  font-size: 13px; font-weight: 500;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  font-size: 13px; font-weight: 600;
   cursor: pointer; border: none;
-  transition: opacity 0.15s, background-color 0.15s;
+  transition: all 0.16s ease;
 }
-.btn:hover { opacity: 0.88; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:hover { opacity: 0.92; transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 .btn-primary {
-  background-color: var(--color-ink);
-  color: #fff;
+  background-color: var(--color-accent-gold, #F7C844);
+  color: var(--color-ink, #182220);
+  box-shadow: 0 2px 8px rgba(247, 200, 68, 0.3);
+}
+.btn-primary:hover {
+  background-color: var(--color-accent-gold-hover, #EBB832);
+}
+
+.btn-teal {
+  background-color: var(--color-brand-teal, #0E7D75);
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(14, 125, 117, 0.25);
 }
 
 .btn-secondary {
-  background-color: var(--color-surface);
-  color: var(--color-ink);
-  border: var(--border-width) solid var(--color-border);
+  background-color: var(--color-surface-subtle, #F4F7F5);
+  color: var(--color-ink, #182220);
+  border: 1px solid var(--color-border);
 }
-.btn-secondary:hover { background-color: var(--color-page); }
+.btn-secondary:hover { background-color: #EBF0ED; }
 
 .btn-danger {
   background-color: var(--color-danger-bg);
@@ -135,17 +164,19 @@ a { color: inherit; text-decoration: none; }
 /* ─── Inputs ───────────────────────────────────────────────────────────────── */
 .input {
   width: 100%;
-  padding: 9px 12px;
-  border: var(--border-width) solid var(--color-border);
-  border-radius: var(--radius-control);
-  font-size: 14px;
+  padding: 9px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
   color: var(--color-ink);
-  background-color: var(--color-surface);
+  background-color: var(--color-surface-subtle, #F4F7F5);
   outline: none;
-  transition: border-color 0.15s;
+  transition: all 0.15s;
 }
 .input:focus {
-  border-color: var(--color-ink);
+  border-color: var(--color-brand-teal);
+  background-color: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(14, 125, 117, 0.12);
 }
 .input::placeholder {
   color: var(--color-text-secondary);
@@ -319,14 +350,31 @@ a { color: inherit; text-decoration: none; }
 
 /* ─── Avatar / Initials ────────────────────────────────────────────────────── */
 .avatar {
-  width: 34px; height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background-color: var(--color-neutral-bg);
-  color: var(--color-neutral-text);
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 600;
+  background-color: var(--color-surface-subtle, #F4F7F5);
+  color: var(--color-ink, #182220);
+  border: 1.5px solid #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
   flex-shrink: 0;
   text-transform: uppercase;
+}
+
+.avatar-stack {
+  display: inline-flex;
+  align-items: center;
+}
+.avatar-stack .avatar {
+  margin-left: -8px;
+  box-shadow: 0 0 0 2px #FFFFFF;
+}
+.avatar-stack .avatar:first-child {
+  margin-left: 0;
 }
 
 /* ─── Responsive ───────────────────────────────────────────────────────────── */

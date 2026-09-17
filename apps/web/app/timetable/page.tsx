@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 
 interface ClassSection {
   id: string;
@@ -69,41 +70,38 @@ interface TimetableData {
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 const DAYS_OF_WEEK = [
-  { key: "MONDAY", label: "Monday", short: "Mon" },
-  { key: "TUESDAY", label: "Tuesday", short: "Tue" },
-  { key: "WEDNESDAY", label: "Wednesday", short: "Wed" },
-  { key: "THURSDAY", label: "Thursday", short: "Thu" },
-  { key: "FRIDAY", label: "Friday", short: "Fri" },
+  { key: "MONDAY", label: "Monday", short: "Mon", dateNum: 16 },
+  { key: "TUESDAY", label: "Tuesday", short: "Tue", dateNum: 17 },
+  { key: "WEDNESDAY", label: "Wednesday", short: "Wed", dateNum: 18 },
+  { key: "THURSDAY", label: "Thursday", short: "Thu", dateNum: 19 },
+  { key: "FRIDAY", label: "Friday", short: "Fri", dateNum: 20 },
 ];
 
-/* ── Subject Color Palette ─────────────────────────────────────────────────── */
+/* ── Pastel Color Palette from Reference Screenshot ──────────────────────── */
 function getSubjectTheme(name: string = ""): { bg: string; border: string; text: string; badgeBg: string } {
   const n = name.toLowerCase();
-  if (n.includes("math") || n.includes("arithmetic") || n.includes("further")) {
-    return { bg: "#EFF6FF", border: "#BFDBFE", text: "#1E40AF", badgeBg: "#DBEAFE" };
+  // Pink Pastel (Standup / Core)
+  if (n.includes("math") || n.includes("further") || n.includes("arithmetic") || n.includes("calc")) {
+    return { bg: "#FDE2F2", border: "#F9CEEA", text: "#96286B", badgeBg: "#F6BCD6" };
   }
-  if (n.includes("eng") || n.includes("literature") || n.includes("grammar") || n.includes("reading")) {
-    return { bg: "#F0FDF4", border: "#BBF7D0", text: "#166534", badgeBg: "#DCFCE7" };
+  // Lavender Pastel (Design Sync / Languages)
+  if (n.includes("eng") || n.includes("lit") || n.includes("gram") || n.includes("read") || n.includes("french") || n.includes("hausa")) {
+    return { bg: "#E3DCFA", border: "#D5CAFA", text: "#4C3A96", badgeBg: "#C8B9F5" };
   }
-  if (n.includes("sci") || n.includes("phy") || n.includes("chem") || n.includes("bio")) {
-    return { bg: "#FAF5FF", border: "#E9D5FF", text: "#6B21A8", badgeBg: "#F3E8FF" };
+  // Sky Blue Pastel (UX Audit / Sciences)
+  if (n.includes("sci") || n.includes("phy") || n.includes("chem") || n.includes("bio") || n.includes("comp") || n.includes("ict")) {
+    return { bg: "#D1F0FA", border: "#B9E8F7", text: "#13637B", badgeBg: "#A8E1F3" };
   }
-  if (n.includes("civic") || n.includes("social") || n.includes("history") || n.includes("geo") || n.includes("govt")) {
-    return { bg: "#FFFBEB", border: "#FDE68A", text: "#92400E", badgeBg: "#FEF3C7" };
+  // Peach Pastel (Sprint Check-in / Humanities & Commercial)
+  if (n.includes("civic") || n.includes("soc") || n.includes("hist") || n.includes("geo") || n.includes("econ") || n.includes("govt") || n.includes("comm")) {
+    return { bg: "#FDE6D2", border: "#F8D4B7", text: "#8F5419", badgeBg: "#F4C29B" };
   }
-  if (n.includes("comp") || n.includes("ict") || n.includes("data") || n.includes("tech")) {
-    return { bg: "#F1F5F9", border: "#CBD5E1", text: "#334155", badgeBg: "#E2E8F0" };
+  // Mint Pastel (Vocational / Health / Arts)
+  if (n.includes("agric") || n.includes("farm") || n.includes("phe") || n.includes("health") || n.includes("art") || n.includes("music")) {
+    return { bg: "#DDF5E9", border: "#C3EED7", text: "#166E4E", badgeBg: "#A9E4C5" };
   }
-  if (n.includes("agric") || n.includes("farm") || n.includes("phe") || n.includes("health")) {
-    return { bg: "#F0FDF4", border: "#86EFAC", text: "#15803D", badgeBg: "#DCFCE7" };
-  }
-  if (n.includes("islam") || n.includes("arab") || n.includes("crs") || n.includes("relig")) {
-    return { bg: "#ECFDF5", border: "#A7F3D0", text: "#065F46", badgeBg: "#D1FAE5" };
-  }
-  if (n.includes("french") || n.includes("hausa") || n.includes("yoruba") || n.includes("igbo") || n.includes("art")) {
-    return { bg: "#FFF1F2", border: "#FECDD3", text: "#9F1239", badgeBg: "#FFE4E6" };
-  }
-  return { bg: "#F8FAFC", border: "#E2E8F0", text: "#1E293B", badgeBg: "#F1F5F9" };
+  // Default Lavender Soft
+  return { bg: "#EAE6FD", border: "#DDD6FA", text: "#4338CA", badgeBg: "#D1C8FA" };
 }
 
 export default function TimetablePage() {
@@ -118,7 +116,20 @@ export default function TimetablePage() {
   const [activeView, setActiveView] = useState<"class" | "teacher" | "master">("class");
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
-  const [selectedMasterDay, setSelectedMasterDay] = useState<string>("MONDAY");
+  const [selectedMasterDay, setSelectedMasterDay] = useState<string>("WEDNESDAY");
+
+  // Left Calendar State
+  const [calMonth, setCalMonth] = useState(new Date(2025, 5, 1)); // June 2025
+  const [selectedDayNum, setSelectedDayNum] = useState(18); // Wednesday 18
+
+  // Filters Checklist State
+  const [filters, setFilters] = useState({
+    junior: true,
+    senior: true,
+    coreSubjects: true,
+    practicals: false,
+    extracurricular: false,
+  });
 
   // Generator Modal State
   const [isGenModalOpen, setIsGenModalOpen] = useState(false);
@@ -227,7 +238,9 @@ export default function TimetablePage() {
     const formatTime = (totalMinutes: number) => {
       const h = Math.floor(totalMinutes / 60);
       const m = totalMinutes % 60;
-      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+      const ampm = h >= 12 ? "PM" : "AM";
+      const displayH = h % 12 === 0 ? 12 : h % 12;
+      return `${String(displayH).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
     };
 
     const slots = [];
@@ -253,7 +266,7 @@ export default function TimetablePage() {
           isBreak: true,
           startTime: bStart,
           endTime: bEnd,
-          label: "Recess / Break",
+          label: "Recess Break",
         });
       }
     }
@@ -308,7 +321,16 @@ export default function TimetablePage() {
     [teachers, selectedTeacherId]
   );
 
-  /* ── Conflict Verification / Integrity Check ────────────────────────────── */
+  /* ── Upcoming Highlight Lesson (for the Deep Teal Card) ─────────────────── */
+  const upcomingLesson = useMemo(() => {
+    if (!timetable?.lessons || timetable.lessons.length === 0) return null;
+    const wednesdayLessons = timetable.lessons.filter(
+      (l) => getDay(l) === "WEDNESDAY" && (!selectedClassId || l.classSectionId === selectedClassId)
+    );
+    return wednesdayLessons[0] || timetable.lessons[0];
+  }, [timetable, selectedClassId]);
+
+  /* ── Integrity Stats ─────────────────────────────────────────────────────── */
   const integrityStats = useMemo(() => {
     if (!timetable?.lessons) return { clashes: 0, totalLessons: 0, scheduledClasses: 0 };
     const teacherSlots = new Set<string>();
@@ -319,11 +341,8 @@ export default function TimetablePage() {
       classSet.add(l.classSectionId);
       if (l.teacherId) {
         const key = `${l.teacherId}_${getDay(l)}_${l.periodNumber}`;
-        if (teacherSlots.has(key)) {
-          clashes++;
-        } else {
-          teacherSlots.add(key);
-        }
+        if (teacherSlots.has(key)) clashes++;
+        else teacherSlots.add(key);
       }
     }
     return {
@@ -333,7 +352,7 @@ export default function TimetablePage() {
     };
   }, [timetable]);
 
-  /* ── Handle Auto-Generate Submit ─────────────────────────────────────────── */
+  /* ── Auto-Generate Timetable ─────────────────────────────────────────────── */
   const handleAutoGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     setGenerating(true);
@@ -378,7 +397,7 @@ export default function TimetablePage() {
     }
   };
 
-  /* ── Handle Quick Lesson Edit ────────────────────────────────────────────── */
+  /* ── Lesson Quick Edit ───────────────────────────────────────────────────── */
   const openEditModal = (lesson: Lesson) => {
     setEditingLesson(lesson);
     setEditRoom(lesson.room || "");
@@ -418,185 +437,509 @@ export default function TimetablePage() {
     }
   };
 
+  /* ── Mini Month Calendar Helper Days (June 2025 reference) ───────────────── */
+  const calendarDays = useMemo(() => {
+    const days = [];
+    for (let i = 1; i <= 30; i++) {
+      days.push(i);
+    }
+    return days;
+  }, []);
+
   return (
-    <div className="page">
-      {/* ── Page Header ────────────────────────────────────────────────────── */}
-      <div className="page-header no-print">
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <h1 className="page-title">Timetable & Routine</h1>
-            {timetable?.isActive && (
-              <span className="pill-success" style={{ gap: 6 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--color-success-text)" }} />
-                Active Routine
-              </span>
-            )}
-          </div>
-          <p className="page-subtitle">
-            {timetable
-              ? `${timetable.title} (${timetable.academicYear}) · ${integrityStats.totalLessons} lessons generated`
-              : "Generate conflict-free weekly timetables across all classes and subjects"}
-          </p>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => window.print()}
-            disabled={!timetable}
-            title="Print printable A4 class routine"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 6 2 18 2 18 9" />
-              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-              <rect x="6" y="14" width="12" height="8" />
-            </svg>
-            Print Timetable
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              setGenError("");
-              setGenSuccessMsg("");
-              setIsGenModalOpen(true);
-            }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-            Auto-Generate Timetable
-          </button>
-        </div>
-      </div>
-
+    <div style={{ padding: "24px 28px", backgroundColor: "#FFFFFF", minHeight: "100%" }}>
       {/* ── Error Banner ───────────────────────────────────────────────────── */}
       {error && (
-        <div className="pill-danger no-print" style={{ display: "inline-block", marginBottom: 16, padding: "8px 14px", borderRadius: "var(--radius-control)" }}>
+        <div className="pill-danger no-print" style={{ marginBottom: 16, padding: "8px 16px", borderRadius: 9999 }}>
           {error}
         </div>
       )}
 
-      {/* ── Stat Badges Summary Bar ────────────────────────────────────────── */}
-      {timetable && (
-        <div className="stats-grid no-print" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", marginBottom: 20 }}>
-          <div className="card" style={{ padding: "14px 16px" }}>
-            <div className="stat-label">Classes Scheduled</div>
-            <div className="stat-value">{integrityStats.scheduledClasses} / {classes.length}</div>
-            <div className="stat-sub">Across all levels & arms</div>
+      {/* ── Two-Column Main Layout Matching Reference Screenshot ────────────── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "300px 1fr",
+          gap: 28,
+          alignItems: "start",
+        }}
+      >
+        {/* ════ LEFT COLUMN: Mini Calendar, Teal Card, Filters ════════════════ */}
+        <div className="no-print" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Card 1: Mini Month Calendar Card */}
+          <div
+            className="card"
+            style={{
+              padding: "20px",
+              borderRadius: "var(--radius-card, 20px)",
+              border: "1px solid var(--color-border, #E8ECE9)",
+              backgroundColor: "#FFFFFF",
+            }}
+          >
+            {/* Header: Month and Chevron controls */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-ink, #182220)" }}>
+                June 2025
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDayNum((prev) => Math.max(1, prev - 1))}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    color: "var(--color-text-secondary, #70817B)",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    padding: 4,
+                  }}
+                >
+                  &lt;
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDayNum((prev) => Math.min(30, prev + 1))}
+                  style={{
+                    border: "none",
+                    background: "none",
+                    color: "var(--color-text-secondary, #70817B)",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    padding: 4,
+                  }}
+                >
+                  &gt;
+                </button>
+              </div>
+            </div>
+
+            {/* Day of Week Letters */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(7, 1fr)",
+                textAlign: "center",
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--color-text-secondary, #70817B)",
+                marginBottom: 10,
+              }}
+            >
+              <span>S</span>
+              <span>M</span>
+              <span>T</span>
+              <span>W</span>
+              <span>T</span>
+              <span>F</span>
+              <span>S</span>
+            </div>
+
+            {/* Days Grid */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(7, 1fr)",
+                gap: "4px",
+                textAlign: "center",
+              }}
+            >
+              {calendarDays.map((d) => {
+                const isSelected = d === selectedDayNum;
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setSelectedDayNum(d)}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      margin: "0 auto",
+                      border: "none",
+                      borderRadius: "50%",
+                      backgroundColor: isSelected ? "var(--color-brand-teal, #0E7D75)" : "transparent",
+                      color: isSelected ? "#FFFFFF" : "var(--color-ink, #182220)",
+                      fontWeight: isSelected ? 700 : 500,
+                      fontSize: 12,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) e.currentTarget.style.backgroundColor = "var(--color-surface-subtle, #F4F7F5)";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                  >
+                    {d}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div className="card" style={{ padding: "14px 16px" }}>
-            <div className="stat-label">Weekly Lessons</div>
-            <div className="stat-value">{integrityStats.totalLessons}</div>
-            <div className="stat-sub">{timetable.periodsPerDay} periods × 5 school days</div>
+
+          {/* Card 2: High-Contrast Deep Teal Reminder Card (from Reference) */}
+          <div
+            style={{
+              backgroundColor: "var(--color-brand-teal, #0E7D75)",
+              color: "#FFFFFF",
+              borderRadius: 24,
+              padding: "20px 22px",
+              boxShadow: "0 12px 32px rgba(14, 125, 117, 0.22)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            {/* Background decorative glow */}
+            <div
+              style={{
+                position: "absolute",
+                top: -30,
+                right: -30,
+                width: 100,
+                height: 100,
+                borderRadius: "50%",
+                background: "rgba(255, 255, 255, 0.08)",
+                pointerEvents: "none",
+              }}
+            />
+
+            <div>
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "rgba(255, 255, 255, 0.75)",
+                  fontWeight: 600,
+                  display: "block",
+                  marginBottom: 4,
+                }}
+              >
+                Routine reminder
+              </span>
+              <h3
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: "#FFFFFF",
+                  margin: 0,
+                  lineHeight: 1.2,
+                }}
+              >
+                {upcomingLesson ? `${upcomingLesson.subject.name} - ${upcomingLesson.classSection.name}` : "Academic Assembly"}
+              </h3>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "rgba(255, 255, 255, 0.85)" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span>{upcomingLesson ? `${upcomingLesson.startTime} - ${upcomingLesson.endTime}` : "08:00 AM - 08:40 AM"}</span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+              {/* Teacher & Students Avatar Stack */}
+              <div className="avatar-stack">
+                <div
+                  className="avatar"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    fontSize: 10,
+                    backgroundColor: "#F7C844",
+                    color: "#182220",
+                  }}
+                >
+                  {upcomingLesson?.teacher ? `${upcomingLesson.teacher.firstName[0]}${upcomingLesson.teacher.lastName[0]}` : "T"}
+                </div>
+                <div
+                  className="avatar"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    fontSize: 10,
+                    backgroundColor: "#FFFFFF",
+                    color: "#0E7D75",
+                  }}
+                >
+                  S
+                </div>
+                <div
+                  className="avatar"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    fontSize: 9,
+                    backgroundColor: "rgba(255, 255, 255, 0.25)",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  +5
+                </div>
+              </div>
+
+              {/* Action Buttons: Yellow action & Teal confirm */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {upcomingLesson && (
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(upcomingLesson)}
+                    title="Quick adjust slot"
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      backgroundColor: "var(--color-accent-gold, #F7C844)",
+                      color: "#182220",
+                      border: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 700,
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  title="Scheduled and confirmed"
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    backgroundColor: "#0A5A54",
+                    color: "#FFFFFF",
+                    border: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    fontSize: 14,
+                  }}
+                >
+                  ✓
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="card" style={{ padding: "14px 16px" }}>
-            <div className="stat-label">Constraint Status</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-              <span className={integrityStats.clashes === 0 ? "pill-success" : "pill-danger"}>
-                {integrityStats.clashes === 0 ? "0 Teacher Clashes" : `${integrityStats.clashes} Clashes`}
+
+          {/* Card 3: Filters Card (Checklist from Reference) */}
+          <div
+            className="card"
+            style={{
+              padding: "18px 20px",
+              borderRadius: "var(--radius-card, 20px)",
+              border: "1px solid var(--color-border, #E8ECE9)",
+              backgroundColor: "#FFFFFF",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: "var(--color-ink, #182220)" }}>
+                Filters
+              </span>
+              <span style={{ color: "var(--color-text-secondary)", fontSize: 13, cursor: "pointer" }}>
+                ^
               </span>
             </div>
-            <div className="stat-sub">Automated CSP verification</div>
-          </div>
-          <div className="card" style={{ padding: "14px 16px" }}>
-            <div className="stat-label">Daily Schedule</div>
-            <div className="stat-value" style={{ fontSize: 20 }}>
-              {timetable.startTime} · {timetable.lessonDuration}m
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer", color: "var(--color-ink)" }}>
+                <input
+                  type="checkbox"
+                  checked={filters.junior}
+                  onChange={(e) => setFilters({ ...filters, junior: e.target.checked })}
+                  style={{ accentColor: "var(--color-brand-teal, #0E7D75)", width: 16, height: 16 }}
+                />
+                Junior Secondary (JS1 - JS3)
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer", color: "var(--color-ink)" }}>
+                <input
+                  type="checkbox"
+                  checked={filters.senior}
+                  onChange={(e) => setFilters({ ...filters, senior: e.target.checked })}
+                  style={{ accentColor: "var(--color-brand-teal, #0E7D75)", width: 16, height: 16 }}
+                />
+                Senior Secondary (SS1 - SS3)
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer", color: "var(--color-ink)" }}>
+                <input
+                  type="checkbox"
+                  checked={filters.coreSubjects}
+                  onChange={(e) => setFilters({ ...filters, coreSubjects: e.target.checked })}
+                  style={{ accentColor: "var(--color-brand-teal, #0E7D75)", width: 16, height: 16 }}
+                />
+                Core Subjects (Maths & English)
+              </label>
+
+              <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, cursor: "pointer", color: "var(--color-ink)" }}>
+                <input
+                  type="checkbox"
+                  checked={filters.practicals}
+                  onChange={(e) => setFilters({ ...filters, practicals: e.target.checked })}
+                  style={{ accentColor: "var(--color-brand-teal, #0E7D75)", width: 16, height: 16 }}
+                />
+                Science Labs & Practicals
+              </label>
             </div>
-            <div className="stat-sub">Recess after Period {timetable.breakAfterPeriod} ({timetable.breakDuration}m)</div>
           </div>
-        </div>
-      )}
 
-      {/* ── Empty State when no Timetable exists ────────────────────────────── */}
-      {!loading && !timetable && (
-        <div className="card empty-state" style={{ maxWidth: 640, margin: "40px auto", padding: 48 }}>
-          <div className="empty-state-icon" style={{ fontSize: 44 }}>
-            📅
-          </div>
-          <h2 className="empty-state-title" style={{ fontSize: 18 }}>No Timetable Active</h2>
-          <p className="empty-state-text" style={{ maxWidth: 440, margin: "0 auto 20px" }}>
-            Generate a full, automated weekly routine for all classes. The algorithm automatically allocates subjects, prevents teacher clashes, and balances daily core subjects.
-          </p>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setIsGenModalOpen(true)}
+          {/* Card 4: Other Calendars Pill Card */}
+          <Link
+            href="/exams"
+            style={{
+              textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "14px 20px",
+              borderRadius: "var(--radius-card, 20px)",
+              backgroundColor: "#FFFFFF",
+              border: "1px solid var(--color-border, #E8ECE9)",
+              cursor: "pointer",
+            }}
           >
-            ⚡ Auto-Generate Timetable Now
-          </button>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-ink, #182220)" }}>
+              Exam & Term Timetable
+            </span>
+            <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>
+              ➔
+            </span>
+          </Link>
         </div>
-      )}
 
-      {/* ── Multi-Mode View Switcher & Controls ────────────────────────────── */}
-      {timetable && (
-        <div className="no-print" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 16 }}>
-          {/* View Pill Tabs */}
-          <div style={{ display: "inline-flex", padding: 3, backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 9999 }}>
-            <button
-              type="button"
-              onClick={() => setActiveView("class")}
-              style={{
-                border: "none",
-                background: activeView === "class" ? "var(--color-ink)" : "transparent",
-                color: activeView === "class" ? "#FFFFFF" : "var(--color-text-secondary)",
-                padding: "6px 16px",
-                borderRadius: 9999,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all 0.15s",
-              }}
-            >
-              🏫 Class Routine
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveView("teacher")}
-              style={{
-                border: "none",
-                background: activeView === "teacher" ? "var(--color-ink)" : "transparent",
-                color: activeView === "teacher" ? "#FFFFFF" : "var(--color-text-secondary)",
-                padding: "6px 16px",
-                borderRadius: 9999,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all 0.15s",
-              }}
-            >
-              👨‍🏫 Teacher Roster
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveView("master")}
-              style={{
-                border: "none",
-                background: activeView === "master" ? "var(--color-ink)" : "transparent",
-                color: activeView === "master" ? "#FFFFFF" : "var(--color-text-secondary)",
-                padding: "6px 16px",
-                borderRadius: 9999,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all 0.15s",
-              }}
-            >
-              📋 Master Day Matrix
-            </button>
-          </div>
+        {/* ════ RIGHT MAIN AREA: Day Navigator, View Pill, Lesson Cards Grid ═══ */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20, minWidth: 0 }}>
+          {/* Top Schedule Controls Bar (Directly from Reference) */}
+          <div
+            className="no-print"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 14,
+            }}
+          >
+            {/* Left: Date Navigation (< June, 18 2025 >) */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setSelectedDayNum((prev) => Math.max(1, prev - 1))}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  fontSize: 16,
+                  color: "var(--color-text-secondary)",
+                  cursor: "pointer",
+                  padding: "4px 8px",
+                }}
+              >
+                &lt;
+              </button>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--color-ink, #182220)", margin: 0 }}>
+                June, {selectedDayNum} 2025
+              </h2>
+              <button
+                type="button"
+                onClick={() => setSelectedDayNum((prev) => Math.min(30, prev + 1))}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  fontSize: 16,
+                  color: "var(--color-text-secondary)",
+                  cursor: "pointer",
+                  padding: "4px 8px",
+                }}
+              >
+                &gt;
+              </button>
+            </div>
 
-          {/* Context Selector Dropdown */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {activeView === "class" && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Class:</span>
+            {/* Center: Segmented View Pill (Daily | Weekly | Monthly -> Routine | Roster | Matrix) */}
+            <div
+              style={{
+                display: "inline-flex",
+                backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                padding: 4,
+                borderRadius: 9999,
+                border: "1px solid var(--color-border, #E8ECE9)",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setActiveView("class")}
+                style={{
+                  border: "none",
+                  background: activeView === "class" ? "#FFFFFF" : "transparent",
+                  color: activeView === "class" ? "var(--color-ink, #182220)" : "var(--color-text-secondary, #70817B)",
+                  padding: "6px 18px",
+                  borderRadius: 9999,
+                  fontSize: 13,
+                  fontWeight: activeView === "class" ? 700 : 500,
+                  boxShadow: activeView === "class" ? "0 2px 8px rgba(0, 0, 0, 0.06)" : "none",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                Class Routine
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveView("teacher")}
+                style={{
+                  border: "none",
+                  background: activeView === "teacher" ? "#FFFFFF" : "transparent",
+                  color: activeView === "teacher" ? "var(--color-ink, #182220)" : "var(--color-text-secondary, #70817B)",
+                  padding: "6px 18px",
+                  borderRadius: 9999,
+                  fontSize: 13,
+                  fontWeight: activeView === "teacher" ? 700 : 500,
+                  boxShadow: activeView === "teacher" ? "0 2px 8px rgba(0, 0, 0, 0.06)" : "none",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                Teacher Roster
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveView("master")}
+                style={{
+                  border: "none",
+                  background: activeView === "master" ? "#FFFFFF" : "transparent",
+                  color: activeView === "master" ? "var(--color-ink, #182220)" : "var(--color-text-secondary, #70817B)",
+                  padding: "6px 18px",
+                  borderRadius: 9999,
+                  fontSize: 13,
+                  fontWeight: activeView === "master" ? 700 : 500,
+                  boxShadow: activeView === "master" ? "0 2px 8px rgba(0, 0, 0, 0.06)" : "none",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                Master Day Matrix
+              </button>
+            </div>
+
+            {/* Right: Context Select & Yellow CTA Button */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {activeView === "class" && (
                 <select
                   className="input"
-                  style={{ width: "auto", minWidth: 160, padding: "6px 12px", height: 36 }}
+                  style={{ width: "auto", minWidth: 140, height: 38, padding: "6px 14px", borderRadius: 9999 }}
                   value={selectedClassId}
                   onChange={(e) => setSelectedClassId(e.target.value)}
                 >
@@ -606,15 +949,12 @@ export default function TimetablePage() {
                     </option>
                   ))}
                 </select>
-              </div>
-            )}
+              )}
 
-            {activeView === "teacher" && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Teacher:</span>
+              {activeView === "teacher" && (
                 <select
                   className="input"
-                  style={{ width: "auto", minWidth: 200, padding: "6px 12px", height: 36 }}
+                  style={{ width: "auto", minWidth: 160, height: 38, padding: "6px 14px", borderRadius: 9999 }}
                   value={selectedTeacherId}
                   onChange={(e) => setSelectedTeacherId(e.target.value)}
                 >
@@ -624,15 +964,12 @@ export default function TimetablePage() {
                     </option>
                   ))}
                 </select>
-              </div>
-            )}
+              )}
 
-            {activeView === "master" && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Day:</span>
+              {activeView === "master" && (
                 <select
                   className="input"
-                  style={{ width: "auto", minWidth: 160, padding: "6px 12px", height: 36 }}
+                  style={{ width: "auto", minWidth: 130, height: 38, padding: "6px 14px", borderRadius: 9999 }}
                   value={selectedMasterDay}
                   onChange={(e) => setSelectedMasterDay(e.target.value)}
                 >
@@ -642,509 +979,502 @@ export default function TimetablePage() {
                     </option>
                   ))}
                 </select>
+              )}
+
+              {/* Sunny Gold Primary Button (+ Create Event / + Auto-Generate) */}
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{
+                  backgroundColor: "var(--color-accent-gold, #F7C844)",
+                  color: "#182220",
+                  fontWeight: 700,
+                  boxShadow: "0 4px 12px rgba(247, 200, 68, 0.35)",
+                  padding: "9px 20px",
+                }}
+                onClick={() => {
+                  setGenError("");
+                  setGenSuccessMsg("");
+                  setIsGenModalOpen(true);
+                }}
+              >
+                + Auto-Generate
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ padding: "9px 16px" }}
+                onClick={() => window.print()}
+                title="Print official routine"
+              >
+                Print
+              </button>
+            </div>
+          </div>
+
+          {/* Empty State when no Timetable exists */}
+          {!loading && !timetable && (
+            <div className="card empty-state" style={{ padding: 48, borderRadius: 24, textAlign: "center" }}>
+              <div style={{ fontSize: 44, marginBottom: 12 }}>📅</div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 6px" }}>No Timetable Active</h2>
+              <p style={{ color: "var(--color-text-secondary)", maxWidth: 460, margin: "0 auto 20px" }}>
+                Generate an automated conflict-free academic routine across all classes and subjects with one click.
+              </p>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setIsGenModalOpen(true)}
+              >
+                ⚡ Auto-Generate Timetable Now
+              </button>
+            </div>
+          )}
+
+          {/* ── Day Header Cards Row (Matching Screenshot Columns) ───────────── */}
+          {timetable && activeView === "class" && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "80px repeat(5, 1fr)",
+                gap: 12,
+                alignItems: "stretch",
+              }}
+            >
+              {/* GMT / Timezone Cell */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: "var(--color-text-secondary, #70817B)",
+                }}
+              >
+                GMT+01
               </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* ── Printable Header (shown during window.print()) ────────────────── */}
-      <div
-        className="print-only-header"
-        style={{
-          display: "none",
-          textAlign: "center",
-          marginBottom: 16,
-          borderBottom: "2px solid #000",
-          paddingBottom: 10,
-        }}
-      >
-        <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-          MODERN SCHOOL
-        </h2>
-        <p style={{ fontSize: 13, margin: "2px 0 0", color: "#333" }}>
-          Official Weekly Academic Timetable · {timetable?.academicYear} Academic Session
-        </p>
-        <p style={{ fontSize: 12, fontWeight: 700, margin: "4px 0 0" }}>
-          {activeView === "class" && `CLASS: ${selectedClassObj?.name || "All Classes"} (${selectedClassObj?.level || ""})`}
-          {activeView === "teacher" && `TEACHER: ${selectedTeacherObj?.firstName} ${selectedTeacherObj?.lastName}`}
-          {activeView === "master" && `MASTER SCHEDULE · ${selectedMasterDay}`}
-        </p>
-      </div>
-
-      {/* ── VIEW 1: CLASS ROUTINE VIEW ─────────────────────────────────────── */}
-      {timetable && activeView === "class" && (
-        <div className="card" style={{ padding: 0, overflow: "hidden", border: "1px solid var(--color-border)" }}>
-          {/* Class Subheader */}
-          <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "var(--color-page)" }}>
-            <div>
-              <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-ink)" }}>
-                {selectedClassObj?.name || "Class"} Weekly Routine
-              </span>
-              <span style={{ fontSize: 13, color: "var(--color-text-secondary)", marginLeft: 8 }}>
-                {selectedClassObj?.level} {selectedClassObj?.stream ? `· ${selectedClassObj.stream}` : ""}
-              </span>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-              Click any lesson slot to adjust teacher or venue
-            </div>
-          </div>
-
-          <div style={{ overflowX: "auto" }}>
-            <table className="table" style={{ minWidth: 900, borderCollapse: "separate", borderSpacing: 0 }}>
-              <thead>
-                <tr style={{ backgroundColor: "var(--color-surface)" }}>
-                  <th style={{ width: 110, textAlign: "center", borderRight: "1px solid var(--color-border)", padding: "10px 8px" }}>
-                    Day / Time
-                  </th>
-                  {periodSlots.map((slot, idx) => (
-                    <th
-                      key={idx}
+              {/* Day Header Cards */}
+              {DAYS_OF_WEEK.map((day) => {
+                const isSelected = day.key === "WEDNESDAY" || day.dateNum === selectedDayNum;
+                return (
+                  <div
+                    key={day.key}
+                    style={{
+                      backgroundColor: isSelected ? "var(--color-brand-teal-bg, #E6F3F1)" : "var(--color-surface-subtle, #F4F7F5)",
+                      borderRadius: 18,
+                      padding: "14px 12px",
+                      textAlign: "center",
+                      border: isSelected ? "1.5px solid var(--color-brand-teal, #0E7D75)" : "1px solid var(--color-border, #E8ECE9)",
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary, #70817B)", marginBottom: 4 }}>
+                      {day.label}
+                    </div>
+                    <div
                       style={{
-                        textAlign: "center",
-                        padding: "8px 6px",
-                        borderRight: idx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                        backgroundColor: slot.isBreak ? "var(--color-warning-bg)" : "inherit",
-                        width: slot.isBreak ? 85 : 120,
+                        fontSize: 22,
+                        fontWeight: 800,
+                        color: isSelected ? "var(--color-brand-teal, #0E7D75)" : "var(--color-ink, #182220)",
+                        lineHeight: 1,
                       }}
                     >
-                      <div style={{ fontSize: 11, fontWeight: 700, color: slot.isBreak ? "var(--color-warning-text)" : "var(--color-ink)" }}>
-                        {slot.label}
-                      </div>
-                      <div style={{ fontSize: 10, fontWeight: 500, color: slot.isBreak ? "var(--color-warning-text)" : "var(--color-text-secondary)", marginTop: 2 }}>
-                        {slot.startTime} - {slot.endTime}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {DAYS_OF_WEEK.map((day) => (
-                  <tr key={day.key} style={{ borderTop: "1px solid var(--color-border)" }}>
-                    {/* Day Column */}
-                    <td
+                      {day.dateNum}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ── Schedule Period Rows with Pastel Lesson Cards ────────────────── */}
+          {timetable && activeView === "class" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {periodSlots.map((slot, pIdx) => {
+                if (slot.isBreak) {
+                  return (
+                    <div
+                      key={pIdx}
                       style={{
-                        fontWeight: 700,
-                        fontSize: 13,
-                        textAlign: "center",
-                        backgroundColor: "var(--color-surface)",
-                        borderRight: "1px solid var(--color-border)",
-                        borderBottom: "1px solid var(--color-border)",
-                        padding: "12px 6px",
-                        color: "var(--color-ink)",
+                        display: "grid",
+                        gridTemplateColumns: "80px 1fr",
+                        gap: 12,
+                        alignItems: "center",
+                        margin: "4px 0",
                       }}
                     >
-                      <div>{day.label}</div>
-                      <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontWeight: 500 }}>
-                        {day.short}
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-warning-text, #92400E)", textAlign: "center" }}>
+                        {slot.startTime}
                       </div>
-                    </td>
+                      <div
+                        style={{
+                          backgroundColor: "var(--color-warning-bg, #FEF3C7)",
+                          color: "var(--color-warning-text, #92400E)",
+                          padding: "8px 16px",
+                          borderRadius: 9999,
+                          textAlign: "center",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          letterSpacing: "0.04em",
+                          border: "1px dashed #FDE68A",
+                        }}
+                      >
+                        ☕ RECESS / MID-DAY BREAK ({timetable.breakDuration || 30} MINS)
+                      </div>
+                    </div>
+                  );
+                }
 
-                    {/* Periods */}
-                    {periodSlots.map((slot, idx) => {
-                      if (slot.isBreak) {
-                        return (
-                          <td
-                            key={idx}
-                            style={{
-                              backgroundColor: "var(--color-warning-bg)",
-                              textAlign: "center",
-                              borderRight: idx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                              borderBottom: "1px solid var(--color-border)",
-                              verticalAlign: "middle",
-                              padding: 4,
-                            }}
-                          >
-                            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-warning-text)", letterSpacing: "0.05em", transform: "rotate(-90deg)", whiteSpace: "nowrap" }}>
-                              RECESS
-                            </div>
-                          </td>
-                        );
-                      }
+                return (
+                  <div
+                    key={pIdx}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "80px repeat(5, 1fr)",
+                      gap: 12,
+                      minHeight: 88,
+                    }}
+                  >
+                    {/* Time Label on Left */}
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "flex-start",
+                        paddingTop: 8,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--color-text-secondary, #70817B)",
+                      }}
+                    >
+                      <span>{slot.startTime.split(" ")[0]}</span>
+                      <span style={{ fontSize: 9, opacity: 0.7 }}>{slot.startTime.split(" ")[1]}</span>
+                    </div>
 
+                    {/* 5 Day Lesson Slots */}
+                    {DAYS_OF_WEEK.map((day) => {
                       const lesson = classLessonsMap.get(`${day.key}_${slot.periodNumber}`);
                       const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
 
+                      if (!lesson) {
+                        return (
+                          <div
+                            key={day.key}
+                            style={{
+                              borderRadius: 16,
+                              border: "1px dashed var(--color-border, #E8ECE9)",
+                              backgroundColor: "transparent",
+                              opacity: 0.4,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 11,
+                              color: "var(--color-text-secondary)",
+                            }}
+                          >
+                            —
+                          </div>
+                        );
+                      }
+
                       return (
-                        <td
-                          key={idx}
-                          onClick={() => lesson && openEditModal(lesson)}
+                        <div
+                          key={day.key}
+                          onClick={() => openEditModal(lesson)}
                           style={{
-                            borderRight: idx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                            borderBottom: "1px solid var(--color-border)",
-                            padding: 6,
-                            verticalAlign: "top",
-                            cursor: lesson ? "pointer" : "default",
-                            backgroundColor: theme ? theme.bg : "transparent",
-                            transition: "filter 0.15s ease",
+                            backgroundColor: theme?.bg,
+                            border: `1px solid ${theme?.border}`,
+                            color: theme?.text,
+                            borderRadius: 16,
+                            padding: "12px 14px",
+                            cursor: "pointer",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between",
+                            gap: 8,
+                            transition: "all 0.16s ease",
+                            boxShadow: "0 2px 6px rgba(0, 0, 0, 0.02)",
                           }}
                           onMouseEnter={(e) => {
-                            if (lesson) e.currentTarget.style.filter = "brightness(0.96)";
+                            e.currentTarget.style.transform = "translateY(-2px)";
+                            e.currentTarget.style.boxShadow = "0 6px 14px rgba(0, 0, 0, 0.05)";
                           }}
                           onMouseLeave={(e) => {
-                            if (lesson) e.currentTarget.style.filter = "none";
+                            e.currentTarget.style.transform = "none";
+                            e.currentTarget.style.boxShadow = "0 2px 6px rgba(0, 0, 0, 0.02)";
                           }}
                         >
-                          {lesson ? (
+                          <div>
+                            <h4
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 700,
+                                margin: "0 0 3px",
+                                lineHeight: 1.2,
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {lesson.subject.name}
+                            </h4>
                             <div
                               style={{
                                 display: "flex",
-                                flexDirection: "column",
-                                gap: 3,
-                                height: "100%",
-                                minHeight: 62,
+                                alignItems: "center",
+                                gap: 4,
+                                fontSize: 11,
+                                opacity: 0.85,
+                                fontWeight: 500,
                               }}
                             >
-                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4 }}>
-                                <span
-                                  style={{
-                                    fontSize: 12,
-                                    fontWeight: 700,
-                                    color: theme?.text,
-                                    lineHeight: 1.2,
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                  }}
-                                  title={lesson.subject.name}
-                                >
-                                  {lesson.subject.name}
-                                </span>
-                              </div>
-
-                              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: "auto" }}>
-                                <div
-                                  style={{
-                                    width: 18,
-                                    height: 18,
-                                    borderRadius: "50%",
-                                    backgroundColor: theme?.badgeBg,
-                                    color: theme?.text,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    fontSize: 9,
-                                    fontWeight: 700,
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {lesson.teacher ? `${lesson.teacher.firstName[0]}${lesson.teacher.lastName[0]}` : "—"}
-                                </div>
-                                <span
-                                  style={{
-                                    fontSize: 11,
-                                    color: "var(--color-text-secondary)",
-                                    whiteSpace: "nowrap",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                  }}
-                                  title={lesson.teacher ? `${lesson.teacher.firstName} ${lesson.teacher.lastName}` : "No teacher"}
-                                >
-                                  {lesson.teacher ? `${lesson.teacher.firstName} ${lesson.teacher.lastName}` : "Unassigned"}
-                                </span>
-                              </div>
-
-                              {lesson.room && (
-                                <div style={{ fontSize: 9, color: "var(--color-text-secondary)", fontStyle: "italic" }}>
-                                  📍 {lesson.room}
-                                </div>
-                              )}
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <polyline points="12 6 12 12 16 14" />
+                              </svg>
+                              <span>
+                                {lesson.startTime} - {lesson.endTime}
+                              </span>
                             </div>
-                          ) : (
-                            <div style={{ textAlign: "center", padding: "16px 0", color: "var(--color-border)", fontSize: 12 }}>
-                              —
+                          </div>
+
+                          {/* Footer with Avatar Stack & Room */}
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4, marginTop: "auto" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <div
+                                style={{
+                                  width: 20,
+                                  height: 20,
+                                  borderRadius: "50%",
+                                  backgroundColor: theme?.badgeBg,
+                                  color: theme?.text,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontSize: 9,
+                                  fontWeight: 800,
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {lesson.teacher ? `${lesson.teacher.firstName[0]}${lesson.teacher.lastName[0]}` : "T"}
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  maxWidth: 80,
+                                }}
+                              >
+                                {lesson.teacher ? `${lesson.teacher.firstName} ${lesson.teacher.lastName}` : "Staff"}
+                              </span>
                             </div>
-                          )}
-                        </td>
+
+                            {lesson.room && (
+                              <span
+                                style={{
+                                  fontSize: 9,
+                                  fontWeight: 700,
+                                  backgroundColor: "rgba(255, 255, 255, 0.6)",
+                                  padding: "2px 6px",
+                                  borderRadius: 6,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {lesson.room}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       );
                     })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ── VIEW 2: TEACHER ROSTER VIEW ────────────────────────────────────── */}
-      {timetable && activeView === "teacher" && (
-        <div className="card" style={{ padding: 0, overflow: "hidden", border: "1px solid var(--color-border)" }}>
-          <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "var(--color-page)" }}>
-            <div>
-              <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-ink)" }}>
-                {selectedTeacherObj ? `${selectedTeacherObj.firstName} ${selectedTeacherObj.lastName}` : "Teacher"} Schedule
-              </span>
-              <span style={{ fontSize: 13, color: "var(--color-text-secondary)", marginLeft: 8 }}>
-                {selectedTeacherObj?.email || "Academic Staff"}
-              </span>
+                  </div>
+                );
+              })}
             </div>
-            <span className="pill-info">Zero Overlapping Periods</span>
-          </div>
+          )}
 
-          <div style={{ overflowX: "auto" }}>
-            <table className="table" style={{ minWidth: 900, borderCollapse: "separate", borderSpacing: 0 }}>
-              <thead>
-                <tr style={{ backgroundColor: "var(--color-surface)" }}>
-                  <th style={{ width: 110, textAlign: "center", borderRight: "1px solid var(--color-border)", padding: "10px 8px" }}>
-                    Day / Time
-                  </th>
-                  {periodSlots.map((slot, idx) => (
-                    <th
-                      key={idx}
+          {/* ── TEACHER ROSTER VIEW ─────────────────────────────────────────── */}
+          {timetable && activeView === "teacher" && (
+            <div className="card" style={{ padding: "16px 20px", borderRadius: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+                    {selectedTeacherObj ? `${selectedTeacherObj.firstName} ${selectedTeacherObj.lastName}` : "Teacher"} Weekly Roster
+                  </h3>
+                  <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
+                    Constraint satisfaction verified · No double-booked teaching slots
+                  </p>
+                </div>
+                <span className="pill-success">Conflict-Free</span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {periodSlots.map((slot, pIdx) => {
+                  if (slot.isBreak) {
+                    return (
+                      <div
+                        key={pIdx}
+                        style={{
+                          backgroundColor: "var(--color-warning-bg)",
+                          color: "var(--color-warning-text)",
+                          padding: "8px 16px",
+                          borderRadius: 9999,
+                          textAlign: "center",
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
+                        ☕ RECESS BREAK
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={pIdx}
                       style={{
-                        textAlign: "center",
-                        padding: "8px 6px",
-                        borderRight: idx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                        backgroundColor: slot.isBreak ? "var(--color-warning-bg)" : "inherit",
-                        width: slot.isBreak ? 85 : 120,
+                        display: "grid",
+                        gridTemplateColumns: "80px repeat(5, 1fr)",
+                        gap: 10,
                       }}
                     >
-                      <div style={{ fontSize: 11, fontWeight: 700, color: slot.isBreak ? "var(--color-warning-text)" : "var(--color-ink)" }}>
-                        {slot.label}
+                      <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textAlign: "center", paddingTop: 8 }}>
+                        {slot.startTime}
                       </div>
-                      <div style={{ fontSize: 10, fontWeight: 500, color: slot.isBreak ? "var(--color-warning-text)" : "var(--color-text-secondary)", marginTop: 2 }}>
-                        {slot.startTime} - {slot.endTime}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {DAYS_OF_WEEK.map((day) => (
-                  <tr key={day.key} style={{ borderTop: "1px solid var(--color-border)" }}>
-                    <td
-                      style={{
-                        fontWeight: 700,
-                        fontSize: 13,
-                        textAlign: "center",
-                        backgroundColor: "var(--color-surface)",
-                        borderRight: "1px solid var(--color-border)",
-                        borderBottom: "1px solid var(--color-border)",
-                        padding: "12px 6px",
-                        color: "var(--color-ink)",
-                      }}
-                    >
-                      <div>{day.label}</div>
-                    </td>
 
-                    {periodSlots.map((slot, idx) => {
-                      if (slot.isBreak) {
-                        return (
-                          <td
-                            key={idx}
-                            style={{
-                              backgroundColor: "var(--color-warning-bg)",
-                              textAlign: "center",
-                              borderRight: idx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                              borderBottom: "1px solid var(--color-border)",
-                              verticalAlign: "middle",
-                              padding: 4,
-                            }}
-                          >
-                            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-warning-text)", letterSpacing: "0.05em", transform: "rotate(-90deg)", whiteSpace: "nowrap" }}>
-                              RECESS
-                            </div>
-                          </td>
-                        );
-                      }
+                      {DAYS_OF_WEEK.map((day) => {
+                        const lesson = teacherLessonsMap.get(`${day.key}_${slot.periodNumber}`);
+                        const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
 
-                      const lesson = teacherLessonsMap.get(`${day.key}_${slot.periodNumber}`);
-                      const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
-
-                      return (
-                        <td
-                          key={idx}
-                          onClick={() => lesson && openEditModal(lesson)}
-                          style={{
-                            borderRight: idx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                            borderBottom: "1px solid var(--color-border)",
-                            padding: 6,
-                            verticalAlign: "top",
-                            cursor: lesson ? "pointer" : "default",
-                            backgroundColor: theme ? theme.bg : "var(--color-page)",
-                          }}
-                        >
-                          {lesson ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 3, minHeight: 62 }}>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: theme?.text, lineHeight: 1.2 }}>
-                                {lesson.subject.name}
-                              </span>
-                              <div style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: "auto" }}>
-                                <span className="pill-neutral" style={{ fontSize: 10, padding: "1px 6px" }}>
-                                  {lesson.classSection.name}
-                                </span>
-                              </div>
-                              {lesson.room && (
-                                <div style={{ fontSize: 9, color: "var(--color-text-secondary)" }}>
-                                  📍 {lesson.room}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div style={{ textAlign: "center", padding: "18px 0", color: "var(--color-text-secondary)", opacity: 0.4, fontSize: 11 }}>
+                        if (!lesson) {
+                          return (
+                            <div
+                              key={day.key}
+                              style={{
+                                borderRadius: 14,
+                                border: "1px dashed var(--color-border)",
+                                padding: "8px 10px",
+                                textAlign: "center",
+                                fontSize: 11,
+                                color: "var(--color-text-secondary)",
+                                opacity: 0.5,
+                              }}
+                            >
                               Free Period
                             </div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                          );
+                        }
 
-      {/* ── VIEW 3: MASTER DAY MATRIX ──────────────────────────────────────── */}
-      {timetable && activeView === "master" && (
-        <div className="card" style={{ padding: 0, overflow: "hidden", border: "1px solid var(--color-border)" }}>
-          <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "var(--color-page)" }}>
-            <div>
-              <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-ink)" }}>
-                Master Schedule · {DAYS_OF_WEEK.find((d) => d.key === selectedMasterDay)?.label}
-              </span>
-              <span style={{ fontSize: 13, color: "var(--color-text-secondary)", marginLeft: 8 }}>
-                All classes side-by-side
-              </span>
-            </div>
-            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-              Comprehensive school-wide period grid
-            </div>
-          </div>
-
-          <div style={{ overflowX: "auto" }}>
-            <table className="table" style={{ minWidth: 900, borderCollapse: "separate", borderSpacing: 0 }}>
-              <thead>
-                <tr style={{ backgroundColor: "var(--color-surface)" }}>
-                  <th style={{ width: 120, textAlign: "left", borderRight: "1px solid var(--color-border)", padding: "10px 14px" }}>
-                    Class Section
-                  </th>
-                  {periodSlots.map((slot, idx) => (
-                    <th
-                      key={idx}
-                      style={{
-                        textAlign: "center",
-                        padding: "8px 6px",
-                        borderRight: idx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                        backgroundColor: slot.isBreak ? "var(--color-warning-bg)" : "inherit",
-                        width: slot.isBreak ? 85 : 120,
-                      }}
-                    >
-                      <div style={{ fontSize: 11, fontWeight: 700, color: slot.isBreak ? "var(--color-warning-text)" : "var(--color-ink)" }}>
-                        {slot.label}
-                      </div>
-                      <div style={{ fontSize: 10, fontWeight: 500, color: slot.isBreak ? "var(--color-warning-text)" : "var(--color-text-secondary)", marginTop: 2 }}>
-                        {slot.startTime} - {slot.endTime}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {classes.map((cls) => (
-                  <tr key={cls.id} style={{ borderTop: "1px solid var(--color-border)" }}>
-                    <td
-                      style={{
-                        fontWeight: 700,
-                        fontSize: 13,
-                        backgroundColor: "var(--color-surface)",
-                        borderRight: "1px solid var(--color-border)",
-                        borderBottom: "1px solid var(--color-border)",
-                        padding: "10px 14px",
-                        color: "var(--color-ink)",
-                      }}
-                    >
-                      <div>{cls.name}</div>
-                      <div style={{ fontSize: 11, color: "var(--color-text-secondary)", fontWeight: 500 }}>
-                        {cls.level}
-                      </div>
-                    </td>
-
-                    {periodSlots.map((slot, idx) => {
-                      if (slot.isBreak) {
                         return (
-                          <td
-                            key={idx}
+                          <div
+                            key={day.key}
+                            onClick={() => openEditModal(lesson)}
                             style={{
-                              backgroundColor: "var(--color-warning-bg)",
-                              textAlign: "center",
-                              borderRight: idx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                              borderBottom: "1px solid var(--color-border)",
-                              verticalAlign: "middle",
-                              padding: 4,
+                              backgroundColor: theme?.bg,
+                              border: `1px solid ${theme?.border}`,
+                              color: theme?.text,
+                              borderRadius: 14,
+                              padding: "10px 12px",
+                              cursor: "pointer",
                             }}
                           >
-                            <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-warning-text)", letterSpacing: "0.05em" }}>
-                              BREAK
+                            <div style={{ fontSize: 12, fontWeight: 700 }}>{lesson.subject.name}</div>
+                            <div style={{ fontSize: 11, fontWeight: 600, marginTop: 4 }}>
+                              Class: {lesson.classSection.name}
                             </div>
-                          </td>
+                            {lesson.room && (
+                              <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>📍 {lesson.room}</div>
+                            )}
+                          </div>
                         );
-                      }
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-                      const lesson = masterDayLessonsMap.get(`${cls.id}_${slot.periodNumber}`);
-                      const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
+          {/* ── MASTER DAY MATRIX VIEW ──────────────────────────────────────── */}
+          {timetable && activeView === "master" && (
+            <div className="card" style={{ padding: "16px 20px", borderRadius: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+                    Master Day Matrix · {DAYS_OF_WEEK.find((d) => d.key === selectedMasterDay)?.label}
+                  </h3>
+                  <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
+                    All classes scheduled simultaneously across periods
+                  </p>
+                </div>
+                <span className="pill-neutral">Master Schedule</span>
+              </div>
 
-                      return (
-                        <td
-                          key={idx}
-                          onClick={() => lesson && openEditModal(lesson)}
-                          style={{
-                            borderRight: idx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                            borderBottom: "1px solid var(--color-border)",
-                            padding: 6,
-                            verticalAlign: "top",
-                            cursor: lesson ? "pointer" : "default",
-                            backgroundColor: theme ? theme.bg : "transparent",
-                          }}
-                        >
-                          {lesson ? (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2, minHeight: 52 }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: theme?.text, lineHeight: 1.2 }}>
-                                {lesson.subject.name}
-                              </span>
-                              <span style={{ fontSize: 10, color: "var(--color-text-secondary)", marginTop: "auto" }}>
-                                {lesson.teacher ? `${lesson.teacher.firstName[0]}. ${lesson.teacher.lastName}` : "—"}
-                              </span>
-                            </div>
-                          ) : (
-                            <div style={{ textAlign: "center", padding: "14px 0", color: "var(--color-border)", fontSize: 11 }}>
-                              —
-                            </div>
-                          )}
+              <div style={{ overflowX: "auto" }}>
+                <table className="table" style={{ minWidth: 800 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 140 }}>Class Section</th>
+                      {periodSlots.map((slot, sIdx) => (
+                        <th key={sIdx} style={{ textAlign: "center" }}>
+                          {slot.isBreak ? "Break" : `P${slot.periodNumber}`}
+                          <div style={{ fontSize: 9, fontWeight: 500 }}>{slot.startTime}</div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {classes.map((cls) => (
+                      <tr key={cls.id}>
+                        <td style={{ fontWeight: 700 }}>
+                          {cls.name} <span style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)" }}>({cls.level})</span>
                         </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* ── Printable Signature Section (for paper A4 routine) ─────────────── */}
-      <div
-        className="print-only-signatures"
-        style={{
-          display: "none",
-          marginTop: 24,
-          paddingTop: 16,
-          borderTop: "1px solid #000",
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-          <div>
-            <div style={{ width: 180, borderBottom: "1px solid #000", marginBottom: 4 }} />
-            <div style={{ fontSize: 11, fontWeight: 700 }}>Class Teacher / Form Master</div>
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 11, color: "#444" }}>School Stamp / Seal</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ width: 180, borderBottom: "1px solid #000", marginBottom: 4, marginLeft: "auto" }} />
-            <div style={{ fontSize: 11, fontWeight: 700 }}>Principal / Vice-Principal Academics</div>
-          </div>
+                        {periodSlots.map((slot, sIdx) => {
+                          if (slot.isBreak) {
+                            return (
+                              <td key={sIdx} style={{ backgroundColor: "var(--color-warning-bg)", textAlign: "center", fontSize: 10, fontWeight: 700, color: "var(--color-warning-text)" }}>
+                                BREAK
+                              </td>
+                            );
+                          }
+                          const lesson = masterDayLessonsMap.get(`${cls.id}_${slot.periodNumber}`);
+                          const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
+                          return (
+                            <td
+                              key={sIdx}
+                              onClick={() => lesson && openEditModal(lesson)}
+                              style={{
+                                backgroundColor: theme ? theme.bg : "transparent",
+                                color: theme ? theme.text : "inherit",
+                                cursor: lesson ? "pointer" : "default",
+                                padding: 6,
+                              }}
+                            >
+                              {lesson ? (
+                                <div style={{ fontSize: 11, fontWeight: 700 }}>
+                                  {lesson.subject.name}
+                                  <div style={{ fontSize: 9, fontWeight: 500, opacity: 0.8 }}>
+                                    {lesson.teacher ? `${lesson.teacher.firstName[0]}. ${lesson.teacher.lastName}` : "—"}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span style={{ opacity: 0.2 }}>—</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1158,7 +1488,7 @@ export default function TimetablePage() {
             right: 0,
             bottom: 0,
             backgroundColor: "rgba(16, 20, 26, 0.48)",
-            backdropFilter: "blur(2px)",
+            backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1174,18 +1504,19 @@ export default function TimetablePage() {
             style={{
               width: "100%",
               maxWidth: 520,
-              padding: 24,
+              padding: 26,
+              borderRadius: 24,
               backgroundColor: "var(--color-surface)",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+              boxShadow: "0 24px 48px rgba(0, 0, 0, 0.16)",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
               <div>
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--color-ink)", margin: "0 0 4px" }}>
+                <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--color-ink)", margin: "0 0 4px" }}>
                   ⚡ Auto-Generate Timetable
                 </h2>
                 <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
-                  Produces a conflict-free schedule across all classes and subjects.
+                  Produces conflict-free schedules across all classes and subjects.
                 </p>
               </div>
               <button
@@ -1198,13 +1529,13 @@ export default function TimetablePage() {
             </div>
 
             {genError && (
-              <div className="pill-danger" style={{ display: "block", marginBottom: 14, padding: "8px 12px", borderRadius: "var(--radius-control)" }}>
+              <div className="pill-danger" style={{ display: "block", marginBottom: 14, padding: "8px 12px", borderRadius: 9999 }}>
                 {genError}
               </div>
             )}
 
             {genSuccessMsg && (
-              <div className="pill-success" style={{ display: "block", marginBottom: 14, padding: "8px 12px", borderRadius: "var(--radius-control)" }}>
+              <div className="pill-success" style={{ display: "block", marginBottom: 14, padding: "8px 12px", borderRadius: 9999 }}>
                 {genSuccessMsg}
               </div>
             )}
@@ -1218,7 +1549,7 @@ export default function TimetablePage() {
                     className="input"
                     value={genTitle}
                     onChange={(e) => setGenTitle(e.target.value)}
-                    placeholder="e.g. First Term 2025/2026 Academic Routine"
+                    placeholder="e.g. First Term Academic Routine"
                     required
                   />
                 </div>
@@ -1306,14 +1637,14 @@ export default function TimetablePage() {
                   </div>
                 </div>
 
-                <div style={{ padding: "10px 12px", backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)" }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-ink)", marginBottom: 2 }}>
-                    Constraint Satisfaction Guarantee
+                <div style={{ padding: "12px 14px", backgroundColor: "var(--color-surface-subtle)", borderRadius: 16, border: "1px solid var(--color-border)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-ink)", marginBottom: 2 }}>
+                    Constraint Satisfaction Rules
                   </div>
                   <div style={{ fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
-                    • Zero teacher double-booking (no teacher in two rooms at once)
+                    • Zero teacher double-booking guaranteed
                     <br />
-                    • Maximum 1 lesson per subject per day for balanced learning
+                    • Maximum 1 lesson per subject per day
                     <br />
                     • Core subjects (Mathematics & English) scheduled daily in morning slots
                   </div>
@@ -1352,7 +1683,7 @@ export default function TimetablePage() {
             right: 0,
             bottom: 0,
             backgroundColor: "rgba(16, 20, 26, 0.48)",
-            backdropFilter: "blur(2px)",
+            backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1363,7 +1694,7 @@ export default function TimetablePage() {
             if (e.target === e.currentTarget && !savingLesson) setEditingLesson(null);
           }}
         >
-          <div className="card" style={{ width: "100%", maxWidth: 440, padding: 22 }}>
+          <div className="card" style={{ width: "100%", maxWidth: 440, padding: 24, borderRadius: 24 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
               <div>
                 <h2 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 2px" }}>
@@ -1383,7 +1714,7 @@ export default function TimetablePage() {
             </div>
 
             {editMsg && (
-              <div className="pill-danger" style={{ display: "block", marginBottom: 12, padding: "6px 10px" }}>
+              <div className="pill-danger" style={{ display: "block", marginBottom: 12, padding: "6px 10px", borderRadius: 9999 }}>
                 {editMsg}
               </div>
             )}
@@ -1397,7 +1728,7 @@ export default function TimetablePage() {
                     className="input"
                     value={editingLesson.subject.name}
                     disabled
-                    style={{ backgroundColor: "var(--color-page)" }}
+                    style={{ backgroundColor: "var(--color-surface-subtle)" }}
                   />
                 </div>
 
@@ -1465,26 +1796,8 @@ export default function TimetablePage() {
           select {
             display: none !important;
           }
-          .page {
-            padding: 0 !important;
-            margin: 0 !important;
+          body {
             background: #fff !important;
-          }
-          .card {
-            border: 1px solid #333 !important;
-            box-shadow: none !important;
-            border-radius: 0 !important;
-          }
-          .table th,
-          .table td {
-            border: 1px solid #333 !important;
-            padding: 4px 6px !important;
-          }
-          .print-only-header {
-            display: block !important;
-          }
-          .print-only-signatures {
-            display: block !important;
           }
         }
       `}</style>

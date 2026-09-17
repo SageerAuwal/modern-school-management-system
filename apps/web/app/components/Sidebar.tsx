@@ -165,14 +165,11 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // Collapsed state (synchronized with localStorage)
+  // Collapsed state (default to false, but with sleek icon-rail / expanded drawer toggle)
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isPortalsOpen, setIsPortalsOpen] = useState(true);
-
-  // Tooltip tracking in collapsed mode
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
-  const [tooltipPos, setTooltipPos] = useState({ top: 0 });
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
 
   useEffect(() => {
     try {
@@ -210,16 +207,7 @@ export default function Sidebar() {
     );
   }, [q]);
 
-  const filteredPortals = useMemo(() => {
-    if (!q) return PORTAL_LINKS;
-    return PORTAL_LINKS.filter(
-      (item) =>
-        item.label.toLowerCase().includes(q) ||
-        (item.keywords && item.keywords.toLowerCase().includes(q))
-    );
-  }, [q]);
-
-  const renderItem = (item: NavItem) => {
+  const renderRailItem = (item: NavItem) => {
     const isActive =
       pathname === item.href ||
       (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"));
@@ -230,15 +218,11 @@ export default function Sidebar() {
         href={item.href}
         style={{ textDecoration: "none", display: "block" }}
         onMouseEnter={(e) => {
-          if (isCollapsed) {
-            const rect = e.currentTarget.getBoundingClientRect();
-            setTooltipPos({ top: rect.top + rect.height / 2 - 14 });
-            setHoveredLabel(item.label);
-          }
+          const rect = e.currentTarget.getBoundingClientRect();
+          setTooltipPos({ top: rect.top + rect.height / 2 - 13, left: rect.right + 10 });
+          setHoveredLabel(item.label);
         }}
-        onMouseLeave={() => {
-          if (isCollapsed) setHoveredLabel(null);
-        }}
+        onMouseLeave={() => setHoveredLabel(null)}
       >
         <div
           style={{
@@ -246,28 +230,29 @@ export default function Sidebar() {
             alignItems: "center",
             justifyContent: isCollapsed ? "center" : "flex-start",
             gap: 12,
-            height: 38,
+            height: 42,
             padding: isCollapsed ? "0" : "0 14px",
-            width: isCollapsed ? 38 : "100%",
-            margin: isCollapsed ? "0 auto" : "0",
-            borderRadius: isCollapsed ? "50%" : 9999, // Pill capsule shape matching menu pattern
-            backgroundColor: isActive ? "var(--color-ink, #10141A)" : "transparent",
-            color: isActive ? "#FFFFFF" : "var(--color-text-secondary, #5F5E5A)",
-            fontWeight: isActive ? 600 : 500,
+            width: isCollapsed ? 42 : "100%",
+            margin: "2px auto",
+            borderRadius: isCollapsed ? "50%" : 9999,
+            backgroundColor: isActive ? "var(--color-accent-gold, #F7C844)" : "transparent",
+            color: isActive ? "var(--color-ink, #182220)" : "var(--color-text-secondary, #70817B)",
+            boxShadow: isActive ? "0 2px 10px rgba(247, 200, 68, 0.35)" : "none",
+            fontWeight: isActive ? 700 : 500,
             fontSize: 13,
             cursor: "pointer",
-            transition: "all 0.16s cubic-bezier(0.4, 0, 0.2, 1)",
+            transition: "all 0.18s cubic-bezier(0.4, 0, 0.2, 1)",
           }}
           onMouseEnter={(e) => {
             if (!isActive) {
-              e.currentTarget.style.backgroundColor = "var(--color-page, #F7F6F3)";
-              e.currentTarget.style.color = "var(--color-ink, #10141A)";
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
+              e.currentTarget.style.color = "var(--color-ink, #182220)";
             }
           }}
           onMouseLeave={(e) => {
             if (!isActive) {
               e.currentTarget.style.backgroundColor = "transparent";
-              e.currentTarget.style.color = "var(--color-text-secondary, #5F5E5A)";
+              e.currentTarget.style.color = "var(--color-text-secondary, #70817B)";
             }
           }}
         >
@@ -277,7 +262,7 @@ export default function Sidebar() {
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              color: isActive ? "#FFFFFF" : "currentColor",
+              color: isActive ? "var(--color-ink, #182220)" : "currentColor",
             }}
           >
             {item.icon}
@@ -304,76 +289,71 @@ export default function Sidebar() {
     <>
       <nav
         style={{
-          width: isCollapsed ? 68 : 240,
-          minHeight: "100vh",
-          height: "100vh",
-          backgroundColor: "var(--color-surface, #FFFFFF)",
-          borderRight: "var(--border-width, 1px) solid var(--color-border, #E4E4E4)",
+          width: isCollapsed ? 76 : 230,
+          backgroundColor: "#FFFFFF",
           display: "flex",
           flexDirection: "column",
+          alignItems: "center",
           flexShrink: 0,
           position: "sticky",
           top: 0,
+          height: "calc(100vh - 32px)",
+          padding: "16px 10px 14px",
           transition: "width 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
           zIndex: 90,
           boxSizing: "border-box",
+          borderRight: "1px solid var(--color-border, #E8ECE9)",
         }}
       >
-        {/* Header (Aligned perfectly to 56px matching AppShell topbar) */}
+        {/* Top Brand Mark matching screenshot */}
         <div
           style={{
-            height: 56,
-            padding: isCollapsed ? "0 10px" : "0 14px",
-            borderBottom: "var(--border-width, 1px) solid var(--color-border, #E4E4E4)",
+            width: "100%",
             display: "flex",
             alignItems: "center",
             justifyContent: isCollapsed ? "center" : "space-between",
-            flexShrink: 0,
+            padding: isCollapsed ? "0" : "0 6px",
+            marginBottom: 16,
+            cursor: "pointer",
           }}
+          onClick={() => router.push("/dashboard")}
+          title="Modern School Management System"
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              cursor: "pointer",
-              minWidth: 0,
-            }}
-            onClick={() => router.push("/dashboard")}
-          >
-            {/* School Crest / Identity Badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* Deep Teal Squircle Brand Mark from Reference */}
             <div
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                backgroundColor: "var(--color-ink, #10141A)",
-                color: "#FFFFFF",
+                width: 42,
+                height: 42,
+                borderRadius: 14,
+                backgroundColor: "var(--color-brand-teal, #0E7D75)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 14,
-                fontWeight: 700,
                 flexShrink: 0,
-                letterSpacing: "0.02em",
+                boxShadow: "0 4px 14px rgba(14, 125, 117, 0.25)",
               }}
             >
-              S
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                {/* 4-pointed star emblem matching reference logo */}
+                <path
+                  d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"
+                  fill="#FFFFFF"
+                />
+                <circle cx="19" cy="5" r="2" fill="#F7C844" />
+              </svg>
             </div>
 
-            {/* School Name & System (Restored) */}
             {!isCollapsed && (
-              <div style={{ minWidth: 0, overflow: "hidden" }}>
+              <div style={{ overflow: "hidden" }}>
                 <p
                   style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "var(--color-ink, #10141A)",
-                    lineHeight: 1.2,
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: "var(--color-ink, #182220)",
+                    lineHeight: 1.1,
                     margin: 0,
                     whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
                   }}
                 >
                   Modern School
@@ -381,10 +361,9 @@ export default function Sidebar() {
                 <p
                   style={{
                     fontSize: 11,
-                    color: "var(--color-text-secondary, #5F5E5A)",
-                    margin: 0,
-                    lineHeight: 1.2,
-                    whiteSpace: "nowrap",
+                    color: "var(--color-text-secondary, #70817B)",
+                    margin: "2px 0 0",
+                    fontWeight: 600,
                   }}
                 >
                   School System
@@ -393,32 +372,22 @@ export default function Sidebar() {
             )}
           </div>
 
-          {/* Collapse Toggle Button */}
           {!isCollapsed && (
             <button
               type="button"
-              onClick={toggleCollapse}
-              title="Collapse sidebar"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleCollapse();
+              }}
+              title="Collapse to icon rail"
               style={{
                 border: "none",
                 background: "transparent",
-                color: "var(--color-text-secondary, #5F5E5A)",
-                width: 28,
-                height: 28,
-                borderRadius: "var(--radius-control, 6px)",
+                color: "var(--color-text-secondary)",
+                cursor: "pointer",
+                padding: 4,
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-page, #F7F6F3)";
-                e.currentTarget.style.color = "var(--color-ink, #10141A)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "var(--color-text-secondary, #5F5E5A)";
               }}
             >
               {icons.toggleCollapse}
@@ -426,319 +395,149 @@ export default function Sidebar() {
           )}
         </div>
 
-        {/* Search Bar matching the menu pill pattern */}
-        <div style={{ padding: isCollapsed ? "12px 10px 8px" : "12px 12px 8px", flexShrink: 0 }}>
-          {isCollapsed ? (
-            <button
-              type="button"
-              onClick={toggleCollapse}
-              title="Expand and search"
+        {/* Floating Capsule Rail holding Nav Items */}
+        <div
+          style={{
+            flex: 1,
+            width: "100%",
+            backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+            borderRadius: isCollapsed ? 28 : 20,
+            padding: isCollapsed ? "8px 4px" : "8px",
+            border: "1px solid var(--color-border, #E8ECE9)",
+            display: "flex",
+            flexDirection: "column",
+            overflowY: "auto",
+            overflowX: "hidden",
+            gap: 2,
+          }}
+        >
+          {filteredMainNav.map(renderRailItem)}
+        </div>
+
+        {/* Bottom Utility Floating Capsule (Settings / Help / Sign Out) */}
+        <div
+          style={{
+            width: "100%",
+            marginTop: 12,
+            backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+            borderRadius: isCollapsed ? 28 : 16,
+            padding: isCollapsed ? "6px 4px" : "6px 8px",
+            border: "1px solid var(--color-border, #E8ECE9)",
+            display: "flex",
+            flexDirection: isCollapsed ? "column" : "row",
+            alignItems: "center",
+            justifyContent: isCollapsed ? "center" : "space-between",
+            gap: 4,
+          }}
+        >
+          {/* Settings / Portals Icon */}
+          <Link
+            href="/portal/teacher"
+            title="Role Portals"
+            style={{ textDecoration: "none" }}
+            onMouseEnter={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setTooltipPos({ top: rect.top + rect.height / 2 - 13, left: rect.right + 10 });
+              setHoveredLabel("Role Portals");
+            }}
+            onMouseLeave={() => setHoveredLabel(null)}
+          >
+            <div
               style={{
-                width: 38,
-                height: 38,
-                margin: "0 auto",
+                width: 36,
+                height: 36,
                 borderRadius: "50%",
-                border: "1px solid var(--color-border, #E4E4E4)",
-                backgroundColor: "var(--color-page, #F7F6F3)",
-                color: "var(--color-text-secondary, #5F5E5A)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                color: "var(--color-text-secondary, #70817B)",
                 cursor: "pointer",
                 transition: "all 0.15s",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-surface, #FFFFFF)";
-                e.currentTarget.style.borderColor = "var(--color-ink, #10141A)";
-                e.currentTarget.style.color = "var(--color-ink, #10141A)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-page, #F7F6F3)";
-                e.currentTarget.style.borderColor = "var(--color-border, #E4E4E4)";
-                e.currentTarget.style.color = "var(--color-text-secondary, #5F5E5A)";
-              }}
-            >
-              {icons.search}
-            </button>
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "7px 12px",
-                borderRadius: 9999, // Pill search shape
-                backgroundColor: "var(--color-page, #F7F6F3)",
-                border: "1px solid var(--color-border, #E4E4E4)",
-              }}
-            >
-              <span style={{ color: "var(--color-text-secondary, #5F5E5A)", display: "flex", alignItems: "center" }}>
-                {icons.search}
-              </span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search..."
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  outline: "none",
-                  fontSize: 13,
-                  color: "var(--color-ink, #10141A)",
-                  width: "100%",
-                }}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  style={{
-                    border: "none",
-                    background: "none",
-                    cursor: "pointer",
-                    fontSize: 12,
-                    color: "var(--color-text-secondary)",
-                    padding: 0,
-                  }}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Scrollable Navigation List */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            overflowX: "hidden",
-            padding: isCollapsed ? "4px 8px" : "4px 10px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
-        >
-          {/* Main Navigation Items */}
-          {filteredMainNav.map(renderItem)}
-
-          {/* Portals Accordion */}
-          {filteredPortals.length > 0 && (
-            <div style={{ marginTop: 6 }}>
-              {!isCollapsed ? (
-                <>
-                  <div
-                    onClick={() => setIsPortalsOpen(!isPortalsOpen)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "8px 14px",
-                      cursor: "pointer",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: "var(--color-text-secondary, #5F5E5A)",
-                      borderRadius: 9999,
-                      transition: "all 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = "var(--color-page, #F7F6F3)";
-                      e.currentTarget.style.color = "var(--color-ink, #10141A)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = "transparent";
-                      e.currentTarget.style.color = "var(--color-text-secondary, #5F5E5A)";
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      {icons.portals}
-                      <span>Role Portals</span>
-                    </div>
-                    <div
-                      style={{
-                        transform: isPortalsOpen ? "rotate(0deg)" : "rotate(-90deg)",
-                        transition: "transform 0.18s ease",
-                      }}
-                    >
-                      {icons.chevronDown}
-                    </div>
-                  </div>
-
-                  {isPortalsOpen && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 12, marginTop: 2 }}>
-                      {filteredPortals.map(renderItem)}
-                    </div>
-                  )}
-                </>
-              ) : (
-                filteredPortals.map(renderItem)
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Collapsed Expand Button at Bottom */}
-        {isCollapsed && (
-          <div style={{ padding: "6px 0", display: "flex", justifyContent: "center" }}>
-            <button
-              type="button"
-              onClick={toggleCollapse}
-              title="Expand sidebar"
-              style={{
-                border: "none",
-                background: "transparent",
-                color: "var(--color-text-secondary, #5F5E5A)",
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-page, #F7F6F3)";
-                e.currentTarget.style.color = "var(--color-ink, #10141A)";
+                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
+                e.currentTarget.style.color = "var(--color-ink)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "var(--color-text-secondary, #5F5E5A)";
+                e.currentTarget.style.color = "var(--color-text-secondary)";
               }}
             >
-              {icons.toggleExpand}
-            </button>
-          </div>
-        )}
-
-        {/* Footer User Profile & Sign Out */}
-        <div
-          style={{
-            padding: isCollapsed ? "12px 0" : "12px 14px",
-            borderTop: "var(--border-width, 1px) solid var(--color-border, #E4E4E4)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: isCollapsed ? "center" : "space-between",
-            flexShrink: 0,
-          }}
-        >
-          {isCollapsed ? (
-            <div
-              onClick={handleLogout}
-              title="System Admin (Click to Sign out)"
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: "50%",
-                backgroundColor: "var(--color-ink, #10141A)",
-                color: "#FFFFFF",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              SA
+              {icons.portals}
             </div>
-          ) : (
-            <>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: "50%",
-                    backgroundColor: "var(--color-ink, #10141A)",
-                    color: "#FFFFFF",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}
-                >
-                  SA
-                </div>
-                <div style={{ minWidth: 0, overflow: "hidden" }}>
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "var(--color-ink, #10141A)",
-                      lineHeight: 1.2,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    System Admin
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "var(--color-text-secondary, #5F5E5A)",
-                      lineHeight: 1.2,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    admin@school.local
-                  </div>
-                </div>
-              </div>
+          </Link>
 
-              <button
-                type="button"
-                onClick={handleLogout}
-                title="Sign out"
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  color: "var(--color-text-secondary, #5F5E5A)",
-                  padding: 6,
-                  borderRadius: "var(--radius-control, 6px)",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--color-danger-bg, #FAECE7)";
-                  e.currentTarget.style.color = "var(--color-danger-text, #993C1D)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "var(--color-text-secondary, #5F5E5A)";
-                }}
-              >
-                {icons.logout}
-              </button>
-            </>
-          )}
+          {/* Expand / Collapse Icon */}
+          <div
+            onClick={toggleCollapse}
+            title={isCollapsed ? "Expand menu" : "Collapse rail"}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-text-secondary, #70817B)",
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
+              e.currentTarget.style.color = "var(--color-ink)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "var(--color-text-secondary)";
+            }}
+          >
+            {isCollapsed ? icons.toggleExpand : icons.toggleCollapse}
+          </div>
+
+          {/* Logout Icon */}
+          <div
+            onClick={handleLogout}
+            title="Sign out"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-text-secondary, #70817B)",
+              cursor: "pointer",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = "var(--color-danger-bg)";
+              e.currentTarget.style.color = "var(--color-danger-text)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.color = "var(--color-text-secondary)";
+            }}
+          >
+            {icons.logout}
+          </div>
         </div>
       </nav>
 
-      {/* Floating Hover Tooltip for Collapsed State */}
+      {/* Floating Hover Tooltip for Rail Mode */}
       {isCollapsed && hoveredLabel && (
         <div
           style={{
             position: "fixed",
-            left: 78,
+            left: tooltipPos.left,
             top: tooltipPos.top,
-            backgroundColor: "var(--color-ink, #10141A)",
+            backgroundColor: "var(--color-ink, #182220)",
             color: "#FFFFFF",
-            padding: "4px 8px",
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 600,
+            padding: "5px 10px",
+            borderRadius: 8,
+            fontSize: 12,
+            fontWeight: 700,
             whiteSpace: "nowrap",
-            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            boxShadow: "0 6px 16px rgba(0, 0, 0, 0.18)",
             zIndex: 99999,
             pointerEvents: "none",
           }}
