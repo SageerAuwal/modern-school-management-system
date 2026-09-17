@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import MiniCalendarSchedule from "../components/MiniCalendarSchedule";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -194,6 +195,11 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Modern Mini Calendar & Upcoming Term Exam Timetable */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <MiniCalendarSchedule title="School Calendar & Upcoming Assessments" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
