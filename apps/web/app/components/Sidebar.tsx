@@ -138,19 +138,41 @@ interface NavItem {
   keywords?: string;
 }
 
-const MAIN_NAV: NavItem[] = [
-  { href: "/dashboard", icon: icons.dashboard, label: "Dashboard", keywords: "home overview stats" },
-  { href: "/students", icon: icons.students, label: "Students", keywords: "pupils enrollment admission" },
-  { href: "/classes", icon: icons.classes, label: "Classes", keywords: "classrooms sections levels" },
-  { href: "/timetable", icon: icons.timetable, label: "Timetable", keywords: "schedule routine period auto classes planner" },
-  { href: "/staff", icon: icons.staff, label: "Staff", keywords: "teachers employees admin" },
-  { href: "/attendance", icon: icons.attendance, label: "Attendance", keywords: "roll mark daily" },
-  { href: "/grades", icon: icons.grades, label: "Grades", keywords: "scores marks assessments" },
-  { href: "/results", icon: icons.results, label: "Results", keywords: "report cards transcripts" },
-  { href: "/exams", icon: icons.exams, label: "Exams", keywords: "schedules terms timetable" },
-  { href: "/fees", icon: icons.fees, label: "Fees", keywords: "invoices tuition payment pos billing" },
-  { href: "/library", icon: icons.library, label: "Library", keywords: "books loans catalog" },
-  { href: "/transport", icon: icons.transport, label: "Transport", keywords: "buses routes fleet" },
+const ADMIN_NAV: NavItem[] = [
+  { href: "/dashboard", icon: icons.dashboard, label: "Dashboard", keywords: "home overview stats command center" },
+  { href: "/students", icon: icons.students, label: "Students", keywords: "pupils enrollment admission directory" },
+  { href: "/classes", icon: icons.classes, label: "Classes", keywords: "classrooms sections levels streams" },
+  { href: "/timetable", icon: icons.timetable, label: "Timetable", keywords: "schedule routine period auto classes planner master routine" },
+  { href: "/staff", icon: icons.staff, label: "Staff", keywords: "teachers employees payroll admin" },
+  { href: "/attendance", icon: icons.attendance, label: "Attendance", keywords: "roll mark daily register present absent" },
+  { href: "/grades", icon: icons.grades, label: "Grades", keywords: "scores marks assessments ca1 ca2 exam" },
+  { href: "/results", icon: icons.results, label: "Results", keywords: "report cards transcripts terminal" },
+  { href: "/exams", icon: icons.exams, label: "Exams", keywords: "schedules terms timetable halls" },
+  { href: "/fees", icon: icons.fees, label: "Fees", keywords: "invoices tuition payment pos billing receipts" },
+  { href: "/library", icon: icons.library, label: "Library", keywords: "books loans catalog borrowed" },
+  { href: "/transport", icon: icons.transport, label: "Transport", keywords: "buses routes fleet logistics" },
+];
+
+const TEACHER_NAV: NavItem[] = [
+  { href: "/portal/teacher", icon: icons.dashboard, label: "Workspace", keywords: "teacher home dashboard classes assigned" },
+  { href: "/attendance", icon: icons.attendance, label: "Daily Attendance", keywords: "roll call daily mark register present absent" },
+  { href: "/grades", icon: icons.grades, label: "Score Sheets", keywords: "grades ca1 ca2 exam scores continuous assessment" },
+  { href: "/timetable", icon: icons.timetable, label: "Timetable", keywords: "schedule routine teaching classes periods" },
+  { href: "/exams", icon: icons.exams, label: "Exam Schedule", keywords: "schedules timetable halls invigilation" },
+  { href: "/results", icon: icons.results, label: "Report Cards", keywords: "results student report cards terminal review" },
+];
+
+const PARENT_NAV: NavItem[] = [
+  { href: "/portal/parent", icon: icons.dashboard, label: "Family Overview", keywords: "parent home wards children attendance" },
+  { href: "/results", icon: icons.results, label: "Report Cards", keywords: "child report cards results terminal performance" },
+  { href: "/fees", icon: icons.fees, label: "Fees & Receipts", keywords: "invoices payment balance receipts tuition" },
+];
+
+const STUDENT_NAV: NavItem[] = [
+  { href: "/portal/student", icon: icons.dashboard, label: "My Profile", keywords: "student home overview attendance" },
+  { href: "/results", icon: icons.results, label: "My Results", keywords: "terminal report card exam scores rank" },
+  { href: "/timetable", icon: icons.timetable, label: "Class Timetable", keywords: "routine schedule daily periods subjects" },
+  { href: "/library", icon: icons.library, label: "Library Loans", keywords: "books borrowed due return" },
 ];
 
 const PORTAL_LINKS: NavItem[] = [
@@ -161,7 +183,7 @@ const PORTAL_LINKS: NavItem[] = [
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
-export default function Sidebar() {
+export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -197,20 +219,33 @@ export default function Sidebar() {
     router.push("/login");
   };
 
+  // Select navigation list tailored to user role
+  const activeNav = useMemo(() => {
+    const r = (role || "ADMIN").toUpperCase();
+    if (r === "TEACHER") return TEACHER_NAV;
+    if (r === "PARENT") return PARENT_NAV;
+    if (r === "STUDENT") return STUDENT_NAV;
+    return ADMIN_NAV;
+  }, [role]);
+
   const q = searchQuery.trim().toLowerCase();
   const filteredMainNav = useMemo(() => {
-    if (!q) return MAIN_NAV;
-    return MAIN_NAV.filter(
+    if (!q) return activeNav;
+    return activeNav.filter(
       (item) =>
         item.label.toLowerCase().includes(q) ||
         (item.keywords && item.keywords.toLowerCase().includes(q))
     );
-  }, [q]);
+  }, [activeNav, q]);
 
   const renderRailItem = (item: NavItem) => {
     const isActive =
       pathname === item.href ||
-      (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"));
+      (item.href !== "/dashboard" &&
+        item.href !== "/portal/teacher" &&
+        item.href !== "/portal/parent" &&
+        item.href !== "/portal/student" &&
+        pathname.startsWith(item.href + "/"));
 
     return (
       <Link
@@ -316,7 +351,11 @@ export default function Sidebar() {
             marginBottom: 16,
             cursor: "pointer",
           }}
-          onClick={() => router.push("/dashboard")}
+          onClick={() => {
+            const r = (role || "ADMIN").toUpperCase();
+            const home = r === "TEACHER" ? "/portal/teacher" : r === "PARENT" ? "/portal/parent" : r === "STUDENT" ? "/portal/student" : "/dashboard";
+            router.push(home);
+          }}
           title="Modern School Management System"
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -430,42 +469,44 @@ export default function Sidebar() {
             gap: 4,
           }}
         >
-          {/* Settings / Portals Icon */}
-          <Link
-            href="/portal/teacher"
-            title="Role Portals"
-            style={{ textDecoration: "none" }}
-            onMouseEnter={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setTooltipPos({ top: rect.top + rect.height / 2 - 13, left: rect.right + 10 });
-              setHoveredLabel("Role Portals");
-            }}
-            onMouseLeave={() => setHoveredLabel(null)}
-          >
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "var(--color-text-secondary, #70817B)",
-                cursor: "pointer",
-                transition: "all 0.15s",
-              }}
+          {/* Settings / Portals Icon (Only visible for Admins) */}
+          {(role || "ADMIN").toUpperCase() === "ADMIN" && (
+            <Link
+              href="/portal/teacher"
+              title="Role Portals"
+              style={{ textDecoration: "none" }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
-                e.currentTarget.style.color = "var(--color-ink)";
+                const rect = e.currentTarget.getBoundingClientRect();
+                setTooltipPos({ top: rect.top + rect.height / 2 - 13, left: rect.right + 10 });
+                setHoveredLabel("Role Portals");
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "var(--color-text-secondary)";
-              }}
+              onMouseLeave={() => setHoveredLabel(null)}
             >
-              {icons.portals}
-            </div>
-          </Link>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "var(--color-text-secondary, #70817B)",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
+                  e.currentTarget.style.color = "var(--color-ink)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "var(--color-text-secondary)";
+                }}
+              >
+                {icons.portals}
+              </div>
+            </Link>
+          )}
 
           {/* Expand / Collapse Icon */}
           <div

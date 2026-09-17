@@ -42,9 +42,23 @@ interface AlertNotification {
   isRead: boolean;
 }
 
+interface AuthUser {
+  id: string;
+  email: string;
+  role: string;
+  firstName: string;
+  lastName: string;
+  schoolId?: string;
+  school?: { name: string };
+  photoUrl?: string;
+}
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+
+  // Current authenticated user state
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
   // Dropdown states
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -56,6 +70,42 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const profileRef = useRef<HTMLDivElement>(null);
 
   const isAuthPage = AUTH_ROUTES.some((r) => pathname.startsWith(r));
+
+  // Load authenticated user profile from backend
+  useEffect(() => {
+    if (isAuthPage) return;
+
+    async function loadUser() {
+      try {
+        const res = await fetch(`${API}/api/v1/auth/me`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.id) {
+            setCurrentUser(data);
+          }
+        }
+      } catch {}
+    }
+
+    loadUser();
+  }, [pathname, isAuthPage]);
+
+  // Route protection guard for non-admin roles
+  useEffect(() => {
+    if (isAuthPage || !currentUser) return;
+    const r = (currentUser.role || "").toUpperCase();
+
+    // Prevent non-admin users from landing on /dashboard
+    if (pathname === "/dashboard") {
+      if (r === "TEACHER") router.replace("/portal/teacher");
+      else if (r === "PARENT") router.replace("/portal/parent");
+      else if (r === "STUDENT") router.replace("/portal/student");
+    } else if (pathname === "/staff" && r !== "ADMIN") {
+      if (r === "TEACHER") router.replace("/portal/teacher");
+      else if (r === "PARENT") router.replace("/portal/parent");
+      else if (r === "STUDENT") router.replace("/portal/student");
+    }
+  }, [currentUser, pathname, isAuthPage, router]);
 
   // Load real alert notifications from backend
   useEffect(() => {
@@ -189,6 +239,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     else breadcrumb = "School Portal";
   }
 
+  // Derive dynamic user details for header and profile dropdown
+  const userRole = (currentUser?.role || "ADMIN").toUpperCase();
+  const userFullName = currentUser
+    ? `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() || currentUser.email || "System Admin"
+    : "System Admin";
+  const userInitials = currentUser
+    ? `${(currentUser.firstName?.[0] || "").toUpperCase()}${(currentUser.lastName?.[0] || currentUser.email?.[0] || "U").toUpperCase()}`
+    : "SA";
+  const userEmail = currentUser?.email || "admin@school.local";
+  const schoolName = currentUser?.school?.name || "Modern School";
+
+  let userRoleBadge = "Super Administrator";
+  if (userRole === "TEACHER") userRoleBadge = "Teacher / Staff";
+  else if (userRole === "PARENT") userRoleBadge = "Parent / Guardian";
+  else if (userRole === "STUDENT") userRoleBadge = "Student";
+  else if (userRole === "ADMIN") userRoleBadge = "Super Administrator";
+
   return (
     <div
       className="app-canvas"
@@ -216,7 +283,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           position: "relative",
         }}
       >
-        <Sidebar />
+        <Sidebar role={currentUser?.role} />
 
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "calc(100vh - 32px)", overflow: "hidden" }}>
           {/* Top Header Bar matching reference */}
@@ -474,11 +541,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       }}
                     >
                       <Link
-                        href="/dashboard"
+                        href={userRole === "ADMIN" ? "/dashboard" : userRole === "TEACHER" ? "/portal/teacher" : userRole === "PARENT" ? "/portal/parent" : "/portal/student"}
                         onClick={() => setIsNotificationsOpen(false)}
                         style={{ fontSize: 11, fontWeight: 700, color: "var(--color-ink)", textDecoration: "none" }}
                       >
-                        Open Dashboard Command Center
+                        {userRole === "ADMIN" ? "Open Dashboard Command Center" : "Open Workspace"}
                       </Link>
                     </div>
                   </div>
@@ -516,7 +583,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       fontWeight: 800,
                     }}
                   >
-                    SA
+                    {userInitials}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span
@@ -526,7 +593,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         color: isProfileOpen ? "#FFFFFF" : "var(--color-ink)",
                       }}
                     >
-                      System Admin
+                      {userFullName}
                     </span>
                     <svg
                       width="12"
@@ -580,14 +647,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                           flexShrink: 0,
                         }}
                       >
-                        SA
+                        {userInitials}
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 800, color: "var(--color-ink)", lineHeight: 1.2 }}>
-                          System Admin
+                          {userFullName}
                         </div>
                         <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2 }}>
-                          admin@school.local
+                          {userEmail}
                         </div>
                         <div
                           style={{
@@ -604,75 +671,286 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                           }}
                         >
                           <span style={{ width: 5, height: 5, borderRadius: "50%", backgroundColor: "var(--color-success-text)" }} />
-                          Super Administrator
+                          {userRoleBadge}
                         </div>
                       </div>
                     </div>
 
                     <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontWeight: 600 }}>
-                      Modern School · 2025/2026 Academic Session
+                      {schoolName} · 2025/2026 Academic Session
                     </div>
 
                     {/* Divider */}
                     <div style={{ height: 1, backgroundColor: "var(--color-border)" }} />
 
-                    {/* Section 1: Role Portals */}
+                    {/* Section 1: Role Portals or Workspace Links */}
                     <div>
                       <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                        ROLE PORTALS
+                        {userRole === "ADMIN" ? "ROLE PORTALS" : "WORKSPACE SHORTCUTS"}
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                        <Link
-                          href="/portal/teacher"
-                          onClick={() => setIsProfileOpen(false)}
-                          style={{
-                            padding: "7px 10px",
-                            borderRadius: 8,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: "var(--color-ink)",
-                            textDecoration: "none",
-                            transition: "background 0.15s",
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                        >
-                          Teacher Portal
-                        </Link>
-                        <Link
-                          href="/portal/student"
-                          onClick={() => setIsProfileOpen(false)}
-                          style={{
-                            padding: "7px 10px",
-                            borderRadius: 8,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: "var(--color-ink)",
-                            textDecoration: "none",
-                            transition: "background 0.15s",
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                        >
-                          Student Portal
-                        </Link>
-                        <Link
-                          href="/portal/parent"
-                          onClick={() => setIsProfileOpen(false)}
-                          style={{
-                            padding: "7px 10px",
-                            borderRadius: 8,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: "var(--color-ink)",
-                            textDecoration: "none",
-                            transition: "background 0.15s",
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
-                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                        >
-                          Parent & Guardian Portal
-                        </Link>
+                        {userRole === "ADMIN" && (
+                          <>
+                            <Link
+                              href="/portal/teacher"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                                transition: "background 0.15s",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Teacher Portal
+                            </Link>
+                            <Link
+                              href="/portal/student"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                                transition: "background 0.15s",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Student Portal
+                            </Link>
+                            <Link
+                              href="/portal/parent"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                                transition: "background 0.15s",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Parent & Guardian Portal
+                            </Link>
+                          </>
+                        )}
+
+                        {userRole === "TEACHER" && (
+                          <>
+                            <Link
+                              href="/portal/teacher"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Teacher Workspace
+                            </Link>
+                            <Link
+                              href="/attendance"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Class Attendance
+                            </Link>
+                            <Link
+                              href="/grades"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Grades & Score Entry
+                            </Link>
+                            <Link
+                              href="/timetable"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Timetable & Routine
+                            </Link>
+                            <Link
+                              href="/reports"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Terminal Report Cards
+                            </Link>
+                          </>
+                        )}
+
+                        {userRole === "PARENT" && (
+                          <>
+                            <Link
+                              href="/portal/parent"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Parent Portal Overview
+                            </Link>
+                            <Link
+                              href="/reports"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Child Terminal Report Cards
+                            </Link>
+                            <Link
+                              href="/fees"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              School Fee Invoices
+                            </Link>
+                          </>
+                        )}
+
+                        {userRole === "STUDENT" && (
+                          <>
+                            <Link
+                              href="/portal/student"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Student Portal Overview
+                            </Link>
+                            <Link
+                              href="/reports"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              My Academic Results
+                            </Link>
+                            <Link
+                              href="/timetable"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Class Routine & Timetable
+                            </Link>
+                            <Link
+                              href="/library"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Digital Library & Loans
+                            </Link>
+                          </>
+                        )}
                       </div>
                     </div>
 

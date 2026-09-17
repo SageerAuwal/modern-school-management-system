@@ -107,8 +107,8 @@ export default function LoginPage() {
         return;
       }
 
-      const role: string = data.user?.role ?? "";
-      if (role === "TEACHER") {
+      const role: string = (data.user?.role || selectedRole || "").toUpperCase();
+      if (role === "TEACHER" || role === "STAFF") {
         router.push("/portal/teacher");
       } else if (role === "STUDENT") {
         router.push("/portal/student");
