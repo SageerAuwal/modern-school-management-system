@@ -55,6 +55,7 @@ model School {
   buses             Bus[]
   transportRoutes   TransportRoute[]
   studentTransports StudentTransport[]
+  timetables        Timetable[]
 
   @@map("schools")
 }
@@ -125,6 +126,7 @@ model User {
   paymentsRecorded Payment[]      @relation("PaymentRecordedBy")
   issuedLoans      BookLoan[]     @relation("LoanIssuedBy")
   returnedLoans    BookLoan[]     @relation("LoanReturnedBy")
+  timetableLessons TimetableLesson[] @relation("TimetableTeacher")
 
   @@index([schoolId])
   @@index([email])
@@ -240,6 +242,7 @@ model ClassSection {
   attendanceRecords AttendanceRecord[]
   classSubjects     ClassSubject[]
   scores            Score[]
+  timetableLessons  TimetableLesson[]
 
   @@unique([schoolId, name, academicYear])
   @@index([schoolId])
@@ -351,8 +354,9 @@ model Subject {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   school        School         @relation(fields: [schoolId], references: [id])
-  classSubjects ClassSubject[]
-  scores        Score[]
+  classSubjects    ClassSubject[]
+  scores           Score[]
+  timetableLessons TimetableLesson[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -375,6 +379,7 @@ model Term {
   scores Score[]
   feeStructures FeeStructure[]
   invoices      Invoice[]
+  timetables    Timetable[]
 
   @@unique([schoolId, name, academicYear])
   @@index([schoolId])
@@ -722,3 +727,59 @@ model StudentTransport {
   @@index([routeId])
   @@map("student_transport")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 10 — Academic Timetables & Weekly Schedules
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Timetable {
+  id             String    @id @default(uuid())
+  schoolId       String    @map("school_id")
+  academicYear   String    @map("academic_year")
+  termId         String?   @map("term_id")
+  title          String    @default("Academic Master Timetable")
+  periodsPerDay  Int       @default(8) @map("periods_per_day")
+  periodDuration Int       @default(40) @map("period_duration")
+  startTime      String    @default("08:00") @map("start_time")
+  days           String    @default("MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY")
+  breakAfter     Int       @default(4) @map("break_after")
+  breakDuration  Int       @default(30) @map("break_duration")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  school  School            @relation(fields: [schoolId], references: [id])
+  term    Term?             @relation(fields: [termId], references: [id])
+  lessons TimetableLesson[]
+
+  @@index([schoolId])
+  @@map("timetables")
+}
+
+model TimetableLesson {
+  id             String    @id @default(uuid())
+  timetableId    String    @map("timetable_id")
+  classSectionId String    @map("class_section_id")
+  subjectId      String    @map("subject_id")
+  teacherId      String?   @map("teacher_id")
+  day            String    // MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY
+  periodNumber   Int       @map("period_number") // 1..8
+  startTime      String    @map("start_time")    // e.g. "08:00 AM"
+  endTime        String    @map("end_time")      // e.g. "08:40 AM"
+  room           String?
+  isDouble       Boolean   @default(false) @map("is_double")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  timetable    Timetable    @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacher      User?        @relation("TimetableTeacher", fields: [teacherId], references: [id])
+
+  @@unique([timetableId, classSectionId, day, periodNumber])
+  @@index([timetableId])
+  @@index([classSectionId])
+  @@index([teacherId])
+  @@map("timetable_lessons")
+}
+

@@ -19,6 +19,7 @@ import { FeesModule } from './fees/fees.module';
 import { LibraryModule } from './library/library.module';
 import { TransportModule } from './transport/transport.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { TimetableModule } from './timetable/timetable.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -43,6 +44,7 @@ import { AppService } from './app.service';
     LibraryModule,
     TransportModule,
     DashboardModule,
+    TimetableModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
