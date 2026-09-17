@@ -283,7 +283,27 @@ async function main() {
       },
     });
   }
-  console.log('✅ 5 Students & 5 Linked Parents created with enrollment and guardian relations');
+
+  // Create Student User Accounts for Portal Login
+  const studentPasswordHash = await bcrypt.hash('Student@1234', 10);
+  for (const s of students) {
+    const studentEmail = `student.${s.firstName.toLowerCase()}@school.local`;
+    let sUser = await prisma.user.findUnique({ where: { email: studentEmail } });
+    if (!sUser) {
+      await prisma.user.create({
+        data: {
+          schoolId: school.id,
+          email: studentEmail,
+          passwordHash: studentPasswordHash,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          role: 'STUDENT',
+          isActive: true,
+        },
+      });
+    }
+  }
+  console.log('✅ 5 Students & 5 Linked Parents created with portal accounts and guardian relations');
 
   // ── 7. Scores & Terminal Report Cards ────────────────────────────────────
   function computeGrade(total) {
