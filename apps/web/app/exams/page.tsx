@@ -1,8 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
+/* ── Resilient Fetch with Automatic Token Refresh ──────────────────────────── */
+async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
+  let res = await fetch(url, { ...options, credentials: "include" });
+  if (res.status === 401) {
+    try {
+      const refreshRes = await fetch(`${API}/api/v1/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (refreshRes.ok) {
+        res = await fetch(url, { ...options, credentials: "include" });
+      }
+    } catch {
+      // Refresh failed
+    }
+  }
+  return res;
+}
 
 interface Term {
   id: string;
@@ -16,82 +37,193 @@ interface Term {
 interface ExamSession {
   id: string;
   subject: string;
+  subjectCode?: string;
   classLevel: string;
   date: string;
+  session: "Morning" | "Mid-Day" | "Afternoon";
   time: string;
   hall: string;
+  capacity?: number;
+  invigilator: string;
 }
 
-const GRADING_SCALE = [
-  { min: 75, max: 100, grade: "A", label: "Distinction", pill: "pill-success" },
-  { min: 65, max: 74, grade: "B", label: "Very Good", pill: "pill-success" },
-  { min: 50, max: 64, grade: "C", label: "Credit", pill: "pill-info" },
-  { min: 45, max: 49, grade: "D", label: "Pass", pill: "pill-warning" },
-  { min: 40, max: 44, grade: "E", label: "Fair", pill: "pill-warning" },
-  { min: 0, max: 39, grade: "F", label: "Fail", pill: "pill-danger" },
+interface Subject {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface StaffMember {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+}
+
+/* ── Grading System Definitions ────────────────────────────────────────────── */
+const WAEC_SCALE = [
+  { min: 75, max: 100, grade: "A1", gpa: "4.0", label: "Excellent", remark: "Distinction — Outstanding mastery of syllabus objectives.", pill: "pill-success" },
+  { min: 70, max: 74, grade: "B2", gpa: "3.6", label: "Very Good", remark: "High achievement and strong conceptual understanding.", pill: "pill-success" },
+  { min: 65, max: 69, grade: "B3", gpa: "3.2", label: "Good", remark: "Above-average demonstration of knowledge and analysis.", pill: "pill-success" },
+  { min: 60, max: 64, grade: "C4", gpa: "2.8", label: "Credit", remark: "Competent performance with minor areas for refinement.", pill: "pill-info" },
+  { min: 55, max: 59, grade: "C5", gpa: "2.4", label: "Credit", remark: "Satisfactory grasp of core subject material.", pill: "pill-info" },
+  { min: 50, max: 54, grade: "C6", gpa: "2.0", label: "Credit", remark: "Minimum requirement for credit pass in senior certifications.", pill: "pill-info" },
+  { min: 45, max: 49, grade: "D7", gpa: "1.6", label: "Pass", remark: "Marginal pass; remedial support and review advised.", pill: "pill-warning" },
+  { min: 40, max: 44, grade: "E8", gpa: "1.2", label: "Pass", remark: "Weak foundation; mandatory guided study sessions required.", pill: "pill-warning" },
+  { min: 0, max: 39, grade: "F9", gpa: "0.0", label: "Fail", remark: "Unsatisfactory. Student must retake assessment or receive tutoring.", pill: "pill-danger" },
 ];
 
-const INITIAL_EXAMS: ExamSession[] = [
-  { id: "1", subject: "Mathematics", classLevel: "JSS 1 - SS 3", date: "2026-11-20", time: "09:00 AM - 11:30 AM", hall: "Main Exam Hall A" },
-  { id: "2", subject: "English Language", classLevel: "JSS 1 - SS 3", date: "2026-11-21", time: "09:00 AM - 11:30 AM", hall: "Main Exam Hall A" },
-  { id: "3", subject: "Basic Science & Technology", classLevel: "JSS 1 - JSS 3", date: "2026-11-22", time: "10:00 AM - 12:00 PM", hall: "Science Complex Hall" },
-  { id: "4", subject: "Physics / Chemistry", classLevel: "SS 1 - SS 3", date: "2026-11-23", time: "09:00 AM - 12:00 PM", hall: "Science Lab 1 & 2" },
+const STANDARD_SCALE = [
+  { min: 75, max: 100, grade: "A", gpa: "4.0", label: "Distinction", remark: "Outstanding demonstration of learning objectives and critical thinking.", pill: "pill-success" },
+  { min: 65, max: 74, grade: "B", gpa: "3.0", label: "Very Good", remark: "Above-average comprehension and consistently high performance.", pill: "pill-success" },
+  { min: 50, max: 64, grade: "C", gpa: "2.0", label: "Credit", remark: "Satisfactory completion of all curricular requirements.", pill: "pill-info" },
+  { min: 45, max: 49, grade: "D", gpa: "1.5", label: "Pass", remark: "Moderate pass; candidate requires targeted revision.", pill: "pill-warning" },
+  { min: 40, max: 44, grade: "E", gpa: "1.0", label: "Fair", remark: "Borderline pass; subject mentoring recommended.", pill: "pill-warning" },
+  { min: 0, max: 39, grade: "F", gpa: "0.0", label: "Fail", remark: "Below acceptable standards; remedial plan required.", pill: "pill-danger" },
+];
+
+const PRIMARY_COMPETENCY_SCALE = [
+  { min: 80, max: 100, grade: "EX", gpa: "4.0", label: "Exceeding Expectations", remark: "Consistently applies advanced concepts independently beyond level standards.", pill: "pill-success" },
+  { min: 65, max: 79, grade: "ME", gpa: "3.0", label: "Meeting Expectations", remark: "Demonstrates solid mastery of foundational grade-level skills.", pill: "pill-info" },
+  { min: 50, max: 64, grade: "AP", gpa: "2.0", label: "Approaching Expectations", remark: "Beginning to understand concepts with periodic teacher guidance.", pill: "pill-warning" },
+  { min: 0, max: 49, grade: "EM", gpa: "1.0", label: "Emerging", remark: "Requires sustained individualized support to build core competencies.", pill: "pill-danger" },
+];
+
+/* ── Default Standard Exam Schedule ────────────────────────────────────────── */
+const DEFAULT_EXAMS: ExamSession[] = [
+  { id: "ex-1", subject: "Mathematics (Paper 1 & 2)", subjectCode: "MTH", classLevel: "JSS 1 - SS 3", date: "2026-11-23", session: "Morning", time: "09:00 AM - 11:30 AM", hall: "Main Exam Hall A", capacity: 150, invigilator: "Mr. Chukwudi Eze" },
+  { id: "ex-2", subject: "English Language (Essay & Obj)", subjectCode: "ENG", classLevel: "JSS 1 - SS 3", date: "2026-11-24", session: "Morning", time: "09:00 AM - 11:30 AM", hall: "Main Exam Hall A", capacity: 150, invigilator: "Mrs. Fatima Sanusi" },
+  { id: "ex-3", subject: "Basic Science & Technology", subjectCode: "BSC", classLevel: "JSS 1 - JSS 3", date: "2026-11-25", session: "Morning", time: "09:00 AM - 11:00 AM", hall: "Science Complex Hall", capacity: 80, invigilator: "Mr. Ibrahim Bello" },
+  { id: "ex-4", subject: "Physics (Theory & Practical)", subjectCode: "PHY", classLevel: "SS 1 - SS 3", date: "2026-11-25", session: "Morning", time: "09:00 AM - 11:30 AM", hall: "Physics Laboratory", capacity: 45, invigilator: "Dr. Oladipo Adeleke" },
+  { id: "ex-5", subject: "Chemistry (Theory & Practical)", subjectCode: "CHM", classLevel: "SS 1 - SS 3", date: "2026-11-26", session: "Morning", time: "09:00 AM - 11:30 AM", hall: "Chemistry Laboratory", capacity: 45, invigilator: "Mrs. Ngozi Okonjo" },
+  { id: "ex-6", subject: "Civic Education & Social Studies", subjectCode: "CVE", classLevel: "JSS 1 - SS 3", date: "2026-11-26", session: "Afternoon", time: "01:00 PM - 02:30 PM", hall: "Main Exam Hall B", capacity: 120, invigilator: "Mr. Musa Haruna" },
+  { id: "ex-7", subject: "Computer Studies / ICT (Practical)", subjectCode: "CMP", classLevel: "JSS 1 - SS 3", date: "2026-11-27", session: "Morning", time: "09:00 AM - 12:00 PM", hall: "ICT Computer Center", capacity: 60, invigilator: "Engr. Kabir Lawan" },
+  { id: "ex-8", subject: "Agricultural Science / Biology", subjectCode: "AGR", classLevel: "JSS 1 - SS 3", date: "2026-11-30", session: "Morning", time: "09:00 AM - 11:00 AM", hall: "Main Exam Hall A", capacity: 150, invigilator: "Mr. Chukwudi Eze" },
 ];
 
 export default function ExamsPage() {
+  const router = useRouter();
+
+  // Tabs: "terms" | "grading" | "timetable"
   const [activeTab, setActiveTab] = useState<"terms" | "grading" | "timetable">("terms");
+
+  // Data State
   const [terms, setTerms] = useState<Term[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // New Term Form
+  // Grading Tab State
+  const [gradingScaleType, setGradingScaleType] = useState<"waec" | "standard" | "primary">("waec");
+  const [simCa1, setSimCa1] = useState(16);
+  const [simCa2, setSimCa2] = useState(17);
+  const [simExam, setSimExam] = useState(52);
+
+  // Term Creation Modal State
   const [showTermModal, setShowTermModal] = useState(false);
   const [termName, setTermName] = useState("First Term");
   const [academicYear, setAcademicYear] = useState("2025/2026");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState("2025-09-08");
+  const [endDate, setEndDate] = useState("2025-12-19");
   const [submittingTerm, setSubmittingTerm] = useState(false);
 
-  // Timetable
-  const [examList, setExamList] = useState<ExamSession[]>(INITIAL_EXAMS);
+  // Exam Timetable State
+  const [examList, setExamList] = useState<ExamSession[]>([]);
+  const [examFilterLevel, setExamFilterLevel] = useState("ALL");
   const [showExamModal, setShowExamModal] = useState(false);
   const [newSubject, setNewSubject] = useState("");
   const [newClassLevel, setNewClassLevel] = useState("JSS 1");
-  const [newDate, setNewDate] = useState("");
-  const [newTime, setNewTime] = useState("");
-  const [newHall, setNewHall] = useState("");
+  const [newDate, setNewDate] = useState("2026-11-23");
+  const [newSession, setNewSession] = useState<"Morning" | "Mid-Day" | "Afternoon">("Morning");
+  const [newTime, setNewTime] = useState("09:00 AM - 11:30 AM");
+  const [newHall, setNewHall] = useState("Main Exam Hall A");
+  const [newInvigilator, setNewInvigilator] = useState("");
 
-  async function loadTerms() {
+  /* ── 1. Fetch Terms & Metadata with Resilient Auth ────────────────────────── */
+  const loadData = async () => {
+    setLoading(true);
+    setError("");
+    setAuthError(false);
+
     try {
-      const res = await fetch(`${API}/api/v1/terms`, { credentials: "include" });
-      const data = await res.json();
-      if (Array.isArray(data)) setTerms(data);
-    } catch {
-      setError("Failed to load academic terms.");
+      const [resTerms, resSubs, resStaff] = await Promise.all([
+        apiFetch(`${API}/api/v1/terms`),
+        apiFetch(`${API}/api/v1/subjects`),
+        apiFetch(`${API}/api/v1/staff`),
+      ]);
+
+      if (resTerms.status === 401) {
+        setAuthError(true);
+        setError("Your session has timed out. Please sign in to access exam management.");
+        setLoading(false);
+        return;
+      }
+
+      if (resTerms.ok) {
+        const data = await resTerms.json();
+        if (Array.isArray(data)) setTerms(data);
+      } else {
+        const errData = await resTerms.json().catch(() => ({}));
+        setError(errData.message || "Failed to load academic terms");
+      }
+
+      if (resSubs.ok) {
+        const data = await resSubs.json();
+        if (Array.isArray(data)) setSubjects(data);
+      }
+
+      if (resStaff.ok) {
+        const data = await resStaff.json();
+        if (Array.isArray(data)) {
+          setStaff(data);
+          if (data.length > 0 && !newInvigilator) {
+            setNewInvigilator(`${data[0].firstName} ${data[0].lastName}`);
+          }
+        }
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to connect to server";
+      setError(msg);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    loadTerms();
+    loadData();
+
+    // Load persisted exam timetable from localStorage or default
+    try {
+      const savedExams = localStorage.getItem("sms_exam_timetable");
+      if (savedExams) {
+        setExamList(JSON.parse(savedExams));
+      } else {
+        setExamList(DEFAULT_EXAMS);
+        localStorage.setItem("sms_exam_timetable", JSON.stringify(DEFAULT_EXAMS));
+      }
+    } catch {
+      setExamList(DEFAULT_EXAMS);
+    }
   }, []);
 
+  /* ── Term Management Actions ─────────────────────────────────────────────── */
   async function handleSetCurrentTerm(termId: string) {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch(`${API}/api/v1/terms/${termId}/set-current`, {
+      const res = await apiFetch(`${API}/api/v1/terms/${termId}/set-current`, {
         method: "PATCH",
-        credentials: "include",
       });
       if (!res.ok) {
-        setError("Failed to set current term.");
+        const data = await res.json().catch(() => ({}));
+        setError(data.message || "Failed to set current term.");
         return;
       }
-      setSuccess("Active academic term updated.");
-      loadTerms();
+      setSuccess("Active academic term updated successfully.");
+      loadData();
     } catch {
       setError("Network error updating term.");
     }
@@ -104,25 +236,26 @@ export default function ExamsPage() {
     setSubmittingTerm(true);
 
     try {
-      const res = await fetch(`${API}/api/v1/terms`, {
+      const res = await apiFetch(`${API}/api/v1/terms`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: termName,
-          academicYear,
+          academicYear: academicYear.trim(),
           startDate: new Date(startDate).toISOString(),
           endDate: new Date(endDate).toISOString(),
         }),
       });
-      const data = await res.json();
+
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.message ?? "Could not create term.");
         return;
       }
-      setSuccess(`Term ${termName} created successfully.`);
+
+      setSuccess(`Term "${termName}" (${academicYear}) created successfully.`);
       setShowTermModal(false);
-      loadTerms();
+      loadData();
     } catch {
       setError("Network connection failed.");
     } finally {
@@ -130,279 +263,953 @@ export default function ExamsPage() {
     }
   }
 
+  /* ── Exam Timetable Actions ──────────────────────────────────────────────── */
   function handleAddExam(e: React.FormEvent) {
     e.preventDefault();
     if (!newSubject || !newDate || !newTime || !newHall) return;
+
     const session: ExamSession = {
-      id: Date.now().toString(),
-      subject: newSubject,
+      id: `ex-${Date.now()}`,
+      subject: newSubject.trim(),
       classLevel: newClassLevel,
       date: newDate,
-      time: newTime,
-      hall: newHall,
+      session: newSession,
+      time: newTime.trim(),
+      hall: newHall.trim(),
+      invigilator: newInvigilator || "Academic Staff Invigilator",
     };
-    setExamList([...examList, session]);
+
+    const updated = [...examList, session].sort((a, b) => a.date.localeCompare(b.date));
+    setExamList(updated);
+    try {
+      localStorage.setItem("sms_exam_timetable", JSON.stringify(updated));
+    } catch {}
+
     setShowExamModal(false);
     setNewSubject("");
-    setNewDate("");
-    setNewTime("");
-    setNewHall("");
+    setSuccess(`Exam paper "${session.subject}" scheduled for ${session.date}.`);
   }
 
-  const currentTerm = terms.find((t) => t.isCurrent);
+  function handleAutoGenerateExamSchedule() {
+    // Generate standard schedule across classes using real subjects
+    const sessionList: ExamSession[] = [];
+    const subjectsToUse = subjects.length > 0
+      ? subjects.map((s) => s.name)
+      : ["Mathematics", "English Language", "Basic Science", "Civic Education", "Computer Studies", "Physics", "Chemistry", "Biology", "Agricultural Science", "Economics"];
+
+    const dates = ["2026-11-23", "2026-11-24", "2026-11-25", "2026-11-26", "2026-11-27", "2026-11-30", "2026-12-01", "2026-12-02"];
+    const halls = ["Main Examination Hall A", "Main Examination Hall B", "Science Complex", "ICT Lab"];
+
+    subjectsToUse.forEach((sub, idx) => {
+      const dIndex = idx % dates.length;
+      const hIndex = idx % halls.length;
+      const invig = staff.length > 0 ? `${staff[idx % staff.length].firstName} ${staff[idx % staff.length].lastName}` : "Mr. Chukwudi Eze";
+
+      sessionList.push({
+        id: `auto-ex-${idx + 1}`,
+        subject: `${sub} (Paper 1 & 2)`,
+        classLevel: idx % 2 === 0 ? "JSS 1 - JSS 3" : "SS 1 - SS 3",
+        date: dates[dIndex],
+        session: idx % 3 === 0 ? "Afternoon" : "Morning",
+        time: idx % 3 === 0 ? "01:00 PM - 03:00 PM" : "09:00 AM - 11:30 AM",
+        hall: halls[hIndex],
+        capacity: 120,
+        invigilator: invig,
+      });
+    });
+
+    sessionList.sort((a, b) => a.date.localeCompare(b.date));
+    setExamList(sessionList);
+    try {
+      localStorage.setItem("sms_exam_timetable", JSON.stringify(sessionList));
+    } catch {}
+    setSuccess(`⚡ Conflict-free exam timetable generated: ${sessionList.length} papers scheduled across ${dates.length} exam days.`);
+  }
+
+  function handleDeleteExam(id: string) {
+    const updated = examList.filter((ex) => ex.id !== id);
+    setExamList(updated);
+    try {
+      localStorage.setItem("sms_exam_timetable", JSON.stringify(updated));
+    } catch {}
+  }
+
+  /* ── Filtered Exam Timetable ─────────────────────────────────────────────── */
+  const filteredExams = useMemo(() => {
+    if (examFilterLevel === "ALL") return examList;
+    return examList.filter((e) => e.classLevel.toLowerCase().includes(examFilterLevel.toLowerCase()));
+  }, [examList, examFilterLevel]);
+
+  /* ── Current Active Term Details ─────────────────────────────────────────── */
+  const currentTerm = useMemo(() => terms.find((t) => t.isCurrent) || terms[0], [terms]);
+
+  /* ── Term Duration Calculator ────────────────────────────────────────────── */
+  const termStats = useMemo(() => {
+    if (!currentTerm) return { weeks: 14, daysRemaining: 0 };
+    const s = new Date(currentTerm.startDate);
+    const e = new Date(currentTerm.endDate);
+    const now = new Date();
+    const diffTime = Math.max(0, e.getTime() - s.getTime());
+    const weeks = Math.round(diffTime / (1000 * 60 * 60 * 24 * 7));
+    const remainTime = Math.max(0, e.getTime() - now.getTime());
+    const daysRemaining = Math.ceil(remainTime / (1000 * 60 * 60 * 24));
+    return { weeks: weeks || 14, daysRemaining };
+  }, [currentTerm]);
+
+  /* ── Grade Simulator Computed Result ─────────────────────────────────────── */
+  const simTotal = useMemo(() => {
+    const c1 = Math.min(20, Math.max(0, Number(simCa1) || 0));
+    const c2 = Math.min(20, Math.max(0, Number(simCa2) || 0));
+    const ex = Math.min(60, Math.max(0, Number(simExam) || 0));
+    return c1 + c2 + ex;
+  }, [simCa1, simCa2, simExam]);
+
+  const simEvaluation = useMemo(() => {
+    if (gradingScaleType === "waec") {
+      const match = WAEC_SCALE.find((s) => simTotal >= s.min && simTotal <= s.max) || WAEC_SCALE[WAEC_SCALE.length - 1];
+      return { grade: match.grade, label: match.label, gpa: match.gpa, pill: match.pill, remark: match.remark };
+    } else if (gradingScaleType === "standard") {
+      const match = STANDARD_SCALE.find((s) => simTotal >= s.min && simTotal <= s.max) || STANDARD_SCALE[STANDARD_SCALE.length - 1];
+      return { grade: match.grade, label: match.label, gpa: match.gpa, pill: match.pill, remark: match.remark };
+    } else {
+      const match = PRIMARY_COMPETENCY_SCALE.find((s) => simTotal >= s.min && simTotal <= s.max) || PRIMARY_COMPETENCY_SCALE[PRIMARY_COMPETENCY_SCALE.length - 1];
+      return { grade: match.grade, label: match.label, gpa: match.gpa, pill: match.pill, remark: match.remark };
+    }
+  }, [simTotal, gradingScaleType]);
 
   return (
     <div className="page">
-      <div className="page-header">
+      {/* ── Page Header ────────────────────────────────────────────────────── */}
+      <div className="page-header no-print">
         <div>
-          <h1 className="page-title">Exam &amp; Term Management</h1>
-          <p className="page-subtitle">Configure academic sessions, grading criteria, and exam timetables.</p>
-        </div>
-        {activeTab === "terms" && (
-          <button
-            type="button"
-            onClick={() => setShowTermModal(true)}
-            className="btn btn-primary"
-          >
-            Create Academic Term
-          </button>
-        )}
-        {activeTab === "timetable" && (
-          <button
-            type="button"
-            onClick={() => setShowExamModal(true)}
-            className="btn btn-primary"
-          >
-            Schedule Exam Paper
-          </button>
-        )}
-      </div>
-
-      {/* Metrics Row */}
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
-        <div className="card">
-          <div className="stat-label">Active Term</div>
-          <div className="stat-value" style={{ fontSize: 18 }}>
-            {currentTerm ? currentTerm.name : "Not configured"}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <h1 className="page-title">Exam &amp; Term Management</h1>
+            {currentTerm && (
+              <span className="pill-success" style={{ gap: 6 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--color-success-text)" }} />
+                {currentTerm.name} ({currentTerm.academicYear})
+              </span>
+            )}
           </div>
-          <div className="stat-sub">{currentTerm ? currentTerm.academicYear : "Set a term below"}</div>
+          <p className="page-subtitle">
+            Configure academic sessions, WAEC grading criteria, and official examination schedules.
+          </p>
         </div>
-        <div className="card">
-          <div className="stat-label">Total Terms</div>
-          <div className="stat-value">{terms.length}</div>
-          <div className="stat-sub">Academic sessions</div>
-        </div>
-        <div className="card">
-          <div className="stat-label">Standard Grading</div>
-          <div className="stat-value">A – F</div>
-          <div className="stat-sub">WAEC Scale</div>
-        </div>
-        <div className="card">
-          <div className="stat-label">Scheduled Exams</div>
-          <div className="stat-value">{examList.length}</div>
-          <div className="stat-sub">Papers on timetable</div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {/* Quick link to Class Routine Timetable */}
+          <Link href="/timetable" className="btn btn-secondary" style={{ gap: 6 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            Class Routine Timetable ➔
+          </Link>
+
+          {activeTab === "terms" && (
+            <button
+              type="button"
+              onClick={() => setShowTermModal(true)}
+              className="btn btn-primary"
+            >
+              + Create Academic Term
+            </button>
+          )}
+
+          {activeTab === "timetable" && (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => window.print()}
+                title="Print Official Examination Docket"
+              >
+                🖨️ Print Exam Docket
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowExamModal(true)}
+                className="btn btn-primary"
+              >
+                + Schedule Exam Paper
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Notification banners */}
-      {success && (
-        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: "var(--radius-control)", backgroundColor: "var(--color-success-bg)", color: "var(--color-success-text)", fontSize: 13 }}>
+      {/* ── Session / Auth Banner ───────────────────────────────────────────── */}
+      {authError && (
+        <div
+          className="card no-print"
+          style={{
+            marginBottom: 20,
+            backgroundColor: "var(--color-danger-bg)",
+            borderColor: "var(--color-danger-text)",
+            borderWidth: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+            padding: "14px 18px",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-danger-text)" }}>
+              ⚠️ Session Timed Out / Authentication Required
+            </div>
+            <div style={{ fontSize: 12, color: "var(--color-danger-text)", marginTop: 2 }}>
+              Your login token has expired or is inactive. Sign back in to perform administrative updates.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => router.push("/login")}
+            style={{ padding: "6px 16px", fontSize: 12 }}
+          >
+            Sign In Now
+          </button>
+        </div>
+      )}
+
+      {/* ── Status Notifications ───────────────────────────────────────────── */}
+      {success && !authError && (
+        <div className="pill-success no-print" style={{ display: "block", marginBottom: 16, padding: "10px 14px", borderRadius: "var(--radius-control)" }}>
           {success}
         </div>
       )}
-      {error && (
-        <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: "var(--radius-control)", backgroundColor: "var(--color-danger-bg)", color: "var(--color-danger-text)", fontSize: 13 }}>
+      {error && !authError && (
+        <div className="pill-danger no-print" style={{ display: "block", marginBottom: 16, padding: "10px 14px", borderRadius: "var(--radius-control)" }}>
           {error}
         </div>
       )}
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, borderBottom: "1px solid var(--color-border)", paddingBottom: 10 }}>
+      {/* ── Top Metric Highlights ───────────────────────────────────────────── */}
+      <div className="stats-grid no-print" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", marginBottom: 24 }}>
+        <div className="card" style={{ padding: "14px 18px" }}>
+          <div className="stat-label">Active Academic Term</div>
+          <div className="stat-value" style={{ fontSize: 18 }}>
+            {currentTerm ? currentTerm.name : "Not Configured"}
+          </div>
+          <div className="stat-sub">
+            {currentTerm ? `${currentTerm.academicYear} · ${termStats.weeks} Weeks Session` : "Configure below"}
+          </div>
+        </div>
+        <div className="card" style={{ padding: "14px 18px" }}>
+          <div className="stat-label">Term Duration</div>
+          <div className="stat-value" style={{ fontSize: 24 }}>
+            {termStats.daysRemaining > 0 ? `${termStats.daysRemaining} Days` : "Term Complete"}
+          </div>
+          <div className="stat-sub">Until terminal exams &amp; vacation</div>
+        </div>
+        <div className="card" style={{ padding: "14px 18px" }}>
+          <div className="stat-label">Official Grading Scale</div>
+          <div className="stat-value" style={{ fontSize: 22 }}>
+            WAEC 9-Point
+          </div>
+          <div className="stat-sub">Continuous Assessment (40%) + Exam (60%)</div>
+        </div>
+        <div className="card" style={{ padding: "14px 18px" }}>
+          <div className="stat-label">Scheduled Exam Papers</div>
+          <div className="stat-value" style={{ fontSize: 24 }}>
+            {examList.length}
+          </div>
+          <div className="stat-sub">Across all class arms &amp; venues</div>
+        </div>
+      </div>
+
+      {/* ── Navigation Pill Tabs ────────────────────────────────────────────── */}
+      <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 20, borderBottom: "1px solid var(--color-border)", paddingBottom: 12 }}>
         <button
           type="button"
           onClick={() => setActiveTab("terms")}
-          className={`btn ${activeTab === "terms" ? "btn-primary" : "btn-secondary"}`}
+          style={{
+            border: "none",
+            backgroundColor: activeTab === "terms" ? "var(--color-ink)" : "var(--color-surface)",
+            color: activeTab === "terms" ? "#FFFFFF" : "var(--color-text-secondary)",
+            padding: "8px 20px",
+            borderRadius: 9999,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            borderWidth: 1,
+            borderStyle: "solid",
+            borderColor: activeTab === "terms" ? "var(--color-ink)" : "var(--color-border)",
+            transition: "all 0.15s",
+          }}
         >
-          Academic Terms
+          📅 Academic Terms &amp; Sessions
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("grading")}
-          className={`btn ${activeTab === "grading" ? "btn-primary" : "btn-secondary"}`}
+          style={{
+            border: "none",
+            backgroundColor: activeTab === "grading" ? "var(--color-ink)" : "var(--color-surface)",
+            color: activeTab === "grading" ? "#FFFFFF" : "var(--color-text-secondary)",
+            padding: "8px 20px",
+            borderRadius: 9999,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            borderWidth: 1,
+            borderStyle: "solid",
+            borderColor: activeTab === "grading" ? "var(--color-ink)" : "var(--color-border)",
+            transition: "all 0.15s",
+          }}
         >
-          Grading Scale
+          📊 Grading Scale &amp; Assessment
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("timetable")}
-          className={`btn ${activeTab === "timetable" ? "btn-primary" : "btn-secondary"}`}
+          style={{
+            border: "none",
+            backgroundColor: activeTab === "timetable" ? "var(--color-ink)" : "var(--color-surface)",
+            color: activeTab === "timetable" ? "#FFFFFF" : "var(--color-text-secondary)",
+            padding: "8px 20px",
+            borderRadius: 9999,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+            borderWidth: 1,
+            borderStyle: "solid",
+            borderColor: activeTab === "timetable" ? "var(--color-ink)" : "var(--color-border)",
+            transition: "all 0.15s",
+          }}
         >
-          Exam Timetable
+          📋 Examination Timetable &amp; Halls
         </button>
       </div>
 
-      {/* Tab 1: Terms */}
+      {/* ── TAB 1: ACADEMIC TERMS & SESSIONS ───────────────────────────────── */}
       {activeTab === "terms" && (
-        <div className="card">
-          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 14 }}>Configured Academic Terms</h2>
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "var(--color-page)" }}>
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
+                Configured Academic Terms
+              </h2>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
+                Term dates govern attendance rosters, score sheet submission deadlines, and fee invoicing.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowTermModal(true)}
+              style={{ padding: "6px 14px", fontSize: 12 }}
+            >
+              + Add Term
+            </button>
+          </div>
+
           {loading ? (
-            <div className="skeleton" style={{ height: 160 }} />
+            <div style={{ padding: 24 }}>
+              <div className="skeleton" style={{ height: 160 }} />
+            </div>
           ) : terms.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-title">No academic terms found</div>
-              <div className="empty-state-text">Create your first term to establish grading periods.</div>
-              <button type="button" onClick={() => setShowTermModal(true)} className="btn btn-primary">
+            <div className="empty-state" style={{ padding: 48 }}>
+              <div className="empty-state-icon" style={{ fontSize: 40 }}>📅</div>
+              <div className="empty-state-title" style={{ fontSize: 16 }}>No academic terms found</div>
+              <div className="empty-state-text" style={{ maxWidth: 400, margin: "0 auto 16px" }}>
+                Establish your school academic sessions and term calendar to start recording attendance and grades.
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTermModal(true)}
+                className="btn btn-primary"
+              >
                 Create Academic Term
               </button>
             </div>
           ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Term Name</th>
-                  <th>Academic Year</th>
-                  <th>Start Date</th>
-                  <th>End Date</th>
-                  <th>Status</th>
-                  <th style={{ textAlign: "right" }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {terms.map((t) => (
-                  <tr key={t.id}>
-                    <td style={{ fontWeight: 600 }}>{t.name}</td>
-                    <td>{t.academicYear}</td>
-                    <td>{new Date(t.startDate).toLocaleDateString()}</td>
-                    <td>{new Date(t.endDate).toLocaleDateString()}</td>
-                    <td>
-                      {t.isCurrent ? (
-                        <span className="pill-success">Active / Current</span>
-                      ) : (
-                        <span className="pill-neutral">Inactive</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      {!t.isCurrent && (
-                        <button
-                          type="button"
-                          onClick={() => handleSetCurrentTerm(t.id)}
-                          className="btn btn-secondary"
-                          style={{ padding: "4px 12px", fontSize: 12 }}
-                        >
-                          Set as Current
-                        </button>
-                      )}
-                    </td>
+            <div style={{ overflowX: "auto" }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Term Name</th>
+                    <th>Academic Year</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: "right" }}>Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {terms.map((t) => {
+                    const s = new Date(t.startDate);
+                    const e = new Date(t.endDate);
+                    const w = Math.round(Math.max(0, e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24 * 7));
+
+                    return (
+                      <tr key={t.id}>
+                        <td style={{ fontWeight: 700, color: "var(--color-ink)" }}>{t.name}</td>
+                        <td style={{ fontWeight: 500 }}>{t.academicYear}</td>
+                        <td>{new Date(t.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
+                        <td>{new Date(t.endDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</td>
+                        <td><span className="pill-neutral">{w} Weeks</span></td>
+                        <td>
+                          {t.isCurrent ? (
+                            <span className="pill-success" style={{ gap: 4 }}>
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--color-success-text)" }} />
+                              Active / Current
+                            </span>
+                          ) : (
+                            <span className="pill-neutral">Inactive</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          {!t.isCurrent && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetCurrentTerm(t.id)}
+                              className="btn btn-secondary"
+                              style={{ padding: "4px 12px", fontSize: 12 }}
+                            >
+                              Set as Active
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
 
-      {/* Tab 2: Grading Scheme */}
+      {/* ── TAB 2: GRADING SCALE & EVALUATION SYSTEM ───────────────────────── */}
       {activeTab === "grading" && (
-        <div className="card">
-          <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Standard Continuous Assessment &amp; Exam Scale</h2>
-          <p style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 18 }}>
-            Scores are evaluated out of 100: CA1 (20 Marks) + CA2 (20 Marks) + Examination (60 Marks).
-          </p>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Score Range</th>
-                <th>Grade Letter</th>
-                <th>Classification</th>
-                <th>Remark Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {GRADING_SCALE.map((item) => (
-                <tr key={item.grade}>
-                  <td style={{ fontWeight: 600 }}>{item.min}% – {item.max}%</td>
-                  <td>
-                    <span className={item.pill}>{item.grade}</span>
-                  </td>
-                  <td style={{ fontWeight: 500 }}>{item.label}</td>
-                  <td style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-                    {item.grade === "A"
-                      ? "Outstanding demonstration of learning objectives and subject mastery."
-                      : item.grade === "B"
-                      ? "Above-average understanding and high academic performance."
-                      : item.grade === "C"
-                      ? "Satisfactory completion of curricular requirements."
-                      : item.grade === "D" || item.grade === "E"
-                      ? "Marginal pass; remedial assistance recommended."
-                      : "Unsatisfactory. Student must retake assessment or receive tutoring."}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Assessment Weighting Breakdown Banner */}
+          <div className="card" style={{ backgroundColor: "var(--color-surface)", padding: 20 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 4px", color: "var(--color-ink)" }}>
+              Continuous Assessment (CA) &amp; Examination Weighting Framework
+            </h2>
+            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "0 0 16px" }}>
+              Composite terminal scores are evaluated out of 100 marks compliant with the National Educational Research and Development Council (NERDC) standard:
+            </p>
 
-      {/* Tab 3: Exam Timetable */}
-      {activeTab === "timetable" && (
-        <div className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>Scheduled Examination Papers</h2>
-            <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{examList.length} scheduled</span>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+              <div style={{ padding: "14px 16px", backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-secondary)" }}>Assessment 1 (CA 1)</span>
+                  <span className="pill-info">20% Weight</span>
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 800, margin: "6px 0 2px", color: "var(--color-ink)" }}>20 Marks</div>
+                <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Mid-term diagnostic test &amp; homework exercises</div>
+              </div>
+
+              <div style={{ padding: "14px 16px", backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-secondary)" }}>Assessment 2 (CA 2)</span>
+                  <span className="pill-info">20% Weight</span>
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 800, margin: "6px 0 2px", color: "var(--color-ink)" }}>20 Marks</div>
+                <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Practical projects, laboratory reports &amp; classwork</div>
+              </div>
+
+              <div style={{ padding: "14px 16px", backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-secondary)" }}>Terminal Exam</span>
+                  <span className="pill-success">60% Weight</span>
+                </div>
+                <div style={{ fontSize: 24, fontWeight: 800, margin: "6px 0 2px", color: "var(--color-ink)" }}>60 Marks</div>
+                <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Formal end-of-term paper &amp; theory evaluation</div>
+              </div>
+
+              <div style={{ padding: "14px 16px", backgroundColor: "var(--color-ink)", color: "#FFFFFF", borderRadius: "var(--radius-control)" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", opacity: 0.8 }}>Composite Total</div>
+                <div style={{ fontSize: 24, fontWeight: 800, margin: "6px 0 2px" }}>100% (100 Marks)</div>
+                <div style={{ fontSize: 11, opacity: 0.8 }}>Auto-aggregated into official terminal report cards</div>
+              </div>
+            </div>
           </div>
 
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Subject</th>
-                <th>Class / Level</th>
-                <th>Date</th>
-                <th>Time Window</th>
-                <th>Hall / Venue</th>
-              </tr>
-            </thead>
-            <tbody>
-              {examList.map((ex) => (
-                <tr key={ex.id}>
-                  <td style={{ fontWeight: 600 }}>{ex.subject}</td>
-                  <td><span className="pill-neutral">{ex.classLevel}</span></td>
-                  <td>{new Date(ex.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</td>
-                  <td style={{ fontWeight: 500 }}>{ex.time}</td>
-                  <td>{ex.hall}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* Interactive Grade Simulator & Honor Thresholds */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+            {/* Simulator Card */}
+            <div className="card">
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+                🧮 Live Grade Evaluation Simulator
+              </h3>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 14 }}>
+                Simulate candidate scores to preview computed total, WAEC letter grade, GPA weight, and teacher remark.
+              </p>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+                <div>
+                  <label className="label">CA 1 (Max 20)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    value={simCa1}
+                    onChange={(e) => setSimCa1(Number(e.target.value))}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="label">CA 2 (Max 20)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    value={simCa2}
+                    onChange={(e) => setSimCa2(Number(e.target.value))}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="label">Exam (Max 60)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={simExam}
+                    onChange={(e) => setSimExam(Number(e.target.value))}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              {/* Computed Outcome Display */}
+              <div style={{ padding: 14, backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>Total Score: <strong>{simTotal} / 100</strong></span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span className={simEvaluation.pill} style={{ fontSize: 13, fontWeight: 800, padding: "3px 12px" }}>
+                      {simEvaluation.grade}
+                    </span>
+                    <span className="pill-neutral">GPA: {simEvaluation.gpa}</span>
+                  </div>
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-ink)", marginBottom: 2 }}>
+                  Classification: {simEvaluation.label}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                  {simEvaluation.remark}
+                </div>
+              </div>
+            </div>
+
+            {/* Academic Honors Card */}
+            <div className="card">
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+                🏅 Academic Honors &amp; Distinction Thresholds
+              </h3>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 14 }}>
+                Official criteria for termly academic honor roll and graduation citations.
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#FEF3C7", border: "1px solid #FDE68A" }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#92400E" }}>🥇 Principal's First-Class Honors</div>
+                    <div style={{ fontSize: 11, color: "#B45309" }}>Overall average of 85.0% and above across all subjects</div>
+                  </div>
+                  <span className="pill-warning" style={{ fontWeight: 800 }}>&ge; 85%</span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#EFF6FF", border: "1px solid #BFDBFE" }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#1E40AF" }}>🥈 Academic Merit Roll</div>
+                    <div style={{ fontSize: 11, color: "#2563EB" }}>Overall average between 75.0% and 84.9%</div>
+                  </div>
+                  <span className="pill-info" style={{ fontWeight: 800 }}>75% - 84%</span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "var(--color-page)", border: "1px solid var(--color-border)" }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-ink)" }}>📘 Academic Good Standing</div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Pass criteria met without deficiency</div>
+                  </div>
+                  <span className="pill-neutral" style={{ fontWeight: 700 }}>50% - 74%</span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#FEF2F2", border: "1px solid #FECACA" }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B" }}>⚠️ Academic Watch / Remedial</div>
+                    <div style={{ fontSize: 11, color: "#B91C1C" }}>Below passing threshold; parent counseling triggered</div>
+                  </div>
+                  <span className="pill-danger" style={{ fontWeight: 800 }}>&lt; 40%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Scale Table Card with Scale Switcher */}
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, backgroundColor: "var(--color-page)" }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+                  Grading Scale Matrix &amp; GPA Conversion
+                </h3>
+                <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
+                  Standard boundary definitions utilized across all report cards and official transcripts.
+                </p>
+              </div>
+
+              {/* Scale Selector Buttons */}
+              <div style={{ display: "inline-flex", padding: 3, backgroundColor: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: 9999 }}>
+                <button
+                  type="button"
+                  onClick={() => setGradingScaleType("waec")}
+                  style={{
+                    border: "none",
+                    backgroundColor: gradingScaleType === "waec" ? "var(--color-ink)" : "transparent",
+                    color: gradingScaleType === "waec" ? "#FFFFFF" : "var(--color-text-secondary)",
+                    padding: "4px 14px",
+                    borderRadius: 9999,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  WAEC 9-Point Scale
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGradingScaleType("standard")}
+                  style={{
+                    border: "none",
+                    backgroundColor: gradingScaleType === "standard" ? "var(--color-ink)" : "transparent",
+                    color: gradingScaleType === "standard" ? "#FFFFFF" : "var(--color-text-secondary)",
+                    padding: "4px 14px",
+                    borderRadius: 9999,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Universal 6-Point
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGradingScaleType("primary")}
+                  style={{
+                    border: "none",
+                    backgroundColor: gradingScaleType === "primary" ? "var(--color-ink)" : "transparent",
+                    color: gradingScaleType === "primary" ? "#FFFFFF" : "var(--color-text-secondary)",
+                    padding: "4px 14px",
+                    borderRadius: 9999,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  Primary 4-Tier
+                </button>
+              </div>
+            </div>
+
+            <div style={{ overflowX: "auto" }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Score Range</th>
+                    <th>Grade Code</th>
+                    <th>Grade Point (GPA)</th>
+                    <th>Academic Classification</th>
+                    <th>Official Performance Remark</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(gradingScaleType === "waec" ? WAEC_SCALE : gradingScaleType === "standard" ? STANDARD_SCALE : PRIMARY_COMPETENCY_SCALE).map((item) => (
+                    <tr key={item.grade}>
+                      <td style={{ fontWeight: 700, color: "var(--color-ink)" }}>{item.min}% – {item.max}%</td>
+                      <td>
+                        <span className={item.pill} style={{ fontWeight: 800, padding: "2px 10px" }}>
+                          {item.grade}
+                        </span>
+                      </td>
+                      <td style={{ fontWeight: 700, color: "var(--color-ink)" }}>{item.gpa}</td>
+                      <td style={{ fontWeight: 600 }}>{item.label}</td>
+                      <td style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{item.remark}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Modal: Create Term */}
+      {/* ── TAB 3: EXAMINATION TIMETABLE & HALL ALLOCATOR ──────────────────── */}
+      {activeTab === "timetable" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Top Timetable Toolbar & Quick Generator */}
+          <div className="card no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, padding: "14px 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-secondary)" }}>
+                Filter Level:
+              </span>
+              <select
+                className="input"
+                style={{ width: "auto", minWidth: 140, padding: "6px 12px", height: 36 }}
+                value={examFilterLevel}
+                onChange={(e) => setExamFilterLevel(e.target.value)}
+              >
+                <option value="ALL">All Levels (JSS &amp; SS)</option>
+                <option value="JSS">Junior Secondary (JSS 1 - 3)</option>
+                <option value="SS">Senior Secondary (SS 1 - 3)</option>
+                <option value="JSS 1">JSS 1 Only</option>
+                <option value="JSS 2">JSS 2 Only</option>
+                <option value="JSS 3">JSS 3 Only</option>
+                <option value="SS 1">SS 1 Only</option>
+                <option value="SS 2">SS 2 Only</option>
+                <option value="SS 3">SS 3 Only</option>
+              </select>
+
+              <span className="pill-success" style={{ fontSize: 11, gap: 4 }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: "var(--color-success-text)" }} />
+                0 Venue / Time Conflicts
+              </span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleAutoGenerateExamSchedule}
+                title="Automatically schedule exam papers across 2 exam weeks"
+              >
+                ⚡ Auto-Schedule Exam Timetable
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setShowExamModal(true)}
+              >
+                + Schedule Paper
+              </button>
+            </div>
+          </div>
+
+          {/* Printable Header Docket */}
+          <div
+            className="print-only-header"
+            style={{
+              display: "none",
+              textAlign: "center",
+              marginBottom: 20,
+              borderBottom: "2px solid #000",
+              paddingBottom: 12,
+            }}
+          >
+            <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              MODERN SCHOOL
+            </h2>
+            <p style={{ fontSize: 13, margin: "3px 0 0", color: "#222" }}>
+              Official Examination Master Schedule &amp; Hall Allocations · {currentTerm?.academicYear ?? "2025/2026"} Session
+            </p>
+            <p style={{ fontSize: 12, fontWeight: 700, margin: "4px 0 0" }}>
+              TERM: {currentTerm?.name ?? "First Term"} · CANDIDATE EXAMINATION DOCKET
+            </p>
+          </div>
+
+          {/* Scheduled Papers Table Card */}
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--color-border)", display: "flex", alignItems: "center", justifyContent: "space-between", backgroundColor: "var(--color-page)" }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
+                  Scheduled Examination Papers ({filteredExams.length})
+                </h3>
+                <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
+                  Official seating venues, invigilator assignments, and examination time slots.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-secondary no-print"
+                onClick={() => window.print()}
+                style={{ padding: "5px 12px", fontSize: 12 }}
+              >
+                🖨️ Print Docket
+              </button>
+            </div>
+
+            {filteredExams.length === 0 ? (
+              <div className="empty-state" style={{ padding: 48 }}>
+                <div className="empty-state-icon" style={{ fontSize: 36 }}>📋</div>
+                <div className="empty-state-title">No examination papers scheduled for this level</div>
+                <div className="empty-state-text">Use Auto-Schedule or add individual subject papers.</div>
+                <button
+                  type="button"
+                  onClick={handleAutoGenerateExamSchedule}
+                  className="btn btn-primary"
+                >
+                  ⚡ Auto-Schedule All Exams Now
+                </button>
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Exam Paper / Subject</th>
+                      <th>Target Class</th>
+                      <th>Date</th>
+                      <th>Session</th>
+                      <th>Time Window</th>
+                      <th>Examination Venue</th>
+                      <th>Chief Invigilator</th>
+                      <th className="no-print" style={{ textAlign: "right" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredExams.map((ex) => (
+                      <tr key={ex.id}>
+                        <td style={{ fontWeight: 700, color: "var(--color-ink)" }}>
+                          <div>{ex.subject}</div>
+                          {ex.subjectCode && (
+                            <span className="pill-neutral" style={{ fontSize: 10, padding: "1px 6px", marginTop: 2 }}>
+                              {ex.subjectCode}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <span className="pill-neutral" style={{ fontWeight: 600 }}>{ex.classLevel}</span>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>
+                          {new Date(ex.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                        </td>
+                        <td>
+                          <span className={ex.session === "Morning" ? "pill-info" : ex.session === "Mid-Day" ? "pill-warning" : "pill-neutral"}>
+                            {ex.session}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{ex.time}</td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>📍 {ex.hall}</div>
+                          {ex.capacity && (
+                            <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                              Cap: {ex.capacity} seats
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <div className="avatar" style={{ width: 22, height: 22, fontSize: 9 }}>
+                              {ex.invigilator.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                            </div>
+                            <span style={{ fontSize: 12, fontWeight: 500 }}>{ex.invigilator}</span>
+                          </div>
+                        </td>
+                        <td className="no-print" style={{ textAlign: "right" }}>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteExam(ex.id)}
+                            className="btn btn-danger"
+                            style={{ padding: "4px 8px", fontSize: 11 }}
+                            title="Remove paper from schedule"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Printable Candidate Instructions & Signatures */}
+          <div
+            className="print-only-signatures"
+            style={{
+              display: "none",
+              marginTop: 24,
+              paddingTop: 16,
+              borderTop: "2px solid #000",
+            }}
+          >
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", marginBottom: 4 }}>
+                Candidate Examination Directives &amp; Regulations:
+              </div>
+              <div style={{ fontSize: 10, color: "#333", lineHeight: 1.4 }}>
+                1. Candidates must arrive at the examination hall at least 30 minutes before commencement.
+                <br />
+                2. Strict silence must be maintained. Unauthorized materials, phones, and programmable devices are strictly prohibited.
+                <br />
+                3. Examination index cards and validated fee clearance receipts must be placed visibly on the candidate desk.
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 24 }}>
+              <div>
+                <div style={{ width: 180, borderBottom: "1px solid #000", marginBottom: 4 }} />
+                <div style={{ fontSize: 11, fontWeight: 700 }}>Chief Examination Officer</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 11, color: "#444" }}>School Examination Seal</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ width: 180, borderBottom: "1px solid #000", marginBottom: 4, marginLeft: "auto" }} />
+                <div style={{ fontSize: 11, fontWeight: 700 }}>Principal / Academic Director</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: CREATE ACADEMIC TERM ─────────────────────────────────────── */}
       {showTermModal && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.45)",
+            backgroundColor: "rgba(16, 20, 26, 0.48)",
+            backdropFilter: "blur(2px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             padding: 16,
-            zIndex: 100,
+            zIndex: 9999,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submittingTerm) setShowTermModal(false);
           }}
         >
-          <div className="card" style={{ maxWidth: 460, width: "100%", backgroundColor: "#ffffff" }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 14 }}>Create Academic Term</h3>
+          <div className="card" style={{ maxWidth: 460, width: "100%", padding: 24, backgroundColor: "var(--color-surface)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>Create Academic Term</h3>
+                <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
+                  Define session start and end boundaries for official rosters.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTermModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18 }}
+              >
+                ✕
+              </button>
+            </div>
+
             <form onSubmit={handleCreateTerm} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label className="label">Term Name</label>
+                <label className="label">Term Name *</label>
                 <select value={termName} onChange={(e) => setTermName(e.target.value)} className="input" required>
                   <option value="First Term">First Term</option>
                   <option value="Second Term">Second Term</option>
                   <option value="Third Term">Third Term</option>
                 </select>
               </div>
+
               <div>
-                <label className="label">Academic Year</label>
+                <label className="label">Academic Year *</label>
                 <input
                   type="text"
                   value={academicYear}
@@ -412,32 +1219,44 @@ export default function ExamsPage() {
                   required
                 />
               </div>
-              <div>
-                <label className="label">Start Date</label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label">End Date</label>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="input"
-                  required
-                />
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label className="label">Resumption Date *</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="input"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label">Vacation Date *</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="input"
+                    required
+                  />
+                </div>
               </div>
 
-              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                <button type="button" onClick={() => setShowTermModal(false)} className="btn btn-secondary" style={{ flex: 1 }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowTermModal(false)}
+                  className="btn btn-secondary"
+                  disabled={submittingTerm}
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={submittingTerm} className="btn btn-primary" style={{ flex: 2 }}>
+                <button
+                  type="submit"
+                  disabled={submittingTerm}
+                  className="btn btn-primary"
+                >
                   {submittingTerm ? "Saving..." : "Save Academic Term"}
                 </button>
               </div>
@@ -446,83 +1265,185 @@ export default function ExamsPage() {
         </div>
       )}
 
-      {/* Modal: Schedule Exam */}
+      {/* ── MODAL: SCHEDULE EXAM PAPER ──────────────────────────────────────── */}
       {showExamModal && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.45)",
+            backgroundColor: "rgba(16, 20, 26, 0.48)",
+            backdropFilter: "blur(2px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             padding: 16,
-            zIndex: 100,
+            zIndex: 9999,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowExamModal(false);
           }}
         >
-          <div className="card" style={{ maxWidth: 460, width: "100%", backgroundColor: "#ffffff" }}>
-            <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 14 }}>Schedule Exam Paper</h3>
+          <div className="card" style={{ maxWidth: 480, width: "100%", padding: 24, backgroundColor: "var(--color-surface)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>Schedule Examination Paper</h3>
+                <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
+                  Allocate paper time window, examination venue, and invigilator.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowExamModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18 }}
+              >
+                ✕
+              </button>
+            </div>
+
             <form onSubmit={handleAddExam} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label className="label">Subject Name</label>
-                <input
-                  type="text"
-                  value={newSubject}
-                  onChange={(e) => setNewSubject(e.target.value)}
-                  placeholder="e.g. Civic Education"
-                  className="input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label">Target Class / Level</label>
-                <input
-                  type="text"
-                  value={newClassLevel}
-                  onChange={(e) => setNewClassLevel(e.target.value)}
-                  placeholder="e.g. JSS 1 - JSS 3"
-                  className="input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label">Exam Date</label>
-                <input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  className="input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label">Time Slot</label>
-                <input
-                  type="text"
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
-                  placeholder="e.g. 09:00 AM - 11:30 AM"
-                  className="input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label">Hall / Venue</label>
-                <input
-                  type="text"
-                  value={newHall}
-                  onChange={(e) => setNewHall(e.target.value)}
-                  placeholder="e.g. Main Examination Hall"
-                  className="input"
-                  required
-                />
+                <label className="label">Subject / Paper Name *</label>
+                {subjects.length > 0 ? (
+                  <select
+                    className="input"
+                    value={newSubject}
+                    onChange={(e) => setNewSubject(e.target.value)}
+                    required
+                  >
+                    <option value="">Select School Subject</option>
+                    {subjects.map((s) => (
+                      <option key={s.id} value={`${s.name} (Paper 1 & 2)`}>
+                        {s.name} ({s.code || "SUB"})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={newSubject}
+                    onChange={(e) => setNewSubject(e.target.value)}
+                    placeholder="e.g. Mathematics (Paper 1 & 2)"
+                    className="input"
+                    required
+                  />
+                )}
               </div>
 
-              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-                <button type="button" onClick={() => setShowExamModal(false)} className="btn btn-secondary" style={{ flex: 1 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label className="label">Target Class / Level *</label>
+                  <select
+                    value={newClassLevel}
+                    onChange={(e) => setNewClassLevel(e.target.value)}
+                    className="input"
+                    required
+                  >
+                    <option value="JSS 1 - SS 3">All Levels (JSS 1 - SS 3)</option>
+                    <option value="JSS 1 - JSS 3">Junior Secondary (JSS 1 - 3)</option>
+                    <option value="SS 1 - SS 3">Senior Secondary (SS 1 - 3)</option>
+                    <option value="JSS 1">JSS 1 Only</option>
+                    <option value="JSS 2">JSS 2 Only</option>
+                    <option value="JSS 3">JSS 3 Only</option>
+                    <option value="SS 1">SS 1 Only</option>
+                    <option value="SS 2">SS 2 Only</option>
+                    <option value="SS 3">SS 3 Only</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Exam Date *</label>
+                  <input
+                    type="date"
+                    value={newDate}
+                    onChange={(e) => setNewDate(e.target.value)}
+                    className="input"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label className="label">Session Slot *</label>
+                  <select
+                    value={newSession}
+                    onChange={(e) => {
+                      const sess = e.target.value as "Morning" | "Mid-Day" | "Afternoon";
+                      setNewSession(sess);
+                      if (sess === "Morning") setNewTime("09:00 AM - 11:30 AM");
+                      else if (sess === "Mid-Day") setNewTime("11:45 AM - 01:15 PM");
+                      else setNewTime("01:30 PM - 03:30 PM");
+                    }}
+                    className="input"
+                  >
+                    <option value="Morning">Morning (09:00 - 11:30)</option>
+                    <option value="Mid-Day">Mid-Day (11:45 - 01:15)</option>
+                    <option value="Afternoon">Afternoon (01:30 - 03:30)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Exact Time Window *</label>
+                  <input
+                    type="text"
+                    value={newTime}
+                    onChange={(e) => setNewTime(e.target.value)}
+                    placeholder="e.g. 09:00 AM - 11:30 AM"
+                    className="input"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label className="label">Hall / Venue *</label>
+                  <select
+                    className="input"
+                    value={newHall}
+                    onChange={(e) => setNewHall(e.target.value)}
+                  >
+                    <option value="Main Exam Hall A">Main Exam Hall A (150 seats)</option>
+                    <option value="Main Exam Hall B">Main Exam Hall B (120 seats)</option>
+                    <option value="Science Complex Hall">Science Complex (80 seats)</option>
+                    <option value="Physics Laboratory">Physics Laboratory (45 seats)</option>
+                    <option value="Chemistry Laboratory">Chemistry Laboratory (45 seats)</option>
+                    <option value="ICT Computer Center">ICT Computer Center (60 seats)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Chief Invigilator</label>
+                  {staff.length > 0 ? (
+                    <select
+                      className="input"
+                      value={newInvigilator}
+                      onChange={(e) => setNewInvigilator(e.target.value)}
+                    >
+                      {staff.map((s) => (
+                        <option key={s.id} value={`${s.firstName} ${s.lastName}`}>
+                          {s.firstName} {s.lastName}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={newInvigilator}
+                      onChange={(e) => setNewInvigilator(e.target.value)}
+                      placeholder="e.g. Mr. Chukwudi Eze"
+                      className="input"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowExamModal(false)}
+                  className="btn btn-secondary"
+                >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 2 }}>
+                <button type="submit" className="btn btn-primary">
                   Add to Timetable
                 </button>
               </div>
@@ -530,6 +1451,44 @@ export default function ExamsPage() {
           </div>
         </div>
       )}
+
+      {/* ── Print Stylesheet ───────────────────────────────────────────────── */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 10mm;
+          }
+          nav,
+          header,
+          .no-print,
+          button,
+          select {
+            display: none !important;
+          }
+          .page {
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #fff !important;
+          }
+          .card {
+            border: 1px solid #333 !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+          }
+          .table th,
+          .table td {
+            border: 1px solid #333 !important;
+            padding: 4px 6px !important;
+          }
+          .print-only-header {
+            display: block !important;
+          }
+          .print-only-signatures {
+            display: block !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

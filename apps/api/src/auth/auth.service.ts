@@ -320,10 +320,17 @@ export class AuthService {
 
     // Set tokens in httpOnly cookies — never accessible to JavaScript
     const isProduction = this.configService.get('NODE_ENV') === 'production';
+    const accessExpires = this.configService.get('JWT_ACCESS_EXPIRES_IN') ?? '24h';
+    const accessMaxAge = accessExpires.endsWith('h')
+      ? parseInt(accessExpires) * 60 * 60 * 1000
+      : accessExpires.endsWith('d')
+      ? parseInt(accessExpires) * 24 * 60 * 60 * 1000
+      : 24 * 60 * 60 * 1000;
+
     res.cookie('access_token', accessToken, {
       ...COOKIE_OPTIONS,
       secure: isProduction,
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: accessMaxAge,
     });
     res.cookie('refresh_token', refreshToken, {
       ...COOKIE_OPTIONS,
