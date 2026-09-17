@@ -77,6 +77,10 @@ export class BookSearchDto {
 
   @IsString()
   @IsOptional()
+  search?: string;
+
+  @IsString()
+  @IsOptional()
   category?: string;
 
   @IsOptional()

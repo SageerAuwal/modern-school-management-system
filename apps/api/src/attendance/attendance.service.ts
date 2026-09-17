@@ -50,7 +50,8 @@ export class AttendanceService {
     });
     const enrolledIds = new Set(enrolled.map((e) => e.studentId));
 
-    const invalidIds = dto.entries
+    const rawEntries = dto.records ?? dto.entries ?? [];
+    const invalidIds = rawEntries
       .filter((e) => !enrolledIds.has(e.studentId))
       .map((e) => e.studentId);
     if (invalidIds.length > 0) {
@@ -61,7 +62,7 @@ export class AttendanceService {
 
     // Upsert each record (create or update for same student+class+date)
     const results = await Promise.all(
-      dto.entries.map((entry) =>
+      rawEntries.map((entry) =>
         this.prisma.attendanceRecord.upsert({
           where: {
             studentId_classSectionId_date: {

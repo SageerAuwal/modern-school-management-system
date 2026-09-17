@@ -50,11 +50,12 @@ export class LibraryService {
   async searchBooks(schoolId: string, query: BookSearchDto) {
     const where: Record<string, unknown> = { schoolId, isActive: true };
 
-    if (query.q) {
+    const searchTerm = query.search || query.q;
+    if (searchTerm) {
       where['OR'] = [
-        { title: { contains: query.q, mode: 'insensitive' } },
-        { author: { contains: query.q, mode: 'insensitive' } },
-        { isbn: { contains: query.q, mode: 'insensitive' } },
+        { title: { contains: searchTerm, mode: 'insensitive' } },
+        { author: { contains: searchTerm, mode: 'insensitive' } },
+        { isbn: { contains: searchTerm, mode: 'insensitive' } },
       ];
     }
     if (query.category) where['category'] = query.category;

@@ -1,8 +1,8 @@
-@import "tailwindcss";
+/* ─── Google Fonts: Manrope (approved fallback) ────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
 
-/* ─── Design Tokens from school-system-design-spec.md ─────────────────────── */
+/* ─── Design Tokens ────────────────────────────────────────────────────────── */
 :root {
-  /* Colors */
   --color-ink: #10141A;
   --color-page: #F7F6F3;
   --color-surface: #FFFFFF;
@@ -11,115 +11,200 @@
   --color-accent-blue: #83A2DB;
   --color-accent-coral: #CE6969;
 
-  /* Status — success (present / paid / confirmed) */
   --color-success-bg: #EAF3DE;
   --color-success-text: #3B6D11;
-
-  /* Status — danger (absent / overdue / violation) */
   --color-danger-bg: #FAECE7;
   --color-danger-text: #993C1D;
+  --color-warning-bg: #FEF9C3;
+  --color-warning-text: #854D0E;
+  --color-info-bg: #E0F2FE;
+  --color-info-text: #075985;
+  --color-neutral-bg: #F1F5F9;
+  --color-neutral-text: #475569;
 
-  /* Border radius */
   --radius-card: 14px;
   --radius-pill: 20px;
   --radius-pill-badge: 14px;
   --radius-control: 8px;
-
-  /* Border width — always 0.5px, never heavier */
   --border-width: 0.5px;
-
-  /* Spacing */
   --card-padding: 18px;
   --grid-gap: 12px;
+
+  --sidebar-width: 230px;
+  --topbar-height: 0px;
 }
 
-/* ─── Base Styles ──────────────────────────────────────────────────────────── */
-html,
-body {
+/* ─── Reset & Base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
   background-color: var(--color-page);
   color: var(--color-ink);
-  font-family: "Lufga", "Manrope", system-ui, sans-serif;
+  font-family: "Manrope", system-ui, -apple-system, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ─── Lufga Font (self-hosted — add font files to /public/fonts/) ──────────── */
-/* If Lufga is not available, Manrope from Google Fonts is the approved fallback */
-@font-face {
-  font-family: "Lufga";
-  src: url("/fonts/Lufga-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+a { color: inherit; text-decoration: none; }
 
-@font-face {
-  font-family: "Lufga";
-  src: url("/fonts/Lufga-Medium.woff2") format("woff2");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Lufga";
-  src: url("/fonts/Lufga-SemiBold.woff2") format("woff2");
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* ─── Utility: Card ────────────────────────────────────────────────────────── */
+/* ─── Cards ────────────────────────────────────────────────────────────────── */
 .card {
   background-color: var(--color-surface);
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-card);
   padding: var(--card-padding);
-  /* NO box-shadow — design spec forbids it */
 }
 
-/* ─── Utility: Status Pills ────────────────────────────────────────────────── */
+/* ─── Status Pills ─────────────────────────────────────────────────────────── */
 .pill-success {
   background-color: var(--color-success-bg);
   color: var(--color-success-text);
   border-radius: var(--radius-pill-badge);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 11px; font-weight: 600;
   padding: 2px 10px;
-  display: inline-flex;
-  align-items: center;
+  display: inline-flex; align-items: center;
 }
 
 .pill-danger {
   background-color: var(--color-danger-bg);
   color: var(--color-danger-text);
   border-radius: var(--radius-pill-badge);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 11px; font-weight: 600;
   padding: 2px 10px;
-  display: inline-flex;
-  align-items: center;
+  display: inline-flex; align-items: center;
 }
 
-/* ─── Utility: Nav Pill ────────────────────────────────────────────────────── */
+.pill-warning {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  border-radius: var(--radius-pill-badge);
+  font-size: 11px; font-weight: 600;
+  padding: 2px 10px;
+  display: inline-flex; align-items: center;
+}
+
+.pill-neutral {
+  background-color: var(--color-neutral-bg);
+  color: var(--color-neutral-text);
+  border-radius: var(--radius-pill-badge);
+  font-size: 11px; font-weight: 600;
+  padding: 2px 10px;
+  display: inline-flex; align-items: center;
+}
+
+.pill-info {
+  background-color: var(--color-info-bg);
+  color: var(--color-info-text);
+  border-radius: var(--radius-pill-badge);
+  font-size: 11px; font-weight: 600;
+  padding: 2px 10px;
+  display: inline-flex; align-items: center;
+}
+
+/* ─── Buttons ──────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 18px;
+  border-radius: var(--radius-control);
+  font-size: 13px; font-weight: 500;
+  cursor: pointer; border: none;
+  transition: opacity 0.15s, background-color 0.15s;
+}
+.btn:hover { opacity: 0.88; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary {
+  background-color: var(--color-ink);
+  color: #fff;
+}
+
+.btn-secondary {
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  border: var(--border-width) solid var(--color-border);
+}
+.btn-secondary:hover { background-color: var(--color-page); }
+
+.btn-danger {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+/* ─── Inputs ───────────────────────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  padding: 9px 12px;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  font-size: 14px;
+  color: var(--color-ink);
+  background-color: var(--color-surface);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input:focus {
+  border-color: var(--color-ink);
+}
+.input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
+
+.label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ─── Tables ───────────────────────────────────────────────────────────────── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.table td {
+  padding: 12px 14px;
+  font-size: 13px;
+  border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.table tbody tr { transition: background-color 0.1s; }
+.table tbody tr:hover { background-color: var(--color-page); }
+.table tbody tr:last-child td { border-bottom: none; }
+
+/* ─── Nav Pill ─────────────────────────────────────────────────────────────── */
 .nav-pill-active {
   background-color: var(--color-ink);
   color: #ffffff;
   border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 13px; font-weight: 500;
   padding: 6px 16px;
 }
 
 .nav-pill-inactive {
   color: var(--color-text-secondary);
-  font-size: 13px;
-  font-weight: 400;
+  font-size: 13px; font-weight: 400;
   padding: 6px 16px;
 }
 
-/* ─── Utility: Metric Card Number ──────────────────────────────────────────── */
+/* ─── Metric Number ────────────────────────────────────────────────────────── */
 .metric-number {
   font-size: 22px;
   font-weight: 600;
@@ -127,7 +212,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ─── Utility: List Row Divider ────────────────────────────────────────────── */
+/* ─── List Row ─────────────────────────────────────────────────────────────── */
 .list-row {
   display: flex;
   align-items: center;
@@ -135,7 +220,117 @@ body {
   padding: 12px 0;
   border-bottom: var(--border-width) solid var(--color-border);
 }
+.list-row:last-child { border-bottom: none; }
 
-.list-row:last-child {
-  border-bottom: none;
+/* ─── Page Layout ──────────────────────────────────────────────────────────── */
+.page { padding: 28px 28px; }
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-ink);
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+/* ─── Stat Cards Grid ──────────────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-ink);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-sub {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+/* ─── Empty State ──────────────────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 56px 24px;
+  color: var(--color-text-secondary);
+}
+
+.empty-state-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.empty-state-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-bottom: 4px;
+}
+
+.empty-state-text {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+}
+
+/* ─── Loading Skeleton ─────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-control);
+}
+
+/* ─── Avatar / Initials ────────────────────────────────────────────────────── */
+.avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background-color: var(--color-neutral-bg);
+  color: var(--color-neutral-text);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+/* ─── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .page { padding: 20px 16px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }

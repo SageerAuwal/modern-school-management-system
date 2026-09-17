@@ -29,15 +29,29 @@ export class ScoresService {
     actorId: string,
     actorEmail: string,
   ) {
+    const rawEntries = dto.scores ?? dto.entries ?? [];
+    let termId = dto.termId;
+    let academicYear = dto.academicYear;
+
+    if (!termId) {
+      const currentTerm =
+        (await this.prisma.term.findFirst({ where: { schoolId, isCurrent: true } })) ??
+        (await this.prisma.term.findFirst({ where: { schoolId } }));
+      if (!currentTerm) throw new NotFoundException('Term not found');
+      termId = currentTerm.id;
+      academicYear = currentTerm.academicYear;
+    }
+
     // Validate class, subject, and term belong to this school
     const [section, subject, term] = await Promise.all([
       this.prisma.classSection.findFirst({ where: { id: dto.classSectionId, schoolId } }),
       this.prisma.subject.findFirst({ where: { id: dto.subjectId, schoolId } }),
-      this.prisma.term.findFirst({ where: { id: dto.termId, schoolId } }),
+      this.prisma.term.findFirst({ where: { id: termId, schoolId } }),
     ]);
     if (!section) throw new NotFoundException('Class section not found');
     if (!subject) throw new NotFoundException('Subject not found');
     if (!term) throw new NotFoundException('Term not found');
+    if (!academicYear) academicYear = term.academicYear;
 
     // Verify all students are enrolled
     const enrolled = await this.prisma.enrollment.findMany({
@@ -46,14 +60,14 @@ export class ScoresService {
     });
     const enrolledIds = new Set(enrolled.map((e) => e.studentId));
 
-    const invalid = dto.entries.filter((e) => !enrolledIds.has(e.studentId)).map((e) => e.studentId);
+    const invalid = rawEntries.filter((e) => !enrolledIds.has(e.studentId)).map((e) => e.studentId);
     if (invalid.length > 0) {
       throw new BadRequestException(`Students not enrolled in this class: ${invalid.join(', ')}`);
     }
 
     // Upsert each score entry with computed grade
     const results = await Promise.all(
-      dto.entries.map((entry) => {
+      rawEntries.map((entry) => {
         const total =
           (entry.ca1 ?? 0) + (entry.ca2 ?? 0) + (entry.ca3 ?? 0) + (entry.exam ?? 0);
         const { grade, remark } = total > 0 ? computeGrade(total) : { grade: null, remark: null };
@@ -64,7 +78,7 @@ export class ScoresService {
               studentId: entry.studentId,
               subjectId: dto.subjectId,
               classSectionId: dto.classSectionId,
-              termId: dto.termId,
+              termId,
             },
           },
           create: {
@@ -72,8 +86,8 @@ export class ScoresService {
             studentId: entry.studentId,
             subjectId: dto.subjectId,
             classSectionId: dto.classSectionId,
-            termId: dto.termId,
-            academicYear: dto.academicYear,
+            termId,
+            academicYear,
             ca1: entry.ca1,
             ca2: entry.ca2,
             ca3: entry.ca3,
@@ -105,12 +119,12 @@ export class ScoresService {
       targetId: dto.classSectionId,
       afterValue: {
         subjectId: dto.subjectId,
-        termId: dto.termId,
+        termId,
         count: results.length,
       } as Record<string, unknown>,
     });
 
-    return { entered: results.length, subjectId: dto.subjectId, termId: dto.termId };
+    return { entered: results.length, subjectId: dto.subjectId, termId };
   }
 
   // ── Class Score Sheet for a Subject ──────────────────────────────────────

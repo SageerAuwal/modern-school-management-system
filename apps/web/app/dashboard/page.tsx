@@ -1,256 +1,259 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
-interface Overview {
+type Overview = {
   students: { total: number; enrolled: number };
   staff: { records: number; teachers: number };
   classes: number;
   buses: number;
   fees: { unpaidCount: number; outstandingAmount: number };
   library: { onLoan: number; overdue: number };
-  attendance: { todayMarked: number; rate: number | null };
-}
+  attendance: { todayMarked: number; rate: number };
+};
 
-interface EnrollmentItem { id: string; name: string; level: string; count: number }
-interface FeeItem { term: string; academicYear: string; invoiced: number; collected: number }
-interface AlertsData {
-  overdueBooks: { count: number; items: Array<{ id: string; bookTitle: string; borrowerName?: string; borrower: string; daysOverdue: number; estimatedFine: number }> };
-  unpaidFees: { count: number; items: Array<{ id: string; student: { firstName: string; lastName: string }; term: string | null; outstanding: number }> };
-  busesNearFull: { count: number; items: Array<{ id: string; name: string; plateNumber: string; assigned: number; capacity: number; occupancy: number }> };
-}
-interface ActivityItem { id: string; action: string; actorEmail: string | null; targetType: string; createdAt: string }
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-
-function formatNaira(n: number) {
-  return `₦${n.toLocaleString("en-NG", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-
-function useFetch<T>(url: string) {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    fetch(url, { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [url]);
-  return { data, loading };
-}
-
-// ── Stat Card ─────────────────────────────────────────────────────────────────
-
-function StatCard({ label, value, sub, href, accent }: { label: string; value: string | number; sub?: string; href?: string; accent?: string }) {
-  const card = (
-    <div className="card" style={{ backgroundColor: "var(--color-surface)" }}>
-      <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-secondary)", marginBottom: 8 }}>{label}</p>
-      <p style={{ fontSize: 28, fontWeight: 700, color: accent ?? "var(--color-ink)", margin: 0, lineHeight: 1 }}>{value}</p>
-      {sub && <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4, marginBottom: 0 }}>{sub}</p>}
-    </div>
-  );
-  return href ? <Link href={href} style={{ textDecoration: "none" }}>{card}</Link> : card;
-}
-
-// ── Horizontal bar chart (CSS only) ──────────────────────────────────────────
-
-function BarChart({ data, maxValue, color, label }: { data: { label: string; value: number }[]; maxValue: number; color: string; label: string }) {
-  return (
-    <div>
-      <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-secondary)", marginBottom: 12 }}>{label}</p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {data.map((item) => (
-          <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 11, color: "var(--color-text-secondary)", width: 80, textAlign: "right" as const, flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{item.label}</span>
-            <div style={{ flex: 1, height: 16, backgroundColor: "#f1f5f9", borderRadius: 4, overflow: "hidden" }}>
-              <div style={{ width: `${maxValue > 0 ? (item.value / maxValue) * 100 : 0}%`, height: "100%", backgroundColor: color, borderRadius: 4, transition: "width 0.4s ease", minWidth: item.value > 0 ? 4 : 0 }} />
-            </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-ink)", width: 36, flexShrink: 0 }}>{item.value}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function actionLabel(action: string) {
-  const map: Record<string, string> = {
-    ATTENDANCE_MARKED: "Marked attendance",
-    ATTENDANCE_EDITED: "Edited attendance record",
-    SCORES_ENTERED: "Entered scores",
-    INVOICE_CREATED: "Created invoice",
-    PAYMENT_RECORDED_CASH: "Recorded cash payment",
-    PAYMENT_CONFIRMED_PAYSTACK: "Paystack payment confirmed",
-    BOOK_ISSUED: "Issued book",
-    BOOK_RETURNED: "Returned book",
-    STUDENT_ASSIGNED_BUS: "Assigned student to bus",
-    BUS_CREATED: "Added new bus",
-    BOOK_ADDED: "Added book to catalogue",
-  };
-  return map[action] ?? action.replace(/_/g, " ").toLowerCase();
-}
-
-// ── Main Dashboard ────────────────────────────────────────────────────────────
+type Enrollment = { id: string; name: string; level: string; count: number }[];
+type FeesData = { term: string; academicYear: string; invoiced: number; collected: number }[];
+type Alerts = {
+  overdueBooks: { count: number; items: any[] };
+  unpaidFees: { count: number; items: any[] };
+  busesNearFull: { count: number; items: any[] };
+};
+type Activity = { id: string; action: string; actorEmail: string; targetType: string; createdAt: string }[];
 
 export default function DashboardPage() {
-  const { data: overview, loading: loadingOverview } = useFetch<Overview>(`${API}/api/v1/dashboard/overview`);
-  const { data: enrollment, loading: loadingEnrollment } = useFetch<EnrollmentItem[]>(`${API}/api/v1/dashboard/enrollment`);
-  const { data: fees, loading: loadingFees } = useFetch<FeeItem[]>(`${API}/api/v1/dashboard/fees`);
-  const { data: alerts } = useFetch<AlertsData>(`${API}/api/v1/dashboard/alerts`);
-  const { data: activity } = useFetch<ActivityItem[]>(`${API}/api/v1/dashboard/activity`);
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
+  const [fees, setFees] = useState<FeesData | null>(null);
+  const [alerts, setAlerts] = useState<Alerts | null>(null);
+  const [activity, setActivity] = useState<Activity | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const maxEnrollment = Math.max(...(enrollment ?? []).map((e) => e.count), 1);
-  const maxFees = Math.max(...(fees ?? []).map((f) => f.invoiced), 1);
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [overviewRes, enrollmentRes, feesRes, alertsRes, activityRes] = await Promise.all([
+          fetch(`${API}/api/v1/dashboard/overview`, { credentials: "include" }).then(res => res.json()),
+          fetch(`${API}/api/v1/dashboard/enrollment`, { credentials: "include" }).then(res => res.json()),
+          fetch(`${API}/api/v1/dashboard/fees`, { credentials: "include" }).then(res => res.json()),
+          fetch(`${API}/api/v1/dashboard/alerts`, { credentials: "include" }).then(res => res.json()),
+          fetch(`${API}/api/v1/dashboard/activity`, { credentials: "include" }).then(res => res.json()),
+        ]);
 
-  const totalAlerts = (alerts?.overdueBooks.count ?? 0) + (alerts?.unpaidFees.count ?? 0) + (alerts?.busesNearFull.count ?? 0);
+        setOverview(overviewRes);
+        setEnrollment(enrollmentRes);
+        setFees(feesRes);
+        setAlerts(alertsRes);
+        setActivity(activityRes);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  const formatNaira = (amount: number) => `₦${amount.toLocaleString()}`;
+
+  const formatAction = (action: string) => {
+    const actions: Record<string, string> = {
+      ATTENDANCE_MARKED: "Marked attendance",
+      SCORES_ENTERED: "Entered scores",
+      PAYMENT_RECEIVED: "Recorded payment",
+      STUDENT_ENROLLED: "Enrolled student",
+      BOOK_LOANED: "Loaned book",
+      BOOK_RETURNED: "Returned book",
+    };
+    return actions[action] || action;
+  };
+
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+  if (loading) {
+    return (
+      <div className="page">
+        <div className="page-header">
+          <div className="skeleton" style={{ width: 300, height: 40, marginBottom: 8 }} />
+          <div className="skeleton" style={{ width: 200, height: 20 }} />
+        </div>
+        <div className="stats-grid" style={{ marginBottom: '2rem' }}>
+          {Array.from({ length: 7 }).map((_, i) => (
+            <div key={i} className="card skeleton" style={{ height: 120 }}></div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const maxEnrollment = enrollment?.reduce((max, item) => Math.max(max, item.count), 0) || 1;
 
   return (
-    <main style={{ padding: "32px 24px", backgroundColor: "var(--color-page)", minHeight: "100vh" }}>
-      {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--color-ink)", marginBottom: 2 }}>Dashboard</h1>
-        <p style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
-          {new Date().toLocaleDateString("en-NG", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-        </p>
+    <div className="page">
+      <div className="page-header">
+        <h1 className="page-title">Your school at a glance</h1>
+        <p className="page-subtitle">{today}</p>
       </div>
 
-      {/* KPI stat cards */}
-      {loadingOverview ? (
-        <p style={{ color: "var(--color-text-secondary)", marginBottom: 24 }}>Loading overview…</p>
-      ) : overview && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 14, marginBottom: 28 }}>
-          <StatCard label="Students" value={overview.students.total} sub={`${overview.students.enrolled} enrolled`} href="/students" />
-          <StatCard label="Classes" value={overview.classes} href="/classes" />
-          <StatCard label="Staff" value={overview.staff.records} sub={`${overview.staff.teachers} teachers`} href="/staff" />
-          <StatCard label="Attendance Today" value={overview.attendance.rate !== null ? `${overview.attendance.rate}%` : "—"}
-            sub={`${overview.attendance.todayMarked} marked`} href="/attendance"
-            accent={overview.attendance.rate !== null && overview.attendance.rate < 70 ? "#991b1b" : undefined} />
-          <StatCard label="Outstanding Fees" value={formatNaira(overview.fees.outstandingAmount)}
-            sub={`${overview.fees.unpaidCount} invoice${overview.fees.unpaidCount !== 1 ? "s" : ""}`} href="/fees"
-            accent={overview.fees.outstandingAmount > 0 ? "#854d0e" : undefined} />
-          <StatCard label="Books on Loan" value={overview.library.onLoan}
-            sub={overview.library.overdue > 0 ? `${overview.library.overdue} overdue` : "All on time"} href="/library"
-            accent={overview.library.overdue > 0 ? "#991b1b" : undefined} />
-          <StatCard label="Buses" value={overview.buses} href="/transport" />
-        </div>
-      )}
-
-      {/* Two-column layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-
-        {/* Enrollment per class chart */}
-        <div className="card">
-          {loadingEnrollment ? <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>Loading…</p> : (enrollment && enrollment.length > 0) ? (
-            <BarChart
-              label="Enrollment per Class"
-              color="#10141A"
-              maxValue={maxEnrollment}
-              data={enrollment.map((e) => ({ label: e.name, value: e.count }))}
-            />
-          ) : <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>No classes yet.</p>}
-        </div>
-
-        {/* Fee collection by term chart */}
-        <div className="card">
-          {loadingFees ? <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>Loading…</p> : (fees && fees.length > 0) ? (
-            <div>
-              <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-secondary)", marginBottom: 12 }}>Fee Collection by Term</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {fees.slice(0, 5).map((f) => {
-                  const collectPct = f.invoiced > 0 ? (f.collected / f.invoiced) * 100 : 0;
-                  return (
-                    <div key={`${f.term}-${f.academicYear}`}>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ fontSize: 12, color: "var(--color-ink)" }}>{f.term} · {f.academicYear}</span>
-                        <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{formatNaira(f.collected)} / {formatNaira(f.invoiced)}</span>
-                      </div>
-                      <div style={{ height: 8, backgroundColor: "#f1f5f9", borderRadius: 999, overflow: "hidden" }}>
-                        <div style={{ width: `${collectPct}%`, height: "100%", backgroundColor: collectPct >= 80 ? "#166534" : collectPct >= 50 ? "#854d0e" : "#991b1b", borderRadius: 999, transition: "width 0.4s" }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>No fee data yet.</p>}
-        </div>
+      <div className="stats-grid" style={{ marginBottom: '2rem' }}>
+        <Link href="/students" className="card" style={{ textDecoration: 'none' }}>
+          <div className="stat-label">Students</div>
+          <div className="stat-value">{overview?.students?.total || 0}</div>
+          <div className="stat-sub">{overview?.students?.enrolled || 0} enrolled</div>
+        </Link>
+        <Link href="/classes" className="card" style={{ textDecoration: 'none' }}>
+          <div className="stat-label">Classes</div>
+          <div className="stat-value">{overview?.classes || 0}</div>
+          <div className="stat-sub">Active classes</div>
+        </Link>
+        <Link href="/staff" className="card" style={{ textDecoration: 'none' }}>
+          <div className="stat-label">Staff</div>
+          <div className="stat-value">{overview?.staff?.records || 0}</div>
+          <div className="stat-sub">{overview?.staff?.teachers || 0} teachers</div>
+        </Link>
+        <Link href="/attendance" className="card" style={{ textDecoration: 'none' }}>
+          <div className="stat-label">Attendance Today</div>
+          <div className="stat-value">{overview?.attendance?.todayMarked || 0}</div>
+          <div className="stat-sub">{overview?.attendance?.rate || 0}% rate</div>
+        </Link>
+        <Link href="/fees" className="card" style={{ textDecoration: 'none' }}>
+          <div className="stat-label">Outstanding Fees</div>
+          <div className="stat-value">{formatNaira(overview?.fees?.outstandingAmount || 0)}</div>
+          <div className="stat-sub">{overview?.fees?.unpaidCount || 0} unpaid invoices</div>
+        </Link>
+        <Link href="/library" className="card" style={{ textDecoration: 'none' }}>
+          <div className="stat-label">Books on Loan</div>
+          <div className="stat-value">{overview?.library?.onLoan || 0}</div>
+          <div className="stat-sub">{overview?.library?.overdue || 0} overdue</div>
+        </Link>
+        <Link href="/buses" className="card" style={{ textDecoration: 'none' }}>
+          <div className="stat-label">Buses</div>
+          <div className="stat-value">{overview?.buses || 0}</div>
+          <div className="stat-sub">Active fleet</div>
+        </Link>
       </div>
 
-      {/* Alerts + Activity */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-
-        {/* Alerts */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
         <div className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-secondary)", margin: 0 }}>Alerts</p>
-            {totalAlerts > 0 && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, backgroundColor: "#fee2e2", color: "#991b1b" }}>{totalAlerts}</span>}
-          </div>
-          {!alerts ? <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>Loading…</p> : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {alerts.overdueBooks.count > 0 && (
-                <Link href="/library/loans" style={{ textDecoration: "none" }}>
-                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#fef2f2", border: "1px solid #fecaca", cursor: "pointer" }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#991b1b", margin: "0 0 2px" }}>📚 {alerts.overdueBooks.count} overdue book{alerts.overdueBooks.count !== 1 ? "s" : ""}</p>
-                    <p style={{ fontSize: 11, color: "#b91c1c", margin: 0 }}>
-                      {alerts.overdueBooks.items.slice(0, 2).map((b) => `${b.bookTitle} (${b.daysOverdue}d)`).join(" · ")}
-                    </p>
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', fontWeight: 600 }}>Enrollment by Class</h2>
+          {enrollment && enrollment.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {enrollment.map(item => (
+                <div key={item.id}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                    <span style={{ fontSize: '0.875rem' }}>{item.name}</span>
+                    <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{item.count}</span>
                   </div>
-                </Link>
-              )}
-              {alerts.unpaidFees.count > 0 && (
-                <Link href="/fees" style={{ textDecoration: "none" }}>
-                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#fefce8", border: "1px solid #fde047", cursor: "pointer" }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#854d0e", margin: "0 0 2px" }}>💰 {alerts.unpaidFees.count} unpaid invoice{alerts.unpaidFees.count !== 1 ? "s" : ""}</p>
-                    <p style={{ fontSize: 11, color: "#92400e", margin: 0 }}>
-                      {alerts.unpaidFees.items.slice(0, 2).map((i) => `${i.student.firstName} ${i.student.lastName} — ${formatNaira(i.outstanding)}`).join(" · ")}
-                    </p>
+                  <div style={{ width: '100%', backgroundColor: 'var(--color-surface)', height: '8px', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div style={{ width: `${(item.count / maxEnrollment) * 100}%`, backgroundColor: 'var(--color-ink)', height: '100%' }} />
                   </div>
-                </Link>
-              )}
-              {alerts.busesNearFull.count > 0 && (
-                <Link href="/transport" style={{ textDecoration: "none" }}>
-                  <div style={{ padding: "10px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#eff6ff", border: "1px solid #bfdbfe", cursor: "pointer" }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: "#1e40af", margin: "0 0 2px" }}>🚌 {alerts.busesNearFull.count} bus{alerts.busesNearFull.count !== 1 ? "es" : ""} near capacity</p>
-                    <p style={{ fontSize: 11, color: "#1e3a8a", margin: 0 }}>
-                      {alerts.busesNearFull.items.slice(0, 2).map((b) => `${b.name} ${b.occupancy}%`).join(" · ")}
-                    </p>
-                  </div>
-                </Link>
-              )}
-              {totalAlerts === 0 && (
-                <p style={{ color: "var(--color-text-secondary)", fontSize: 13, textAlign: "center" as const, padding: "16px 0" }}>✅ No alerts right now</p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Recent activity */}
-        <div className="card">
-          <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-secondary)", margin: "0 0 14px" }}>Recent Activity</p>
-          {!activity ? <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>Loading…</p> : activity.length === 0 ? (
-            <p style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>No activity yet.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-              {activity.slice(0, 10).map((log) => (
-                <div key={log.id} style={{ padding: "8px 0", borderBottom: "var(--border-width) solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, margin: 0, fontWeight: 500, color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{actionLabel(log.action)}</p>
-                    {log.actorEmail && <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: 0 }}>{log.actorEmail}</p>}
-                  </div>
-                  <span style={{ fontSize: 10, color: "var(--color-text-secondary)", flexShrink: 0, marginTop: 2 }}>
-                    {new Date(log.createdAt).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
                 </div>
               ))}
             </div>
+          ) : (
+             <div className="empty-state">
+              <div className="empty-state-title">No enrollment data</div>
+              <div className="empty-state-text">Add your first student to start tracking enrollment.</div>
+            </div>
           )}
         </div>
 
+        <div className="card">
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', fontWeight: 600 }}>Fee Collection</h2>
+          {fees && fees.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {fees.map((fee, i) => {
+                const percent = fee.invoiced > 0 ? Math.round((fee.collected / fee.invoiced) * 100) : 0;
+                return (
+                  <div key={i}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                      <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{fee.term} {fee.academicYear}</span>
+                      <span style={{ fontSize: '0.875rem' }}>{percent}% Collected</span>
+                    </div>
+                    <div style={{ width: '100%', backgroundColor: 'var(--color-surface)', height: '8px', borderRadius: '4px', overflow: 'hidden', marginBottom: '0.25rem' }}>
+                      <div style={{ width: `${percent}%`, backgroundColor: 'var(--color-success-bg, #10b981)', height: '100%' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                      <span>Collected: {formatNaira(fee.collected)}</span>
+                      <span>Target: {formatNaira(fee.invoiced)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-state-title">No fee data</div>
+              <div className="empty-state-text">Issue invoices to start tracking fee collection.</div>
+            </div>
+          )}
+        </div>
       </div>
-    </main>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem' }}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Action Needed</h2>
+          
+          <Link href="/library" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+            <div style={{ padding: '1rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 500 }}>Overdue Books</span>
+                <span className="pill-danger">{alerts?.overdueBooks?.count || 0}</span>
+              </div>
+            </div>
+          </Link>
+          
+          <Link href="/fees" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+            <div style={{ padding: '1rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 500 }}>Unpaid Fees</span>
+                <span className="pill-warning">{alerts?.unpaidFees?.count || 0}</span>
+              </div>
+            </div>
+          </Link>
+
+          <Link href="/buses" style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+            <div style={{ padding: '1rem', border: '1px solid var(--color-border)', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 500 }}>Buses Near Capacity</span>
+                <span className="pill-info">{alerts?.busesNearFull?.count || 0}</span>
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        <div className="card">
+          <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', fontWeight: 600 }}>Recent Activity</h2>
+          {activity && activity.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {activity.slice(0, 10).map((act) => (
+                <div key={act.id} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)' }}>
+                  <div className="avatar" style={{ width: 32, height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--color-surface)', borderRadius: '50%', fontWeight: 600 }}>
+                    {act.actorEmail.charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.875rem' }}>
+                      <span style={{ fontWeight: 600 }}>{act.actorEmail}</span> {formatAction(act.action)}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                      {new Date(act.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <div className="empty-state-title">No recent activity</div>
+              <div className="empty-state-text">Check back later for updates.</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

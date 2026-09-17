@@ -2,156 +2,414 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+interface Student {
+  firstName: string;
+  lastName: string;
+  admissionNumber?: string | null;
+}
+
+interface Term {
+  name: string;
+}
+
+interface FeeStructure {
+  feeType?: string;
+  name?: string;
+}
+
+interface InvoiceItem {
+  id?: string;
+  name: string;
+  amount: number;
+}
 
 interface Invoice {
   id: string;
+  student?: Student;
+  term?: Term | null;
+  feeStructure?: FeeStructure | null;
+  items?: InvoiceItem[];
   totalAmount: number;
   paidAmount: number;
-  status: "UNPAID" | "PARTIAL" | "PAID" | "WAIVED" | "CANCELLED";
-  academicYear: string;
-  dueDate: string | null;
-  student: { id: string; firstName: string; lastName: string; admissionNumber: string | null };
-  term: { id: string; name: string } | null;
+  status: string;
+  dueDate?: string | null;
+  createdAt: string;
 }
-
-const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  UNPAID:    { bg: "#fee2e2", color: "#991b1b", label: "Unpaid" },
-  PARTIAL:   { bg: "#fef9c3", color: "#854d0e", label: "Partial" },
-  PAID:      { bg: "#dcfce7", color: "#166534", label: "Paid" },
-  WAIVED:    { bg: "#e0f2fe", color: "#075985", label: "Waived" },
-  CANCELLED: { bg: "#f1f5f9", color: "#64748b", label: "Cancelled" },
-};
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
-function formatNaira(amount: number) {
-  return `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function formatNaira(amount: number): string {
+  return `₦${Number(amount || 0).toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function renderStatusPill(status: string) {
+  const normalized = (status || "").toUpperCase();
+  switch (normalized) {
+    case "PAID":
+      return <span className="pill-success">Paid</span>;
+    case "PARTIAL":
+      return <span className="pill-warning">Partial</span>;
+    case "UNPAID":
+      return <span className="pill-danger">Unpaid</span>;
+    case "CANCELLED":
+      return <span className="pill-neutral">Cancelled</span>;
+    case "WAIVED":
+      return <span className="pill-info">Waived</span>;
+    default:
+      return <span className="pill-neutral">{status || "—"}</span>;
+  }
+}
+
+function getFeeType(invoice: Invoice): string {
+  if (invoice.feeStructure?.feeType) {
+    return invoice.feeStructure.feeType;
+  }
+  if (invoice.feeStructure?.name) {
+    return invoice.feeStructure.name;
+  }
+  if (invoice.items && invoice.items.length > 0) {
+    return invoice.items.map((item) => item.name).join(", ");
+  }
+  return "—";
 }
 
 export default function FeesPage() {
+  const router = useRouter();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [yearFilter, setYearFilter] = useState("");
 
   useEffect(() => {
+    let ignore = false;
     setLoading(true);
-    const params = new URLSearchParams();
-    if (statusFilter) params.set("status", statusFilter);
-    if (yearFilter) params.set("academicYear", yearFilter);
 
-    fetch(`${API}/api/v1/fees/invoices?${params}`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setInvoices(data);
-        else setError(data.message ?? "Failed to load invoices");
+    fetch(`${API}/api/v1/fees/invoices`, { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to load invoices");
+        }
+        return res.json();
       })
-      .catch(() => setError("Network error"))
-      .finally(() => setLoading(false));
-  }, [statusFilter, yearFilter]);
+      .then((data) => {
+        if (!ignore) {
+          if (Array.isArray(data)) {
+            setInvoices(data);
+            setError("");
+          } else {
+            setError(data.message ?? "Failed to load invoices");
+          }
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setError(err.message ?? "Network error");
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false);
+        }
+      });
 
-  const totalOutstanding = invoices
-    .filter((i) => ["UNPAID", "PARTIAL"].includes(i.status))
-    .reduce((sum, i) => sum + (i.totalAmount - i.paidAmount), 0);
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
-  const totalCollected = invoices
-    .reduce((sum, i) => sum + i.paidAmount, 0);
+  const totalInvoiced = invoices.reduce(
+    (sum, inv) => sum + (inv.totalAmount || 0),
+    0
+  );
+  const totalCollected = invoices.reduce(
+    (sum, inv) => sum + (inv.paidAmount || 0),
+    0
+  );
+  const totalOutstanding = invoices.reduce((sum, inv) => {
+    const bal = (inv.totalAmount || 0) - (inv.paidAmount || 0);
+    return sum + (bal > 0 ? bal : 0);
+  }, 0);
+  const overdueCount = invoices.filter((inv) => {
+    const normalized = (inv.status || "").toUpperCase();
+    if (
+      normalized === "PAID" ||
+      normalized === "CANCELLED" ||
+      normalized === "WAIVED"
+    ) {
+      return false;
+    }
+    const bal = (inv.totalAmount || 0) - (inv.paidAmount || 0);
+    if (bal <= 0) return false;
+    if (!inv.dueDate) return false;
+    return new Date(inv.dueDate).getTime() < Date.now();
+  }).length;
 
   return (
-    <main style={{ padding: "32px 24px", backgroundColor: "var(--color-page)", minHeight: "100vh" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+    <div className="page">
+      {/* Page Header */}
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--color-ink)", marginBottom: 2 }}>Fee Management</h1>
-          <p style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Invoices, payments & outstanding balances</p>
+          <h1 className="page-title">Fees</h1>
+          <p className="page-subtitle">
+            {invoices.length} {invoices.length === 1 ? "invoice" : "invoices"}
+          </p>
         </div>
-        <Link href="/fees/new"
-          style={{ padding: "9px 18px", backgroundColor: "var(--color-ink)", color: "#fff", borderRadius: "var(--radius-control)", fontSize: 13, fontWeight: 500, textDecoration: "none" }}>
-          + New Invoice
-        </Link>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
+          <Link href="/fees/structures" className="btn btn-secondary">
+            Fee structures
+          </Link>
+          <Link href="/fees/new" className="btn btn-primary">
+            Create invoice
+          </Link>
+        </div>
       </div>
 
-      {/* Summary Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
-        {[
-          { label: "Total Invoiced", value: formatNaira(invoices.reduce((s, i) => s + i.totalAmount, 0)), bg: "#f8fafc" },
-          { label: "Collected", value: formatNaira(totalCollected), bg: "#f0fdf4" },
-          { label: "Outstanding", value: formatNaira(totalOutstanding), bg: "#fef2f2" },
-          { label: "Total Invoices", value: invoices.length.toString(), bg: "#f0f9ff" },
-        ].map((card) => (
-          <div key={card.label} className="card" style={{ backgroundColor: card.bg }}>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-secondary)", marginBottom: 6 }}>{card.label}</p>
-            <p style={{ fontSize: 20, fontWeight: 700, color: "var(--color-ink)" }}>{card.value}</p>
+      {/* Stats Grid */}
+      <div className="stats-grid">
+        <div className="card">
+          <div className="stat-label">Total Invoiced</div>
+          <div className="stat-value">
+            {loading ? "—" : formatNaira(totalInvoiced)}
           </div>
-        ))}
+        </div>
+        <div className="card">
+          <div className="stat-label">Total Collected</div>
+          <div className="stat-value">
+            {loading ? "—" : formatNaira(totalCollected)}
+          </div>
+        </div>
+        <div className="card">
+          <div className="stat-label">Outstanding</div>
+          <div className="stat-value">
+            {loading ? "—" : formatNaira(totalOutstanding)}
+          </div>
+        </div>
+        <div className="card">
+          <div className="stat-label">Overdue Count</div>
+          <div className="stat-value">{loading ? "—" : overdueCount}</div>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-          style={{ padding: "8px 12px", border: "var(--border-width) solid var(--color-border)", borderRadius: "var(--radius-control)", fontSize: 14, backgroundColor: "var(--color-surface)", color: "var(--color-ink)", outline: "none" }}>
-          <option value="">All Statuses</option>
-          {["UNPAID", "PARTIAL", "PAID", "WAIVED", "CANCELLED"].map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-        <input type="text" placeholder="Academic year e.g. 2025/2026" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}
-          style={{ padding: "8px 12px", border: "var(--border-width) solid var(--color-border)", borderRadius: "var(--radius-control)", fontSize: 14, backgroundColor: "var(--color-surface)", color: "var(--color-ink)", outline: "none", width: 220 }} />
-      </div>
+      {/* Error Notification */}
+      {error && (
+        <div
+          className="pill-danger"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            marginBottom: 16,
+            padding: "8px 14px",
+            borderRadius: "var(--radius-control)",
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </div>
+      )}
 
-      {error && <div className="pill-danger" style={{ display: "block", padding: "10px 14px", borderRadius: "var(--radius-control)", marginBottom: 16, fontSize: 13 }}>{error}</div>}
-      {loading && <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>Loading…</p>}
-
-      {/* Invoices table */}
-      {!loading && !error && (
+      {/* Table / Skeleton / Empty State */}
+      {loading ? (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          {invoices.length === 0 ? (
-            <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--color-text-secondary)", fontSize: 14 }}>
-              No invoices found. <Link href="/fees/new" style={{ color: "var(--color-ink)", fontWeight: 500 }}>Create the first one.</Link>
-            </div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table className="table">
               <thead>
-                <tr style={{ borderBottom: "var(--border-width) solid var(--color-border)" }}>
-                  {["Student", "Term", "Total", "Paid", "Balance", "Status", ""].map((h) => (
-                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
-                  ))}
+                <tr>
+                  <th>Student</th>
+                  <th>Term</th>
+                  <th>Fee Type</th>
+                  <th>Amount</th>
+                  <th>Paid</th>
+                  <th>Balance</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {invoices.map((inv) => {
-                  const balance = inv.totalAmount - inv.paidAmount;
-                  const st = STATUS_STYLES[inv.status];
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index}>
+                    <td>
+                      <div
+                        className="skeleton"
+                        style={{ height: 16, width: "70%" }}
+                      />
+                    </td>
+                    <td>
+                      <div
+                        className="skeleton"
+                        style={{ height: 16, width: "60%" }}
+                      />
+                    </td>
+                    <td>
+                      <div
+                        className="skeleton"
+                        style={{ height: 16, width: "50%" }}
+                      />
+                    </td>
+                    <td>
+                      <div
+                        className="skeleton"
+                        style={{ height: 16, width: "60%" }}
+                      />
+                    </td>
+                    <td>
+                      <div
+                        className="skeleton"
+                        style={{ height: 16, width: "60%" }}
+                      />
+                    </td>
+                    <td>
+                      <div
+                        className="skeleton"
+                        style={{ height: 16, width: "60%" }}
+                      />
+                    </td>
+                    <td>
+                      <div
+                        className="skeleton"
+                        style={{
+                          height: 20,
+                          width: 64,
+                          borderRadius: "var(--radius-pill-badge)",
+                        }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : invoices.length === 0 ? (
+        <div className="card empty-state">
+          <div
+            className="empty-state-icon"
+            style={{ display: "inline-flex", justifyContent: "center" }}
+          >
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <line x1="2" y1="10" x2="22" y2="10" />
+            </svg>
+          </div>
+          <h3 className="empty-state-title">No invoices yet</h3>
+          <p className="empty-state-text">
+            Create fee structures first, then generate invoices for students.
+          </p>
+          <div
+            style={{
+              display: "inline-flex",
+              gap: 10,
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <Link href="/fees/structures" className="btn btn-secondary">
+              Fee structures
+            </Link>
+            <Link href="/fees/new" className="btn btn-primary">
+              Create invoice
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Term</th>
+                  <th>Fee Type</th>
+                  <th>Amount</th>
+                  <th>Paid</th>
+                  <th>Balance</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map((invoice) => {
+                  const studentName = invoice.student
+                    ? `${invoice.student.firstName} ${invoice.student.lastName}`.trim()
+                    : "—";
+                  const balance =
+                    (invoice.totalAmount || 0) - (invoice.paidAmount || 0);
+
                   return (
-                    <tr key={inv.id} style={{ borderBottom: "var(--border-width) solid var(--color-border)" }}>
-                      <td style={{ padding: "12px 14px" }}>
-                        <p style={{ fontSize: 14, fontWeight: 500, color: "var(--color-ink)", margin: 0 }}>{inv.student.firstName} {inv.student.lastName}</p>
-                        <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0, fontFamily: "monospace" }}>{inv.student.admissionNumber ?? ""}</p>
+                    <tr
+                      key={invoice.id}
+                      onClick={() => router.push(`/fees/${invoice.id}`)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <td
+                        style={{
+                          fontWeight: 600,
+                          color: "var(--color-ink)",
+                        }}
+                      >
+                        <Link
+                          href={`/fees/${invoice.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {studentName}
+                        </Link>
                       </td>
-                      <td style={{ padding: "12px 14px", fontSize: 13, color: "var(--color-text-secondary)" }}>
-                        {inv.term?.name ?? "—"}<br />
-                        <span style={{ fontSize: 11 }}>{inv.academicYear}</span>
+                      <td style={{ color: "var(--color-text-secondary)" }}>
+                        {invoice.term?.name ?? "—"}
                       </td>
-                      <td style={{ padding: "12px 14px", fontSize: 14, fontWeight: 500 }}>{formatNaira(inv.totalAmount)}</td>
-                      <td style={{ padding: "12px 14px", fontSize: 14, color: "#166534" }}>{formatNaira(inv.paidAmount)}</td>
-                      <td style={{ padding: "12px 14px", fontSize: 14, fontWeight: balance > 0 ? 600 : 400, color: balance > 0 ? "#991b1b" : "var(--color-text-secondary)" }}>
-                        {balance > 0 ? formatNaira(balance) : "—"}
+                      <td style={{ color: "var(--color-text-secondary)" }}>
+                        {getFeeType(invoice)}
                       </td>
-                      <td style={{ padding: "12px 14px" }}>
-                        <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 999, backgroundColor: st.bg, color: st.color }}>{st.label}</span>
+                      <td
+                        style={{
+                          fontWeight: 500,
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {formatNaira(invoice.totalAmount)}
                       </td>
-                      <td style={{ padding: "12px 14px" }}>
-                        <Link href={`/fees/${inv.id}`} style={{ fontSize: 13, color: "var(--color-ink)", textDecoration: "none", fontWeight: 500 }}>View →</Link>
+                      <td
+                        style={{
+                          fontWeight: 500,
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {formatNaira(invoice.paidAmount)}
                       </td>
+                      <td
+                        style={{
+                          fontWeight: 500,
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {formatNaira(Math.max(0, balance))}
+                      </td>
+                      <td>{renderStatusPill(invoice.status)}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          )}
+          </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

@@ -30,7 +30,7 @@ export class AttendanceController {
    * Bulk mark attendance for an entire class on a given date.
    * Idempotent: re-submitting the same day updates existing records.
    */
-  @Post('mark')
+  @Post(['mark', 'bulk'])
   @Roles(UserRole.ADMIN, UserRole.TEACHER)
   bulkMark(
     @Body() dto: BulkMarkAttendanceDto,

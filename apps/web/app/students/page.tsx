@@ -2,6 +2,16 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+interface Enrollment {
+  classSection: {
+    id: string;
+    name: string;
+    level: string;
+  };
+  academicYear: string;
+}
 
 interface Student {
   id: string;
@@ -10,156 +20,267 @@ interface Student {
   admissionNumber: string | null;
   gender: string | null;
   enrollmentStatus: string;
-  enrollments: Array<{
-    classSection: { id: string; name: string; level: string };
-    academicYear: string;
-  }>;
+  enrollments: Enrollment[];
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE: "pill-success",
-  WITHDRAWN: "pill-danger",
-  TRANSFERRED: "pill-warning",
-  GRADUATED: "pill-neutral",
-};
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
+function getInitials(firstName?: string, lastName?: string): string {
+  const first = firstName?.trim().charAt(0) ?? "";
+  const last = lastName?.trim().charAt(0) ?? "";
+  return (first + last).toUpperCase() || "—";
+}
+
+function getStatusPillClass(status: string): string {
+  switch (status?.toUpperCase()) {
+    case "ACTIVE":
+      return "pill-success";
+    case "WITHDRAWN":
+      return "pill-danger";
+    case "TRANSFERRED":
+      return "pill-warning";
+    case "GRADUATED":
+      return "pill-neutral";
+    default:
+      return "pill-neutral";
+  }
+}
 
 export default function StudentsPage() {
+  const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (search) params.set("search", search);
+    let ignore = false;
+    setLoading(true);
 
-    fetch(
-      `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/api/v1/students?${params}`,
-      { credentials: "include" }
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setStudents(data);
-        else setError(data.message ?? "Failed to load students");
+    const params = new URLSearchParams();
+    if (search.trim()) {
+      params.set("search", search.trim());
+    }
+
+    const query = params.toString() ? `?${params.toString()}` : "";
+
+    fetch(`${API}/api/v1/students${query}`, { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to load students");
+        }
+        return res.json();
       })
-      .catch(() => setError("Network error"))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!ignore) {
+          if (Array.isArray(data)) {
+            setStudents(data);
+            setError("");
+          } else {
+            setError(data.message ?? "Failed to load students");
+          }
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setError(err.message ?? "Failed to load students");
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
   }, [search]);
 
   return (
-    <main style={{ padding: "32px 24px", backgroundColor: "var(--color-page)", minHeight: "100vh" }}>
+    <div className="page">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--color-ink)", marginBottom: 2 }}>
-            Students
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
-            {students.length} student{students.length !== 1 ? "s" : ""} total
+          <h1 className="page-title">Students</h1>
+          <p className="page-subtitle">
+            {students.length} {students.length === 1 ? "student" : "students"}
           </p>
         </div>
-        <Link
-          href="/students/new"
-          style={{
-            padding: "9px 18px",
-            backgroundColor: "var(--color-ink)",
-            color: "#fff",
-            borderRadius: "var(--radius-control)",
-            fontSize: 13,
-            fontWeight: 500,
-            textDecoration: "none",
-          }}
-        >
-          + Add Student
+        <Link href="/students/new" className="btn btn-primary">
+          Add a student
         </Link>
       </div>
 
       {/* Search */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20, maxWidth: 380 }}>
         <input
           type="search"
-          placeholder="Search by name or admission number…"
+          className="input"
+          placeholder="Search by name or admission number"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            width: "100%",
-            maxWidth: 400,
-            padding: "9px 12px",
-            border: "var(--border-width) solid var(--color-border)",
-            borderRadius: "var(--radius-control)",
-            fontSize: 14,
-            backgroundColor: "var(--color-surface)",
-            color: "var(--color-ink)",
-            outline: "none",
-          }}
         />
       </div>
 
       {/* Error */}
       {error && (
-        <div className="pill-danger" style={{ display: "inline-block", marginBottom: 16, padding: "8px 14px", borderRadius: "var(--radius-control)" }}>
+        <div
+          className="pill-danger"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            marginBottom: 16,
+            padding: "8px 14px",
+            borderRadius: "var(--radius-control)",
+            fontSize: 13,
+          }}
+        >
           {error}
         </div>
       )}
 
-      {/* Loading */}
-      {loading && (
-        <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>Loading…</p>
-      )}
-
-      {/* Table */}
-      {!loading && !error && (
+      {/* Loading Skeleton */}
+      {loading ? (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          {students.length === 0 ? (
-            <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--color-text-secondary)", fontSize: 14 }}>
-              No students found. <Link href="/students/new" style={{ color: "var(--color-ink)", fontWeight: 500 }}>Add the first one.</Link>
-            </div>
-          ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ borderBottom: "var(--border-width) solid var(--color-border)" }}>
-                  {["Name", "Admission No.", "Class", "Gender", "Status"].map((h) => (
-                    <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                      {h}
-                    </th>
-                  ))}
+          <table className="table">
+            <thead>
+              <tr>
+                <th style={{ width: 48 }}>Avatar</th>
+                <th>Name</th>
+                <th>Admission No</th>
+                <th>Class</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 5 }).map((_, index) => (
+                <tr key={index}>
+                  <td style={{ width: 48 }}>
+                    <div
+                      className="skeleton"
+                      style={{ width: 34, height: 34, borderRadius: "50%" }}
+                    />
+                  </td>
+                  <td>
+                    <div
+                      className="skeleton"
+                      style={{ height: 16, width: "65%" }}
+                    />
+                  </td>
+                  <td>
+                    <div
+                      className="skeleton"
+                      style={{ height: 16, width: "45%" }}
+                    />
+                  </td>
+                  <td>
+                    <div
+                      className="skeleton"
+                      style={{ height: 16, width: "50%" }}
+                    />
+                  </td>
+                  <td>
+                    <div
+                      className="skeleton"
+                      style={{
+                        height: 20,
+                        width: 72,
+                        borderRadius: "var(--radius-pill-badge)",
+                      }}
+                    />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {students.map((s) => {
-                  const currentClass = s.enrollments?.[0]?.classSection;
-                  return (
-                    <tr
-                      key={s.id}
-                      className="list-row"
-                      style={{ borderBottom: "var(--border-width) solid var(--color-border)", cursor: "pointer" }}
-                      onClick={() => { window.location.href = `/students/${s.id}`; }}
-                    >
-                      <td style={{ padding: "12px 16px", fontSize: 14, fontWeight: 500, color: "var(--color-ink)" }}>
-                        {s.firstName} {s.lastName}
-                      </td>
-                      <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "monospace" }}>
-                        {s.admissionNumber ?? "—"}
-                      </td>
-                      <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
-                        {currentClass ? `${currentClass.name}` : "—"}
-                      </td>
-                      <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--color-text-secondary)" }}>
-                        {s.gender ?? "—"}
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <span className={STATUS_COLORS[s.enrollmentStatus] ?? "pill-neutral"} style={{ fontSize: 11 }}>
-                          {s.enrollmentStatus}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : students.length === 0 ? (
+        /* Empty State */
+        <div className="card empty-state">
+          <div
+            className="empty-state-icon"
+            style={{ display: "inline-flex", justifyContent: "center" }}
+          >
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <h3 className="empty-state-title">No students yet</h3>
+          <p className="empty-state-text">
+            Add your first student to start tracking enrollment.
+          </p>
+          <Link href="/students/new" className="btn btn-primary">
+            Add a student
+          </Link>
+        </div>
+      ) : (
+        /* Students Table */
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th style={{ width: 48 }}>Avatar</th>
+                <th>Name</th>
+                <th>Admission No</th>
+                <th>Class</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((student) => {
+                const currentClass = student.enrollments?.[0]?.classSection?.name;
+                return (
+                  <tr
+                    key={student.id}
+                    onClick={() => router.push(`/students/${student.id}`)}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <td style={{ width: 48 }}>
+                      <div className="avatar">
+                        {getInitials(student.firstName, student.lastName)}
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: 600, color: "var(--color-ink)" }}>
+                      <Link
+                        href={`/students/${student.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {student.firstName} {student.lastName}
+                      </Link>
+                    </td>
+                    <td style={{ color: "var(--color-text-secondary)" }}>
+                      {student.admissionNumber ?? "—"}
+                    </td>
+                    <td style={{ color: "var(--color-text-secondary)" }}>
+                      {currentClass ?? "—"}
+                    </td>
+                    <td>
+                      <span
+                        className={getStatusPillClass(student.enrollmentStatus)}
+                      >
+                        {student.enrollmentStatus}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
-    </main>
+    </div>
   );
 }

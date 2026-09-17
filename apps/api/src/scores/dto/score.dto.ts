@@ -34,15 +34,24 @@ export class BulkEnterScoresDto {
   subjectId: string;
 
   @IsString()
-  termId: string;
+  @IsOptional()
+  termId?: string;
 
   @IsString()
-  academicYear: string;
+  @IsOptional()
+  academicYear?: string;
 
   @IsArray()
+  @IsOptional()
   @ValidateNested({ each: true })
   @Type(() => ScoreEntryDto)
-  entries: ScoreEntryDto[];
+  entries?: ScoreEntryDto[];
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => ScoreEntryDto)
+  scores?: ScoreEntryDto[];
 }
 
 export class ReportCardQueryDto {

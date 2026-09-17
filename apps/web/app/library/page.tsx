@@ -11,135 +11,317 @@ interface Book {
   category: string | null;
   totalCopies: number;
   availableCopies: number;
-  shelfLocation: string | null;
-  _count: { loans: number };
+  isActive: boolean;
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 export default function LibraryPage() {
   const [books, setBooks] = useState<Book[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
-  const [availOnly, setAvailOnly] = useState(false);
 
   useEffect(() => {
+    let ignore = false;
     setLoading(true);
+    setError("");
+
     const params = new URLSearchParams();
-    if (search) params.set("q", search);
-    if (category) params.set("category", category);
-    if (availOnly) params.set("availableOnly", "true");
+    if (search.trim()) {
+      params.set("search", search.trim());
+    }
 
-    fetch(`${API}/api/v1/library/books?${params}`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setBooks(data);
-        else setError(data.message ?? "Failed to load");
+    fetch(`${API}/api/v1/library/books?${params.toString()}`, {
+      credentials: "include",
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to load books");
+        }
+        return res.json();
       })
-      .catch(() => setError("Network error"))
-      .finally(() => setLoading(false));
-  }, [search, category, availOnly]);
+      .then((data) => {
+        if (!ignore) {
+          if (Array.isArray(data)) {
+            setBooks(data);
+          } else {
+            setError(data.message ?? "Failed to load books");
+          }
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setError(err.message ?? "Network error");
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false);
+        }
+      });
 
-  const categories = ["Science", "Mathematics", "English", "Social Studies", "Fiction", "Reference", "History", "Arts"];
-
-  const totalBooks = books.reduce((s, b) => s + b.totalCopies, 0);
-  const availableBooks = books.reduce((s, b) => s + b.availableCopies, 0);
-  const onLoanBooks = totalBooks - availableBooks;
+    return () => {
+      ignore = true;
+    };
+  }, [search]);
 
   return (
-    <main style={{ padding: "32px 24px", backgroundColor: "var(--color-page)", minHeight: "100vh" }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+    <div className="page">
+      <style>{`
+        @media (max-width: 900px) {
+          .library-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+        }
+        @media (max-width: 600px) {
+          .library-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+
+      {/* Page Header */}
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--color-ink)", marginBottom: 2 }}>Library</h1>
-          <p style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>{books.length} titles in catalogue</p>
+          <h1 className="page-title">Library</h1>
+          <p className="page-subtitle">
+            {books.length} {books.length === 1 ? "book" : "books"}
+          </p>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <Link href="/library/loans"
-            style={{ padding: "9px 16px", border: "var(--border-width) solid var(--color-border)", borderRadius: "var(--radius-control)", fontSize: 13, textDecoration: "none", color: "var(--color-ink)", backgroundColor: "var(--color-surface)" }}>
-            Active Loans
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <Link href="/library/loans" className="btn btn-secondary">
+            View loans
           </Link>
-          <Link href="/library/new"
-            style={{ padding: "9px 16px", backgroundColor: "var(--color-ink)", color: "#fff", borderRadius: "var(--radius-control)", fontSize: 13, fontWeight: 500, textDecoration: "none" }}>
-            + Add Book
+          <Link href="/library/new" className="btn btn-primary">
+            Add a book
           </Link>
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 14, marginBottom: 24 }}>
-        {[
-          { label: "Total Copies", value: totalBooks, bg: "#f0f9ff" },
-          { label: "Available", value: availableBooks, bg: "#f0fdf4" },
-          { label: "On Loan", value: onLoanBooks, bg: "#fef9c3" },
-          { label: "Titles", value: books.length, bg: "#f8fafc" },
-        ].map((c) => (
-          <div key={c.label} className="card" style={{ backgroundColor: c.bg }}>
-            <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--color-text-secondary)", marginBottom: 4 }}>{c.label}</p>
-            <p style={{ fontSize: 22, fontWeight: 700, color: "var(--color-ink)", margin: 0 }}>{c.value}</p>
-          </div>
-        ))}
+      {/* Search Input */}
+      <div style={{ marginBottom: 24, maxWidth: 400 }}>
+        <input
+          type="search"
+          className="input"
+          placeholder="Search by title, author, or ISBN"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </div>
 
-      {/* Filters */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
-        <input type="search" placeholder="Search title, author, ISBN…" value={search} onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, minWidth: 200, maxWidth: 360, padding: "9px 12px", border: "var(--border-width) solid var(--color-border)", borderRadius: "var(--radius-control)", fontSize: 14, backgroundColor: "var(--color-surface)", color: "var(--color-ink)", outline: "none" }} />
-        <select value={category} onChange={(e) => setCategory(e.target.value)}
-          style={{ padding: "9px 12px", border: "var(--border-width) solid var(--color-border)", borderRadius: "var(--radius-control)", fontSize: 14, backgroundColor: "var(--color-surface)", color: "var(--color-ink)", outline: "none" }}>
-          <option value="">All Categories</option>
-          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
-          <input type="checkbox" checked={availOnly} onChange={(e) => setAvailOnly(e.target.checked)} />
-          Available only
-        </label>
-      </div>
-
-      {error && <div className="pill-danger" style={{ display: "block", padding: "10px 14px", borderRadius: "var(--radius-control)", marginBottom: 16, fontSize: 13 }}>{error}</div>}
-      {loading && <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>Loading…</p>}
-
-      {/* Books grid */}
-      {!loading && !error && (
-        books.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--color-text-secondary)", fontSize: 14 }}>
-            No books found. <Link href="/library/new" style={{ color: "var(--color-ink)", fontWeight: 500 }}>Add the first book.</Link>
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-            {books.map((book) => {
-              const available = book.availableCopies > 0;
-              return (
-                <Link key={book.id} href={`/library/${book.id}`} style={{ textDecoration: "none" }}>
-                  <div className="card list-row" style={{ cursor: "pointer", height: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontWeight: 600, fontSize: 14, color: "var(--color-ink)", marginBottom: 2, lineHeight: 1.3 }}>{book.title}</p>
-                        <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0 }}>{book.author}</p>
-                      </div>
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 999, marginLeft: 8, flexShrink: 0,
-                        backgroundColor: available ? "#dcfce7" : "#fee2e2",
-                        color: available ? "#166534" : "#991b1b",
-                      }}>
-                        {available ? `${book.availableCopies} avail.` : "All out"}
-                      </span>
-                    </div>
-                    {book.category && <span style={{ fontSize: 11, color: "var(--color-text-secondary)", backgroundColor: "var(--color-page)", padding: "2px 8px", borderRadius: 999, display: "inline-block", width: "fit-content" }}>{book.category}</span>}
-                    <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--color-text-secondary)" }}>
-                      <span>{book.totalCopies} cop{book.totalCopies !== 1 ? "ies" : "y"}</span>
-                      {book.shelfLocation && <span>📍 {book.shelfLocation}</span>}
-                      {book.isbn && <span style={{ fontFamily: "monospace" }}>{book.isbn}</span>}
-                    </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        )
+      {/* Error Notice */}
+      {error && (
+        <div
+          className="pill-danger"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            marginBottom: 16,
+            padding: "8px 14px",
+            borderRadius: "var(--radius-control)",
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </div>
       )}
-    </main>
+
+      {/* Loading Skeleton */}
+      {loading ? (
+        <div
+          className="library-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 16,
+          }}
+        >
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div
+              key={index}
+              className="card"
+              style={{
+                height: 140,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <div
+                    className="skeleton"
+                    style={{ height: 18, width: "60%" }}
+                  />
+                  <div
+                    className="skeleton"
+                    style={{
+                      height: 18,
+                      width: 60,
+                      borderRadius: "var(--radius-pill-badge)",
+                    }}
+                  />
+                </div>
+                <div
+                  className="skeleton"
+                  style={{ height: 14, width: "40%" }}
+                />
+              </div>
+              <div
+                style={{
+                  paddingTop: 10,
+                  borderTop: "var(--border-width) solid var(--color-border)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div
+                  className="skeleton"
+                  style={{
+                    height: 18,
+                    width: 110,
+                    borderRadius: "var(--radius-pill-badge)",
+                  }}
+                />
+                <div
+                  className="skeleton"
+                  style={{ height: 14, width: 80 }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : books.length === 0 ? (
+        /* Empty State */
+        <div className="card empty-state">
+          <div
+            className="empty-state-icon"
+            style={{ display: "inline-flex", justifyContent: "center" }}
+          >
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
+          </div>
+          <h2 className="empty-state-title">Your library is empty</h2>
+          <p className="empty-state-text">
+            Add books to start managing your school library.
+          </p>
+          <div>
+            <Link href="/library/new" className="btn btn-primary">
+              Add your first book
+            </Link>
+          </div>
+        </div>
+      ) : (
+        /* Grid of cards (3 columns) */
+        <div
+          className="library-grid"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 16,
+          }}
+        >
+          {books.map((book) => {
+            const isAvailable = book.availableCopies > 0;
+            return (
+              <div
+                key={book.id}
+                className="card"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  gap: 14,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      marginBottom: 6,
+                    }}
+                  >
+                    <h2
+                      style={{
+                        fontWeight: 700,
+                        fontSize: 15,
+                        color: "var(--color-ink)",
+                        lineHeight: 1.3,
+                        margin: 0,
+                      }}
+                    >
+                      {book.title}
+                    </h2>
+                    <span className="pill-neutral" style={{ flexShrink: 0 }}>
+                      {book.category || "General"}
+                    </span>
+                  </div>
+                  <p
+                    style={{
+                      fontSize: 13,
+                      color: "var(--color-text-secondary)",
+                      margin: 0,
+                    }}
+                  >
+                    {book.author}
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "auto",
+                    paddingTop: 12,
+                    borderTop: "var(--border-width) solid var(--color-border)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                  }}
+                >
+                  <span className={isAvailable ? "pill-success" : "pill-danger"}>
+                    {book.availableCopies} of {book.totalCopies} available
+                  </span>
+                  {book.isbn && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "var(--color-text-secondary)",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {book.isbn}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

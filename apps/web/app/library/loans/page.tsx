@@ -1,138 +1,667 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 interface Loan {
   id: string;
+  book: {
+    id?: string;
+    title: string;
+    author: string;
+  };
+  student?: {
+    id?: string;
+    firstName: string;
+    lastName: string;
+    admissionNumber?: string | null;
+  } | null;
   borrowerName: string;
+  issueDate?: string;
+  createdAt?: string;
   dueDate: string;
-  status: "ACTIVE" | "OVERDUE";
-  daysOverdue?: number;
+  status: "ACTIVE" | "OVERDUE" | "RETURNED" | string;
+  fineAmount?: number;
   estimatedFine?: number;
-  book: { id: string; title: string; author: string };
-  student: { id: string; firstName: string; lastName: string; admissionNumber: string | null } | null;
+  fine?: number;
+}
+
+interface AvailableBook {
+  id: string;
+  title: string;
+  author: string;
+  availableCopies: number;
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
+function formatDate(dateStr?: string | null): string {
+  if (!dateStr) return "—";
+  try {
+    const clean = dateStr.includes("T") ? dateStr : `${dateStr}T00:00:00`;
+    const d = new Date(clean);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("en-NG", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function getBorrowerName(loan: Loan): string {
+  if (loan.student && (loan.student.firstName || loan.student.lastName)) {
+    return `${loan.student.firstName ?? ""} ${loan.student.lastName ?? ""}`.trim();
+  }
+  return loan.borrowerName || "—";
+}
 
 export default function LibraryLoansPage() {
   const [tab, setTab] = useState<"active" | "overdue">("active");
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [returning, setReturning] = useState<string | null>(null);
-  const [returnMsg, setReturnMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
-  const load = (t: "active" | "overdue") => {
-    setLoading(true); setError(""); setLoans([]);
-    const endpoint = t === "overdue" ? "overdue" : "active";
-    fetch(`${API}/api/v1/library/loans/${endpoint}`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setLoans(data); else setError(data.message ?? "Failed"); })
-      .catch(() => setError("Network error"))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { load(tab); }, [tab]);
-
-  const handleReturn = async (loanId: string) => {
-    setReturning(loanId); setReturnMsg("");
-    try {
-      const res = await fetch(`${API}/api/v1/library/loans/${loanId}/return`, {
-        method: "PATCH", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      if (!res.ok) { setReturnMsg(`Error: ${data.message}`); return; }
-      const fine = data.fineAmount ?? 0;
-      setReturnMsg(fine > 0 ? `Book returned. Fine: ₦${fine.toLocaleString()}` : "Book returned successfully.");
-      load(tab);
-    } catch { setReturnMsg("Network error"); }
-    finally { setReturning(null); }
-  };
-
-  const tabStyle = (t: string) => ({
-    padding: "9px 20px", fontSize: 13, fontWeight: 500, cursor: "pointer",
-    border: "var(--border-width) solid var(--color-border)",
-    borderRadius: "var(--radius-control)",
-    backgroundColor: tab === t ? "var(--color-ink)" : "transparent",
-    color: tab === t ? "#fff" : "var(--color-ink)",
+  // Issue modal state
+  const [showIssueModal, setShowIssueModal] = useState(false);
+  const [availableBooks, setAvailableBooks] = useState<AvailableBook[]>([]);
+  const [loadingBooks, setLoadingBooks] = useState(false);
+  const [issueBookId, setIssueBookId] = useState("");
+  const [issueBorrowerName, setIssueBorrowerName] = useState("");
+  const [issueDueDate, setIssueDueDate] = useState(() => {
+    const nextTwoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+    return nextTwoWeeks.toISOString().split("T")[0];
   });
+  const [issueNotes, setIssueNotes] = useState("");
+  const [submittingIssue, setSubmittingIssue] = useState(false);
+  const [issueError, setIssueError] = useState("");
+
+  const loadLoans = useCallback((currentTab: "active" | "overdue") => {
+    setLoading(true);
+    setError("");
+    const endpoint = currentTab === "overdue" ? "overdue" : "active";
+
+    fetch(`${API}/api/v1/library/loans/${endpoint}`, { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to load loans");
+        }
+        return res.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setLoans(data);
+        } else {
+          setError(data.message ?? "Failed to load loans");
+        }
+      })
+      .catch((err) => {
+        setError(err.message ?? "Network error");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    loadLoans(tab);
+  }, [tab, loadLoans]);
+
+  useEffect(() => {
+    if (showIssueModal) {
+      setLoadingBooks(true);
+      setIssueError("");
+      fetch(`${API}/api/v1/library/books?availableOnly=true`, { credentials: "include" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setAvailableBooks(data);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoadingBooks(false));
+    }
+  }, [showIssueModal]);
+
+  const handleIssueSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!issueBookId || !issueBorrowerName || !issueDueDate) return;
+
+    setSubmittingIssue(true);
+    setIssueError("");
+
+    try {
+      const res = await fetch(`${API}/api/v1/library/loans`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          bookId: issueBookId,
+          borrowerName: issueBorrowerName.trim(),
+          dueDate: issueDueDate,
+          notes: issueNotes.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setIssueError(data.message ?? "Failed to issue book");
+        return;
+      }
+
+      setShowIssueModal(false);
+      setIssueBookId("");
+      setIssueBorrowerName("");
+      setIssueNotes("");
+      setSuccessMsg("Book issued successfully.");
+      setTimeout(() => setSuccessMsg(""), 4000);
+
+      if (tab === "active") {
+        loadLoans("active");
+      } else {
+        setTab("active");
+      }
+    } catch {
+      setIssueError("Network error while issuing book");
+    } finally {
+      setSubmittingIssue(false);
+    }
+  };
 
   return (
-    <main style={{ padding: "32px 24px", backgroundColor: "var(--color-page)", minHeight: "100vh" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+    <div className="page">
+      {/* Page Header */}
+      <div className="page-header">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--color-ink)", marginBottom: 2 }}>Loans</h1>
-          <Link href="/library" style={{ fontSize: 13, color: "var(--color-text-secondary)", textDecoration: "none" }}>← Back to Catalogue</Link>
+          <div style={{ marginBottom: 6 }}>
+            <Link
+              href="/library"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 13,
+                color: "var(--color-text-secondary)",
+                textDecoration: "none",
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              Back to library
+            </Link>
+          </div>
+          <h1 className="page-title">Book Loans</h1>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button style={tabStyle("active")} onClick={() => setTab("active")}>Active Loans</button>
-          <button style={tabStyle("overdue")} onClick={() => setTab("overdue")}>⚠ Overdue</button>
-        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setShowIssueModal(true)}
+        >
+          Issue a book
+        </button>
       </div>
 
-      {returnMsg && <div className={returnMsg.startsWith("Error") ? "pill-danger" : "pill-success"} style={{ display: "block", padding: "10px 14px", borderRadius: "var(--radius-control)", marginBottom: 16, fontSize: 13 }}>{returnMsg}</div>}
-      {error && <div className="pill-danger" style={{ display: "block", padding: "10px 14px", borderRadius: "var(--radius-control)", marginBottom: 16, fontSize: 13 }}>{error}</div>}
-      {loading && <p style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>Loading…</p>}
+      {/* Notifications */}
+      {successMsg && (
+        <div
+          className="pill-success"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            marginBottom: 16,
+            padding: "8px 14px",
+            borderRadius: "var(--radius-control)",
+            fontSize: 13,
+          }}
+        >
+          {successMsg}
+        </div>
+      )}
 
-      {!loading && !error && (
-        loans.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "48px 24px", color: "var(--color-text-secondary)", fontSize: 14 }}>
-            {tab === "active" ? "No books currently on loan." : "No overdue books. 🎉"}
+      {error && (
+        <div
+          className="pill-danger"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            marginBottom: 16,
+            padding: "8px 14px",
+            borderRadius: "var(--radius-control)",
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <button
+          type="button"
+          onClick={() => setTab("active")}
+          className={`btn ${tab === "active" ? "btn-primary" : "btn-secondary"}`}
+        >
+          Active
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("overdue")}
+          className={`btn ${tab === "overdue" ? "btn-primary" : "btn-secondary"}`}
+        >
+          Overdue
+        </button>
+      </div>
+
+      {/* Table or Empty State */}
+      {loading ? (
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Book Title</th>
+                <th>Borrower</th>
+                <th>Issued</th>
+                <th>Due</th>
+                <th>Status</th>
+                {tab === "overdue" && <th>Fine</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 4 }).map((_, index) => (
+                <tr key={index}>
+                  <td>
+                    <div
+                      className="skeleton"
+                      style={{ height: 16, width: "65%", marginBottom: 6 }}
+                    />
+                    <div
+                      className="skeleton"
+                      style={{ height: 12, width: "40%" }}
+                    />
+                  </td>
+                  <td>
+                    <div
+                      className="skeleton"
+                      style={{ height: 16, width: "55%" }}
+                    />
+                  </td>
+                  <td>
+                    <div
+                      className="skeleton"
+                      style={{ height: 14, width: "45%" }}
+                    />
+                  </td>
+                  <td>
+                    <div
+                      className="skeleton"
+                      style={{ height: 14, width: "45%" }}
+                    />
+                  </td>
+                  <td>
+                    <div
+                      className="skeleton"
+                      style={{
+                        height: 20,
+                        width: 64,
+                        borderRadius: "var(--radius-pill-badge)",
+                      }}
+                    />
+                  </td>
+                  {tab === "overdue" && (
+                    <td>
+                      <div
+                        className="skeleton"
+                        style={{ height: 14, width: 48 }}
+                      />
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : loans.length === 0 ? (
+        tab === "active" ? (
+          <div className="card empty-state">
+            <div
+              className="empty-state-icon"
+              style={{ display: "inline-flex", justifyContent: "center" }}
+            >
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+              </svg>
+            </div>
+            <h3 className="empty-state-title">No active loans</h3>
+            <p className="empty-state-text">
+              All borrowed books have been returned. Issue a book to record a new loan.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowIssueModal(true)}
+            >
+              Issue a book
+            </button>
           </div>
         ) : (
-          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ borderBottom: "var(--border-width) solid var(--color-border)" }}>
-                  {["Book", "Borrower", "Due Date", tab === "overdue" ? "Days Overdue" : "Status", "Est. Fine", ""].map((h) => (
-                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loans.map((loan) => {
-                  const isOverdue = loan.status === "OVERDUE";
-                  return (
-                    <tr key={loan.id} style={{ borderBottom: "var(--border-width) solid var(--color-border)" }}>
-                      <td style={{ padding: "12px 14px" }}>
-                        <p style={{ fontSize: 14, fontWeight: 500, margin: 0 }}>{loan.book.title}</p>
-                        <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0 }}>{loan.book.author}</p>
-                      </td>
-                      <td style={{ padding: "12px 14px" }}>
-                        <p style={{ fontSize: 14, margin: 0 }}>{loan.borrowerName}</p>
-                        {loan.student && <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: 0, fontFamily: "monospace" }}>{loan.student.admissionNumber}</p>}
-                      </td>
-                      <td style={{ padding: "12px 14px", fontSize: 13, color: isOverdue ? "#991b1b" : "var(--color-text-secondary)", fontWeight: isOverdue ? 600 : 400 }}>
-                        {new Date(loan.dueDate).toLocaleDateString("en-NG")}
-                      </td>
-                      <td style={{ padding: "12px 14px" }}>
-                        {isOverdue ? (
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "#991b1b" }}>{loan.daysOverdue}d overdue</span>
-                        ) : (
-                          <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 999, backgroundColor: "#dcfce7", color: "#166534", fontWeight: 600 }}>Active</span>
-                        )}
-                      </td>
-                      <td style={{ padding: "12px 14px", fontSize: 13, fontWeight: loan.estimatedFine ? 600 : 400, color: loan.estimatedFine ? "#991b1b" : "var(--color-text-secondary)" }}>
-                        {loan.estimatedFine ? `₦${loan.estimatedFine.toLocaleString()}` : "—"}
-                      </td>
-                      <td style={{ padding: "12px 14px" }}>
-                        <button onClick={() => handleReturn(loan.id)} disabled={returning === loan.id}
-                          style={{ padding: "6px 14px", fontSize: 12, fontWeight: 500, backgroundColor: returning === loan.id ? "#6b7280" : "var(--color-ink)", color: "#fff", border: "none", borderRadius: "var(--radius-control)", cursor: returning === loan.id ? "not-allowed" : "pointer" }}>
-                          {returning === loan.id ? "…" : "Return"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="card empty-state">
+            <div
+              className="empty-state-icon"
+              style={{ display: "inline-flex", justifyContent: "center" }}
+            >
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <h3 className="empty-state-title">No overdue books</h3>
+            <p className="empty-state-text">
+              All borrowed books are within their lending period. No overdue fines to collect.
+            </p>
           </div>
         )
+      ) : (
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Book Title</th>
+                <th>Borrower</th>
+                <th>Issued</th>
+                <th>Due</th>
+                <th>Status</th>
+                {tab === "overdue" && <th>Fine</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {loans.map((loan) => {
+                const isOverdue = loan.status === "OVERDUE" || tab === "overdue";
+                const fine = loan.fineAmount ?? loan.estimatedFine ?? loan.fine ?? 0;
+
+                return (
+                  <tr key={loan.id}>
+                    <td>
+                      <div style={{ fontWeight: 600, color: "var(--color-ink)" }}>
+                        {loan.book?.title ?? "Untitled Book"}
+                      </div>
+                      {loan.book?.author && (
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "var(--color-text-secondary)",
+                            marginTop: 2,
+                          }}
+                        >
+                          {loan.book.author}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 500, color: "var(--color-ink)" }}>
+                        {getBorrowerName(loan)}
+                      </div>
+                      {loan.student?.admissionNumber && (
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "var(--color-text-secondary)",
+                            fontFamily: "monospace",
+                            marginTop: 2,
+                          }}
+                        >
+                          {loan.student.admissionNumber}
+                        </div>
+                      )}
+                    </td>
+                    <td
+                      style={{
+                        color: "var(--color-text-secondary)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatDate(loan.issueDate ?? loan.createdAt)}
+                    </td>
+                    <td
+                      style={{
+                        color: isOverdue
+                          ? "var(--color-danger-text)"
+                          : "var(--color-text-secondary)",
+                        fontWeight: isOverdue ? 600 : 400,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatDate(loan.dueDate)}
+                    </td>
+                    <td>
+                      {isOverdue ? (
+                        <span className="pill-danger">Overdue</span>
+                      ) : (
+                        <span className="pill-info">Active</span>
+                      )}
+                    </td>
+                    {tab === "overdue" && (
+                      <td
+                        style={{
+                          fontWeight: 600,
+                          color: "var(--color-danger-text)",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        ₦{fine.toLocaleString("en-NG")}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
-    </main>
+
+      {/* Issue Book Modal */}
+      {showIssueModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+            padding: 16,
+          }}
+          onClick={() => setShowIssueModal(false)}
+        >
+          <div
+            className="card"
+            style={{
+              width: "100%",
+              maxWidth: 480,
+              backgroundColor: "var(--color-surface)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 17,
+                  fontWeight: 600,
+                  color: "var(--color-ink)",
+                  margin: 0,
+                }}
+              >
+                Issue a book
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowIssueModal(false)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--color-text-secondary)",
+                  fontSize: 18,
+                  lineHeight: 1,
+                  padding: 4,
+                }}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
+
+            {issueError && (
+              <div
+                className="pill-danger"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  marginBottom: 16,
+                  padding: "8px 14px",
+                  borderRadius: "var(--radius-control)",
+                  fontSize: 13,
+                  width: "100%",
+                }}
+              >
+                {issueError}
+              </div>
+            )}
+
+            <form onSubmit={handleIssueSubmit}>
+              <div style={{ marginBottom: 14 }}>
+                <label className="label">Book</label>
+                {loadingBooks ? (
+                  <p style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
+                    Loading available books…
+                  </p>
+                ) : availableBooks.length > 0 ? (
+                  <select
+                    className="input"
+                    value={issueBookId}
+                    onChange={(e) => setIssueBookId(e.target.value)}
+                    required
+                  >
+                    <option value="">Select a book…</option>
+                    {availableBooks.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.title} {b.author ? `— ${b.author}` : ""} ({b.availableCopies} available)
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Enter book ID"
+                    value={issueBookId}
+                    onChange={(e) => setIssueBookId(e.target.value)}
+                    required
+                  />
+                )}
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label className="label">Borrower Name</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. Amina Bello"
+                  value={issueBorrowerName}
+                  onChange={(e) => setIssueBorrowerName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label className="label">Due Date</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={issueDueDate}
+                  onChange={(e) => setIssueDueDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label className="label">Notes (optional)</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Additional notes"
+                  value={issueNotes}
+                  onChange={(e) => setIssueNotes(e.target.value)}
+                />
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 10,
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowIssueModal(false)}
+                  disabled={submittingIssue}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={submittingIssue}
+                >
+                  {submittingIssue ? "Issuing…" : "Issue book"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

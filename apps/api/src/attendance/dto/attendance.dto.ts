@@ -31,7 +31,14 @@ export class BulkMarkAttendanceDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AttendanceEntryDto)
-  entries: AttendanceEntryDto[];
+  @IsOptional()
+  entries?: AttendanceEntryDto[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AttendanceEntryDto)
+  @IsOptional()
+  records?: AttendanceEntryDto[];
 }
 
 export class EditAttendanceDto {
