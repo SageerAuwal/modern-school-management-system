@@ -2,9 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import ProfileSwitcherTabs, { ProfileTabItem } from "../../components/ProfileSwitcherTabs";
-import MiniCalendarSchedule, { ScheduleEvent } from "../../components/MiniCalendarSchedule";
-import ActivityTimeline from "../../components/ActivityTimeline";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -29,9 +26,8 @@ interface StaffMember {
 export default function TeacherPortalPage() {
   const [classes, setClasses] = useState<ClassSection[]>([]);
   const [teachers, setTeachers] = useState<StaffMember[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState<"overview" | "activity">("overview");
 
   useEffect(() => {
     async function loadData() {
@@ -41,13 +37,13 @@ export default function TeacherPortalPage() {
           fetch(`${API}/api/v1/staff?all=true`, { credentials: "include" }).then((r) => r.json()),
         ]);
 
-        if (Array.isArray(clsRes)) {
-          setClasses(clsRes);
-          if (clsRes.length > 0) setSelectedClassId(clsRes[0].id);
-        }
+        if (Array.isArray(clsRes)) setClasses(clsRes);
         if (Array.isArray(stfRes)) {
           const teacherList = stfRes.filter((s: StaffMember) => s.role === "TEACHER" || s.role === "ADMIN");
           setTeachers(teacherList);
+          if (teacherList.length > 0) {
+            setSelectedTeacherId(teacherList[0].user?.id || teacherList[0].id);
+          }
         }
       } catch (err) {
         console.error("Failed to load teacher portal data", err);
@@ -58,338 +54,154 @@ export default function TeacherPortalPage() {
     loadData();
   }, []);
 
-  const activeClass = classes.find((c) => c.id === selectedClassId) || classes[0];
-
-  const classTabs: ProfileTabItem[] = classes.map((c) => ({
-    id: c.id,
-    label: c.name,
-    subtitle: `${c._count?.enrollments ?? 25} Students`,
-    badgeCount: c._count?.enrollments,
-  }));
-
-  const upcomingExamSchedule: ScheduleEvent[] = [
-    {
-      id: "ex-1",
-      title: "Mathematics Mid-Term Exam",
-      date: "14 February 2026",
-      category: "exam",
-      tag: "Hall A · Form 1",
-      daysRemaining: 5,
-      progressPercent: 70,
-      color: "#3b82f6",
-    },
-    {
-      id: "ex-2",
-      title: "English Essay & Grammar",
-      date: "22 February 2026",
-      category: "exam",
-      tag: "Hall B · All Arms",
-      daysRemaining: 12,
-      progressPercent: 40,
-      color: "#8b5cf6",
-    },
-    {
-      id: "ex-3",
-      title: "Basic Science Lab Practical",
-      date: "25 February 2026",
-      category: "class",
-      tag: "Science Lab",
-      daysRemaining: 15,
-      progressPercent: 25,
-      color: "#0d9488",
-    },
-  ];
+  const activeTeacher = teachers.find((t) => (t.user?.id || t.id) === selectedTeacherId) || teachers[0];
+  const myAssignedClasses = classes.filter((c) => c.teacherId === selectedTeacherId || !selectedTeacherId);
 
   return (
     <div className="page">
-      {/* 1. Top Class Switcher Tabs & View Switcher */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12,
-          marginBottom: 18,
-        }}
-      >
-        {classes.length > 0 && (
-          <ProfileSwitcherTabs
-            items={classTabs}
-            activeId={selectedClassId}
-            onSelect={(id) => setSelectedClassId(id)}
-            addTooltip="Manage classrooms"
-          />
-        )}
+      {/* Top Banner with Teacher Switcher for Offline Testing */}
+      <div className="card" style={{ marginBottom: 24, backgroundColor: "var(--color-surface)", borderLeft: "4px solid var(--color-ink)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Teacher Workspace
+            </span>
+            <h1 className="page-title" style={{ marginTop: 2, fontSize: 22 }}>
+              Welcome back, {activeTeacher ? `${activeTeacher.firstName} ${activeTeacher.lastName}` : "Instructor"}
+            </h1>
+            <p className="page-subtitle">Manage your assigned classroom rosters, daily roll call, and student scores.</p>
+          </div>
 
-        <div style={{ display: "inline-flex", gap: 6, marginLeft: "auto" }}>
-          <button
-            type="button"
-            onClick={() => setActiveView("overview")}
-            className={`btn ${activeView === "overview" ? "btn-primary" : "btn-secondary"}`}
-            style={{ padding: "6px 14px", fontSize: 12, borderRadius: 18 }}
-          >
-            Overview
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveView("activity")}
-            className={`btn ${activeView === "activity" ? "btn-primary" : "btn-secondary"}`}
-            style={{ padding: "6px 14px", fontSize: 12, borderRadius: 18 }}
-          >
-            Class Activity Calendar
-          </button>
+          {teachers.length > 1 && (
+            <div style={{ minWidth: 200 }}>
+              <label className="label" style={{ fontSize: 11 }}>Switch Active Teacher Profile</label>
+              <select
+                value={selectedTeacherId}
+                onChange={(e) => setSelectedTeacherId(e.target.value)}
+                className="input"
+                style={{ fontSize: 13 }}
+              >
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.user?.id || t.id}>
+                    {t.lastName}, {t.firstName} ({t.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
-      {loading ? (
-        <div className="skeleton" style={{ height: 240, borderRadius: 18 }} />
-      ) : activeView === "activity" ? (
-        /* Screen 1: Activity Timeline for Selected Classroom */
-        <ActivityTimeline studentName={activeClass ? `${activeClass.name} Activity Log` : "Class Activity"} />
-      ) : (
-        /* Screen 2: Modern Overview */
-        <>
-          {/* Greeting Header */}
-          <div style={{ marginBottom: 20 }}>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: "var(--color-ink)", margin: 0 }}>
-              Good Morning, Teacher 👋
-            </h1>
-            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 4 }}>
-              Managing <strong>{activeClass?.name || "Assigned Classes"}</strong>. Record daily attendance, grade continuous assessments, and review schedules.
-            </p>
+      {/* Quick Stats */}
+      <div className="stats-grid" style={{ marginBottom: 24 }}>
+        <div className="card">
+          <div className="stat-label">Assigned Classes</div>
+          <div className="stat-value">{myAssignedClasses.length}</div>
+          <div className="stat-sub">Form master</div>
+        </div>
+        <div className="card">
+          <div className="stat-label">Daily Attendance</div>
+          <div className="stat-value" style={{ fontSize: 18, color: "var(--color-success-text)" }}>
+            Ready to Mark
           </div>
+          <div className="stat-sub">Today's register</div>
+        </div>
+        <div className="card">
+          <div className="stat-label">Continuous Assessment</div>
+          <div className="stat-value">CA1 &amp; CA2</div>
+          <div className="stat-sub">Grading open</div>
+        </div>
+        <div className="card">
+          <div className="stat-label">Report Cards</div>
+          <div className="stat-value">Available</div>
+          <div className="stat-sub">Terminal scores</div>
+        </div>
+      </div>
 
-          {/* 3 Status Cards with Linear Progress Bars */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-              gap: 14,
-              marginBottom: 18,
-            }}
-          >
-            {/* Card 1: Attendance Ratio */}
-            <div className="card" style={{ backgroundColor: "#ffffff", padding: "18px 20px", borderRadius: 18 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#10b981" }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-ink)" }}>Daily Attendance</span>
-                </div>
-                <Link href="/attendance" style={{ fontSize: 11, color: "var(--color-text-secondary)", textDecoration: "none" }}>
-                  Roll call →
-                </Link>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Present Students</span>
-                <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-ink)" }}>21 / 25</span>
-              </div>
-              <div style={{ height: 6, borderRadius: 3, backgroundColor: "rgba(0,0,0,0.06)", overflow: "hidden" }}>
-                <div style={{ width: "84%", height: "100%", backgroundColor: "#10b981", borderRadius: 3 }} />
-              </div>
-            </div>
+      {/* Primary Action Section: My Classes */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>My Classes (Form Teacher)</h2>
+          <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+            {myAssignedClasses.length} active class sections
+          </span>
+        </div>
 
-            {/* Card 2: Upcoming Class */}
-            <div className="card" style={{ backgroundColor: "#ffffff", padding: "18px 20px", borderRadius: 18 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#8b5cf6" }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-ink)" }}>Upcoming Period</span>
-                </div>
-                <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
-                  {activeClass?.name || "Period 3"}
-                </span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Next Class</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: "var(--color-ink)" }}>Mathematics · 40 Min</span>
-              </div>
-              <div style={{ height: 6, borderRadius: 3, backgroundColor: "rgba(0,0,0,0.06)", overflow: "hidden" }}>
-                <div style={{ width: "65%", height: "100%", backgroundColor: "#8b5cf6", borderRadius: 3 }} />
-              </div>
-            </div>
-
-            {/* Card 3: Grading / Scores Progress */}
-            <div className="card" style={{ backgroundColor: "#ffffff", padding: "18px 20px", borderRadius: 18 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "#f59e0b" }} />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-ink)" }}>Assessment Scores</span>
-                </div>
-                <Link href="/grades" style={{ fontSize: 11, color: "var(--color-text-secondary)", textDecoration: "none" }}>
-                  Gradebook →
-                </Link>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>CA1 / CA2 Entered</span>
-                <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-ink)" }}>72% Recorded</span>
-              </div>
-              <div style={{ height: 6, borderRadius: 3, backgroundColor: "rgba(0,0,0,0.06)", overflow: "hidden" }}>
-                <div style={{ width: "72%", height: "100%", backgroundColor: "#f59e0b", borderRadius: 3 }} />
-              </div>
-            </div>
+        {loading ? (
+          <div className="skeleton" style={{ height: 140 }} />
+        ) : myAssignedClasses.length === 0 ? (
+          <div className="card empty-state">
+            <div className="empty-state-title">No class assigned yet</div>
+            <div className="empty-state-text">You have not been assigned as a class form teacher for this session.</div>
           </div>
-
-          {/* Quick Action Navigation Badges */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-              gap: 12,
-              marginBottom: 16,
-            }}
-          >
-            <Link
-              href="/attendance"
-              className="card"
-              style={{
-                backgroundColor: "#ffffff",
-                padding: "14px 18px",
-                borderRadius: 16,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                textDecoration: "none",
-                border: "1px solid rgba(0,0,0,0.05)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: "#dcfce7", color: "#15803d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>
-                  ✓
-                </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+            {myAssignedClasses.map((cls) => (
+              <div key={cls.id} className="card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-ink)" }}>Mark Roll Call</div>
-                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Attendance</div>
-                </div>
-              </div>
-              <span style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>›</span>
-            </Link>
-
-            <Link
-              href="/grades"
-              className="card"
-              style={{
-                backgroundColor: "#ffffff",
-                padding: "14px 18px",
-                borderRadius: 16,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                textDecoration: "none",
-                border: "1px solid rgba(0,0,0,0.05)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: "#ede9fe", color: "#6d28d9", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>
-                  📝
-                </div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-ink)" }}>Enter Scores</div>
-                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>CA1, CA2 &amp; Exam</div>
-                </div>
-              </div>
-              <span style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>›</span>
-            </Link>
-
-            <Link
-              href="/results"
-              className="card"
-              style={{
-                backgroundColor: "#ffffff",
-                padding: "14px 18px",
-                borderRadius: 16,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                textDecoration: "none",
-                border: "1px solid rgba(0,0,0,0.05)",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: "#fef3c7", color: "#b45309", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>
-                  📊
-                </div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-ink)" }}>Report Cards</div>
-                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Terminal Results</div>
-                </div>
-              </div>
-              <span style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>›</span>
-            </Link>
-
-            <button
-              type="button"
-              onClick={() => setActiveView("activity")}
-              className="card"
-              style={{
-                backgroundColor: "#ffffff",
-                padding: "14px 18px",
-                borderRadius: 16,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                cursor: "pointer",
-                border: "1px solid rgba(0,0,0,0.05)",
-                textAlign: "left",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: "#e0f2fe", color: "#0369a1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>
-                  📅
-                </div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-ink)" }}>Class Log</div>
-                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Activity Feed</div>
-                </div>
-              </div>
-              <span style={{ color: "var(--color-text-secondary)", fontSize: 14 }}>›</span>
-            </button>
-          </div>
-
-          {/* Assigned Classes Grid */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
-                Class Sections Overview
-              </h2>
-              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
-                {classes.length} active classes
-              </span>
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
-              {classes.map((cls) => (
-                <div key={cls.id} className="card" style={{ backgroundColor: "#ffffff", borderRadius: 18, padding: "16px 18px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                     <div>
-                      <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>{cls.name}</h3>
-                      <span className="pill-neutral" style={{ marginTop: 4, display: "inline-block" }}>Level: {cls.level}</span>
+                      <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{cls.name}</h3>
+                      <span className="pill-neutral" style={{ marginTop: 4 }}>Level: {cls.level}</span>
                     </div>
                     <span className="pill-success">
-                      {cls._count?.enrollments ?? 25} Students
+                      {cls._count?.enrollments ?? 0} Students
                     </span>
                   </div>
-
-                  <div style={{ display: "flex", gap: 8, marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(0,0,0,0.06)" }}>
-                    <Link href="/attendance" className="btn btn-primary" style={{ flex: 1, textAlign: "center", fontSize: 12, padding: "6px 8px" }}>
-                      Attendance
-                    </Link>
-                    <Link href="/grades" className="btn btn-secondary" style={{ flex: 1, textAlign: "center", fontSize: 12, padding: "6px 8px" }}>
-                      Scores
-                    </Link>
-                    <Link href="/results" className="btn btn-secondary" style={{ flex: 1, textAlign: "center", fontSize: 12, padding: "6px 8px" }}>
-                      Reports
-                    </Link>
-                  </div>
+                  <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 16 }}>
+                    Form Teacher: {cls.teacher ? `${cls.teacher.firstName} ${cls.teacher.lastName}` : "Self"}
+                  </p>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Schedule Calendar with Colored Dots + Exam Countdown Cards */}
-          <MiniCalendarSchedule events={upcomingExamSchedule} title="Examination Schedule & Venues" />
-        </>
-      )}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, borderTop: "1px solid var(--color-border)", paddingTop: 14 }}>
+                  <Link href={`/attendance`} className="btn btn-primary" style={{ flex: 1, textAlign: "center", fontSize: 12 }}>
+                    Mark Attendance
+                  </Link>
+                  <Link href={`/grades`} className="btn btn-secondary" style={{ flex: 1, textAlign: "center", fontSize: 12 }}>
+                    Enter Scores
+                  </Link>
+                  <Link href={`/results`} className="btn btn-secondary" style={{ flex: 1, textAlign: "center", fontSize: 12 }}>
+                    Report Cards
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Classroom Quick Shortcuts */}
+      <div className="card">
+        <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Daily Workflow Shortcuts</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+          <Link href="/attendance" style={{ textDecoration: "none" }}>
+            <div style={{ padding: 14, borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)", transition: "background-color 0.15s" }}>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Daily Roll Call</div>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0 }}>
+                Record student daily attendance with Present, Absent, Late, or Excused status.
+              </p>
+            </div>
+          </Link>
+
+          <Link href="/grades" style={{ textDecoration: "none" }}>
+            <div style={{ padding: 14, borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)", transition: "background-color 0.15s" }}>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Score Sheets</div>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0 }}>
+                Enter CA1, CA2, and terminal examination marks for your enrolled students.
+              </p>
+            </div>
+          </Link>
+
+          <Link href="/exams" style={{ textDecoration: "none" }}>
+            <div style={{ padding: 14, borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)", transition: "background-color 0.15s" }}>
+              <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Exam Timetable</div>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0 }}>
+                Check scheduled dates, times, and exam hall venues for upcoming exams.
+              </p>
+            </div>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

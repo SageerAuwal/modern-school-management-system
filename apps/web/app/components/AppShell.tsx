@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
-import SchoolCompanionDrawer from "./SchoolCompanionDrawer";
 
 // Pages that should NOT show the sidebar (auth pages)
 const AUTH_ROUTES = ["/login", "/set-password", "/mfa"];
@@ -30,7 +28,6 @@ const ROUTE_LABELS: Record<string, string> = {
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [isCompanionOpen, setIsCompanionOpen] = useState(false);
   const isAuthPage = AUTH_ROUTES.some((r) => pathname.startsWith(r));
 
   if (isAuthPage) {
@@ -69,36 +66,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
 
-          {/* Right Header Controls & Status */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {/* Quick Companion Drawer Trigger */}
-            <button
-              type="button"
-              onClick={() => setIsCompanionOpen(true)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "5px 12px",
-                borderRadius: 18,
-                border: "1px solid var(--color-border)",
-                backgroundColor: "var(--color-page)",
-                color: "var(--color-ink)",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-              title="Open School Companion & Quick Help"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
-              <span>Assistant</span>
-            </button>
-
+          {/* Right Header Status & User */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div
               style={{
                 display: "inline-flex",
@@ -121,20 +90,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   display: "inline-block",
                 }}
               />
-              Live System
+              Offline Mode
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ textAlign: "right" }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: "var(--color-ink)", margin: 0, lineHeight: 1.2 }}>
-                  Admin / Staff
+                  System Admin
                 </p>
                 <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: 0 }}>
-                  School Management
+                  admin@school.local
                 </p>
               </div>
               <div className="avatar" style={{ width: 32, height: 32, fontSize: 11 }}>
-                SM
+                SA
               </div>
             </div>
           </div>
@@ -144,12 +113,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div style={{ flex: 1, overflowY: "auto" }}>
           {children}
         </div>
-
-        {/* Collapsible School Companion Drawer */}
-        <SchoolCompanionDrawer
-          isOpen={isCompanionOpen}
-          onClose={() => setIsCompanionOpen(false)}
-        />
       </div>
     </div>
   );
