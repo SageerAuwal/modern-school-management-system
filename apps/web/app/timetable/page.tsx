@@ -385,7 +385,7 @@ export default function TimetablePage() {
         return;
       }
 
-      setGenSuccessMsg(`✅ Timetable generated: ${data.stats?.lessonsCreated || 0} conflict-free lessons scheduled across ${data.stats?.classesCount || 0} classes!`);
+      setGenSuccessMsg(`Timetable generated: ${data.stats?.lessonsCreated || 0} conflict-free lessons scheduled across ${data.stats?.classesCount || 0} classes!`);
       setTimeout(() => {
         setIsGenModalOpen(false);
         loadData();
@@ -705,7 +705,7 @@ export default function TimetablePage() {
                       fontWeight: 700,
                     }}
                   >
-                    ✕
+                    
                   </button>
                 )}
 
@@ -726,7 +726,7 @@ export default function TimetablePage() {
                     fontSize: 14,
                   }}
                 >
-                  ✓
+                  
                 </button>
               </div>
             </div>
@@ -813,7 +813,7 @@ export default function TimetablePage() {
               Exam & Term Timetable
             </span>
             <span style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>
-              ➔
+              
             </span>
           </Link>
         </div>
@@ -1016,7 +1016,7 @@ export default function TimetablePage() {
           {/* Empty State when no Timetable exists */}
           {!loading && !timetable && (
             <div className="card empty-state" style={{ padding: 48, borderRadius: 24, textAlign: "center" }}>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>📅</div>
+              
               <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 6px" }}>No Timetable Active</h2>
               <p style={{ color: "var(--color-text-secondary)", maxWidth: 460, margin: "0 auto 20px" }}>
                 Generate an automated conflict-free academic routine across all classes and subjects with one click.
@@ -1026,7 +1026,7 @@ export default function TimetablePage() {
                 className="btn btn-primary"
                 onClick={() => setIsGenModalOpen(true)}
               >
-                ⚡ Auto-Generate Timetable Now
+                Auto-Generate Timetable Now
               </button>
             </div>
           )}
@@ -1120,7 +1120,7 @@ export default function TimetablePage() {
                           border: "1px dashed #FDE68A",
                         }}
                       >
-                        ☕ RECESS / MID-DAY BREAK ({timetable.breakDuration || 30} MINS)
+                        RECESS / MID-DAY BREAK ({timetable.breakDuration || 30} MINS)
                       </div>
                     </div>
                   );
@@ -1329,7 +1329,7 @@ export default function TimetablePage() {
                           fontWeight: 700,
                         }}
                       >
-                        ☕ RECESS BREAK
+                        RECESS BREAK
                       </div>
                     );
                   }
@@ -1388,7 +1388,7 @@ export default function TimetablePage() {
                               Class: {lesson.classSection.name}
                             </div>
                             {lesson.room && (
-                              <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>📍 {lesson.room}</div>
+                              <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>Venue: {lesson.room}</div>
                             )}
                           </div>
                         );
@@ -1513,7 +1513,7 @@ export default function TimetablePage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--color-ink)", margin: "0 0 4px" }}>
-                  ⚡ Auto-Generate Timetable
+                  Auto-Generate Timetable
                 </h2>
                 <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
                   Produces conflict-free schedules across all classes and subjects.
@@ -1524,7 +1524,7 @@ export default function TimetablePage() {
                 onClick={() => !generating && setIsGenModalOpen(false)}
                 style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--color-text-secondary)" }}
               >
-                ✕
+                
               </button>
             </div>
 
@@ -1709,7 +1709,7 @@ export default function TimetablePage() {
                 onClick={() => !savingLesson && setEditingLesson(null)}
                 style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18 }}
               >
-                ✕
+                
               </button>
             </div>
 

@@ -323,7 +323,7 @@ export default function ExamsPage() {
     try {
       localStorage.setItem("sms_exam_timetable", JSON.stringify(sessionList));
     } catch {}
-    setSuccess(`⚡ Conflict-free exam timetable generated: ${sessionList.length} papers scheduled across ${dates.length} exam days.`);
+    setSuccess(` Conflict-free exam timetable generated: ${sessionList.length} papers scheduled across ${dates.length} exam days.`);
   }
 
   function handleDeleteExam(id: string) {
@@ -405,7 +405,7 @@ export default function ExamsPage() {
               <line x1="8" y1="2" x2="8" y2="6" />
               <line x1="3" y1="10" x2="21" y2="10" />
             </svg>
-            Class Routine Timetable ➔
+            Class Routine Timetable 
           </Link>
 
           {activeTab === "terms" && (
@@ -426,7 +426,7 @@ export default function ExamsPage() {
                 onClick={() => window.print()}
                 title="Print Official Examination Docket"
               >
-                🖨️ Print Exam Docket
+                ️ Print Exam Docket
               </button>
               <button
                 type="button"
@@ -459,7 +459,7 @@ export default function ExamsPage() {
         >
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-danger-text)" }}>
-              ⚠️ Session Timed Out / Authentication Required
+              ️ Session Timed Out / Authentication Required
             </div>
             <div style={{ fontSize: 12, color: "var(--color-danger-text)", marginTop: 2 }}>
               Your login token has expired or is inactive. Sign back in to perform administrative updates.
@@ -542,7 +542,7 @@ export default function ExamsPage() {
             transition: "all 0.15s",
           }}
         >
-          📅 Academic Terms &amp; Sessions
+           Academic Terms &amp; Sessions
         </button>
         <button
           type="button"
@@ -562,7 +562,7 @@ export default function ExamsPage() {
             transition: "all 0.15s",
           }}
         >
-          📊 Grading Scale &amp; Assessment
+           Grading Scale &amp; Assessment
         </button>
         <button
           type="button"
@@ -582,7 +582,7 @@ export default function ExamsPage() {
             transition: "all 0.15s",
           }}
         >
-          📋 Examination Timetable &amp; Halls
+           Examination Timetable &amp; Halls
         </button>
       </div>
 
@@ -614,7 +614,7 @@ export default function ExamsPage() {
             </div>
           ) : terms.length === 0 ? (
             <div className="empty-state" style={{ padding: 48 }}>
-              <div className="empty-state-icon" style={{ fontSize: 40 }}>📅</div>
+              <div className="empty-state-icon" style={{ fontSize: 40 }}></div>
               <div className="empty-state-title" style={{ fontSize: 16 }}>No academic terms found</div>
               <div className="empty-state-text" style={{ maxWidth: 400, margin: "0 auto 16px" }}>
                 Establish your school academic sessions and term calendar to start recording attendance and grades.
@@ -739,7 +739,7 @@ export default function ExamsPage() {
             {/* Simulator Card */}
             <div className="card">
               <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-                🧮 Live Grade Evaluation Simulator
+                 Live Grade Evaluation Simulator
               </h3>
               <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 14 }}>
                 Simulate candidate scores to preview computed total, WAEC letter grade, GPA weight, and teacher remark.
@@ -804,7 +804,7 @@ export default function ExamsPage() {
             {/* Academic Honors Card */}
             <div className="card">
               <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-                🏅 Academic Honors &amp; Distinction Thresholds
+                 Academic Honors &amp; Distinction Thresholds
               </h3>
               <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 14 }}>
                 Official criteria for termly academic honor roll and graduation citations.
@@ -813,7 +813,7 @@ export default function ExamsPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#FEF3C7", border: "1px solid #FDE68A" }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#92400E" }}>🥇 Principal's First-Class Honors</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#92400E" }}> Principal's First-Class Honors</div>
                     <div style={{ fontSize: 11, color: "#B45309" }}>Overall average of 85.0% and above across all subjects</div>
                   </div>
                   <span className="pill-warning" style={{ fontWeight: 800 }}>&ge; 85%</span>
@@ -821,7 +821,7 @@ export default function ExamsPage() {
 
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#EFF6FF", border: "1px solid #BFDBFE" }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#1E40AF" }}>🥈 Academic Merit Roll</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#1E40AF" }}> Academic Merit Roll</div>
                     <div style={{ fontSize: 11, color: "#2563EB" }}>Overall average between 75.0% and 84.9%</div>
                   </div>
                   <span className="pill-info" style={{ fontWeight: 800 }}>75% - 84%</span>
@@ -829,7 +829,7 @@ export default function ExamsPage() {
 
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "var(--color-page)", border: "1px solid var(--color-border)" }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-ink)" }}>📘 Academic Good Standing</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-ink)" }}> Academic Good Standing</div>
                     <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Pass criteria met without deficiency</div>
                   </div>
                   <span className="pill-neutral" style={{ fontWeight: 700 }}>50% - 74%</span>
@@ -837,7 +837,7 @@ export default function ExamsPage() {
 
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#FEF2F2", border: "1px solid #FECACA" }}>
                   <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B" }}>⚠️ Academic Watch / Remedial</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B" }}>️ Academic Watch / Remedial</div>
                     <div style={{ fontSize: 11, color: "#B91C1C" }}>Below passing threshold; parent counseling triggered</div>
                   </div>
                   <span className="pill-danger" style={{ fontWeight: 800 }}>&lt; 40%</span>
@@ -982,7 +982,7 @@ export default function ExamsPage() {
                 onClick={handleAutoGenerateExamSchedule}
                 title="Automatically schedule exam papers across 2 exam weeks"
               >
-                ⚡ Auto-Schedule Exam Timetable
+                 Auto-Schedule Exam Timetable
               </button>
               <button
                 type="button"
@@ -1033,13 +1033,13 @@ export default function ExamsPage() {
                 onClick={() => window.print()}
                 style={{ padding: "5px 12px", fontSize: 12 }}
               >
-                🖨️ Print Docket
+                ️ Print Docket
               </button>
             </div>
 
             {filteredExams.length === 0 ? (
               <div className="empty-state" style={{ padding: 48 }}>
-                <div className="empty-state-icon" style={{ fontSize: 36 }}>📋</div>
+                <div className="empty-state-icon" style={{ fontSize: 36 }}></div>
                 <div className="empty-state-title">No examination papers scheduled for this level</div>
                 <div className="empty-state-text">Use Auto-Schedule or add individual subject papers.</div>
                 <button
@@ -1047,7 +1047,7 @@ export default function ExamsPage() {
                   onClick={handleAutoGenerateExamSchedule}
                   className="btn btn-primary"
                 >
-                  ⚡ Auto-Schedule All Exams Now
+                   Auto-Schedule All Exams Now
                 </button>
               </div>
             ) : (
@@ -1089,7 +1089,7 @@ export default function ExamsPage() {
                         </td>
                         <td style={{ fontWeight: 600 }}>{ex.time}</td>
                         <td>
-                          <div style={{ fontWeight: 600 }}>📍 {ex.hall}</div>
+                          <div style={{ fontWeight: 600 }}> {ex.hall}</div>
                           {ex.capacity && (
                             <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
                               Cap: {ex.capacity} seats
@@ -1112,7 +1112,7 @@ export default function ExamsPage() {
                             style={{ padding: "4px 8px", fontSize: 11 }}
                             title="Remove paper from schedule"
                           >
-                            ✕
+                            
                           </button>
                         </td>
                       </tr>
@@ -1194,7 +1194,7 @@ export default function ExamsPage() {
                 onClick={() => setShowTermModal(false)}
                 style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18 }}
               >
-                ✕
+                
               </button>
             </div>
 
@@ -1296,7 +1296,7 @@ export default function ExamsPage() {
                 onClick={() => setShowExamModal(false)}
                 style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18 }}
               >
-                ✕
+                
               </button>
             </div>
 
