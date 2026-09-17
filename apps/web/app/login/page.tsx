@@ -13,10 +13,7 @@ interface RoleConfig {
   description: string;
   identifierLabel: string;
   identifierPlaceholder: string;
-  defaultEmail: string;
-  defaultPass: string;
   ctaText: string;
-  quickFill: Array<{ label: string; email: string; pass: string }>;
 }
 
 const ROLE_CONFIGS: Record<RoleType, RoleConfig> = {
@@ -26,12 +23,7 @@ const ROLE_CONFIGS: Record<RoleType, RoleConfig> = {
     description: "Manage school infrastructure, staff, academic sessions, and finance.",
     identifierLabel: "Admin Email",
     identifierPlaceholder: "admin@school.local",
-    defaultEmail: "admin@school.local",
-    defaultPass: "Admin@1234",
     ctaText: "Sign in to Admin Dashboard",
-    quickFill: [
-      { label: "System Administrator", email: "admin@school.local", pass: "Admin@1234" },
-    ],
   },
   teacher: {
     label: "Teacher / Staff",
@@ -39,14 +31,7 @@ const ROLE_CONFIGS: Record<RoleType, RoleConfig> = {
     description: "Access classroom rosters, mark daily roll call, and submit student scores.",
     identifierLabel: "Staff Email",
     identifierPlaceholder: "teacher@school.local",
-    defaultEmail: "ibrahim.sani@school.local",
-    defaultPass: "Teacher@1234",
     ctaText: "Sign in to Teacher Workspace",
-    quickFill: [
-      { label: "Malam Ibrahim (Maths)", email: "ibrahim.sani@school.local", pass: "Teacher@1234" },
-      { label: "Mrs. Fatima (English)", email: "fatima.bello@school.local", pass: "Teacher@1234" },
-      { label: "Mr. Emmanuel (Science)", email: "emmanuel.okon@school.local", pass: "Teacher@1234" },
-    ],
   },
   parent: {
     label: "Parent / Guardian",
@@ -54,14 +39,7 @@ const ROLE_CONFIGS: Record<RoleType, RoleConfig> = {
     description: "Inspect terminal report cards, pay school fee invoices, and track attendance.",
     identifierLabel: "Parent Email or Phone",
     identifierPlaceholder: "parent@school.local",
-    defaultEmail: "parent.sageer@school.local",
-    defaultPass: "Parent@1234",
     ctaText: "Sign in to Parent Portal",
-    quickFill: [
-      { label: "Alh. Sageer Auwal (Father)", email: "parent.sageer@school.local", pass: "Parent@1234" },
-      { label: "Dr. Ibrahim Garba (Father)", email: "parent.ibrahim@school.local", pass: "Parent@1234" },
-      { label: "Mrs. Blessing Okoro (Mother)", email: "parent.blessing@school.local", pass: "Parent@1234" },
-    ],
   },
   student: {
     label: "Student",
@@ -69,14 +47,7 @@ const ROLE_CONFIGS: Record<RoleType, RoleConfig> = {
     description: "Inspect terminal examination results, active book loans, and bus schedules.",
     identifierLabel: "Student Email or Admission No",
     identifierPlaceholder: "SMS/2025/001 or student@school.local",
-    defaultEmail: "student.amina@school.local",
-    defaultPass: "Student@1234",
     ctaText: "Sign in to Student Portal",
-    quickFill: [
-      { label: "Amina Sageer (SMS/2025/001)", email: "student.amina@school.local", pass: "Student@1234" },
-      { label: "Zainab Ibrahim (SMS/2025/002)", email: "student.zainab@school.local", pass: "Student@1234" },
-      { label: "David Okoro (SMS/2025/003)", email: "student.david@school.local", pass: "Student@1234" },
-    ],
   },
 };
 
@@ -91,8 +62,8 @@ const ADMISSION_MAP: Record<string, string> = {
 export default function LoginPage() {
   const router = useRouter();
   const [selectedRole, setSelectedRole] = useState<RoleType>("admin");
-  const [identifier, setIdentifier] = useState(ROLE_CONFIGS.admin.defaultEmail);
-  const [password, setPassword] = useState(ROLE_CONFIGS.admin.defaultPass);
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -101,14 +72,8 @@ export default function LoginPage() {
   function handleRoleChange(role: RoleType) {
     setSelectedRole(role);
     setError("");
-    setIdentifier(ROLE_CONFIGS[role].defaultEmail);
-    setPassword(ROLE_CONFIGS[role].defaultPass);
-  }
-
-  function handleQuickFill(email: string, pass: string) {
-    setError("");
-    setIdentifier(email);
-    setPassword(pass);
+    setIdentifier("");
+    setPassword("");
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -116,7 +81,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    // If admission number was entered in student tab, map it to the student's email
+    // If admission number was entered in student tab, map to student email
     let resolvedEmail = identifier.trim();
     const cleanLower = resolvedEmail.toLowerCase();
     if (ADMISSION_MAP[cleanLower]) {
@@ -314,42 +279,6 @@ export default function LoginPage() {
             {loading ? "Authenticating..." : currentConfig.ctaText}
           </button>
         </form>
-
-        {/* 1-Click Quick Demo Switcher */}
-        <div style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid var(--color-border)" }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
-            Quick Demo Fill ({currentConfig.label}):
-          </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {currentConfig.quickFill.map((q) => (
-              <button
-                key={q.email}
-                type="button"
-                onClick={() => handleQuickFill(q.email, q.pass)}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 11,
-                  fontWeight: 500,
-                  backgroundColor: "var(--color-surface)",
-                  border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-pill-badge)",
-                  color: "var(--color-ink)",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--color-ink)";
-                  e.currentTarget.style.color = "#ffffff";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--color-surface)";
-                  e.currentTarget.style.color = "var(--color-ink)";
-                }}
-              >
-                {q.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Right Column: Decorative Brand Showcase */}
