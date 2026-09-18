@@ -434,95 +434,110 @@ async function main() {
   });
 
   // Invoice 1: Amina Sageer (PAID in full)
-  const invAmina = await prisma.invoice.create({
-    data: {
-      schoolId: school.id,
-      studentId: students[0].id,
-      termId: term1.id,
-      academicYear: '2025/2026',
-      totalAmount: 80000,
-      paidAmount: 80000,
-      status: 'PAID',
-      dueDate: new Date('2025-10-31'),
-      createdById: admin.id,
-      items: {
-        create: [
-          { feeStructureId: fee1.id, name: 'Tuition', amount: 65000 },
-          { feeStructureId: fee2.id, name: 'Development Levy', amount: 15000 },
-        ],
+  let invAmina = await prisma.invoice.findFirst({
+    where: { schoolId: school.id, studentId: students[0].id, termId: term1.id },
+  });
+  if (!invAmina) {
+    invAmina = await prisma.invoice.create({
+      data: {
+        schoolId: school.id,
+        studentId: students[0].id,
+        termId: term1.id,
+        academicYear: '2025/2026',
+        totalAmount: 80000,
+        paidAmount: 80000,
+        status: 'PAID',
+        dueDate: new Date('2025-10-31'),
+        createdById: admin.id,
+        items: {
+          create: [
+            { feeStructureId: fee1.id, name: 'Tuition', amount: 65000 },
+            { feeStructureId: fee2.id, name: 'Development Levy', amount: 15000 },
+          ],
+        },
       },
-    },
-  });
+    });
 
-  await prisma.payment.create({
-    data: {
-      schoolId: school.id,
-      invoiceId: invAmina.id,
-      amount: 80000,
-      method: 'CASH',
-      status: 'SUCCESS',
-      reference: `PAY-REC-001-${Date.now()}`,
-      paidAt: new Date('2025-09-15'),
-      recordedById: admin.id,
-      notes: 'Paid in full at bursar desk',
-    },
-  });
+    await prisma.payment.create({
+      data: {
+        schoolId: school.id,
+        invoiceId: invAmina.id,
+        amount: 80000,
+        method: 'CASH',
+        status: 'SUCCESS',
+        reference: `PAY-REC-001-${Date.now()}`,
+        paidAt: new Date('2025-09-15'),
+        recordedById: admin.id,
+        notes: 'Paid in full at bursar desk',
+      },
+    });
+  }
 
   // Invoice 2: Zainab Ibrahim (PARTIAL: 50,000 of 80,000 paid)
-  const invZainab = await prisma.invoice.create({
-    data: {
-      schoolId: school.id,
-      studentId: students[1].id,
-      termId: term1.id,
-      academicYear: '2025/2026',
-      totalAmount: 80000,
-      paidAmount: 50000,
-      status: 'PARTIAL',
-      dueDate: new Date('2025-10-31'),
-      createdById: admin.id,
-      items: {
-        create: [
-          { feeStructureId: fee1.id, name: 'Tuition', amount: 65000 },
-          { feeStructureId: fee2.id, name: 'Development Levy', amount: 15000 },
-        ],
+  let invZainab = await prisma.invoice.findFirst({
+    where: { schoolId: school.id, studentId: students[1].id, termId: term1.id },
+  });
+  if (!invZainab) {
+    invZainab = await prisma.invoice.create({
+      data: {
+        schoolId: school.id,
+        studentId: students[1].id,
+        termId: term1.id,
+        academicYear: '2025/2026',
+        totalAmount: 80000,
+        paidAmount: 50000,
+        status: 'PARTIAL',
+        dueDate: new Date('2025-10-31'),
+        createdById: admin.id,
+        items: {
+          create: [
+            { feeStructureId: fee1.id, name: 'Tuition', amount: 65000 },
+            { feeStructureId: fee2.id, name: 'Development Levy', amount: 15000 },
+          ],
+        },
       },
-    },
-  });
+    });
 
-  await prisma.payment.create({
-    data: {
-      schoolId: school.id,
-      invoiceId: invZainab.id,
-      amount: 50000,
-      method: 'BANK_DEPOSIT',
-      status: 'SUCCESS',
-      reference: `PAY-REC-002-${Date.now()}`,
-      paidAt: new Date('2025-09-20'),
-      recordedById: admin.id,
-      notes: 'First installment paid via bank teller',
-    },
-  });
+    await prisma.payment.create({
+      data: {
+        schoolId: school.id,
+        invoiceId: invZainab.id,
+        amount: 50000,
+        method: 'BANK_DEPOSIT',
+        status: 'SUCCESS',
+        reference: `PAY-REC-002-${Date.now()}`,
+        paidAt: new Date('2025-09-20'),
+        recordedById: admin.id,
+        notes: 'First installment paid via bank teller',
+      },
+    });
+  }
 
   // Invoice 3: David Okoro (UNPAID: 80,000 outstanding)
-  await prisma.invoice.create({
-    data: {
-      schoolId: school.id,
-      studentId: students[2].id,
-      termId: term1.id,
-      academicYear: '2025/2026',
-      totalAmount: 80000,
-      paidAmount: 0,
-      status: 'UNPAID',
-      dueDate: new Date('2025-10-31'),
-      createdById: admin.id,
-      items: {
-        create: [
-          { feeStructureId: fee1.id, name: 'Tuition', amount: 65000 },
-          { feeStructureId: fee2.id, name: 'Development Levy', amount: 15000 },
-        ],
-      },
-    },
+  const existingDavidInv = await prisma.invoice.findFirst({
+    where: { schoolId: school.id, studentId: students[2].id, termId: term1.id },
   });
+  if (!existingDavidInv) {
+    await prisma.invoice.create({
+      data: {
+        schoolId: school.id,
+        studentId: students[2].id,
+        termId: term1.id,
+        academicYear: '2025/2026',
+        totalAmount: 80000,
+        paidAmount: 0,
+        status: 'UNPAID',
+        dueDate: new Date('2025-10-31'),
+        createdById: admin.id,
+        items: {
+          create: [
+            { feeStructureId: fee1.id, name: 'Tuition', amount: 65000 },
+            { feeStructureId: fee2.id, name: 'Development Levy', amount: 15000 },
+          ],
+        },
+      },
+    });
+  }
   console.log('✅ Fee structures and sample Paid, Partial, and Unpaid invoices recorded');
 
   // ── 10. Library Catalog & Book Loans ─────────────────────────────────────

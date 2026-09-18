@@ -56,6 +56,21 @@ export class InvoicesService {
     const student = await this.prisma.student.findFirst({ where: { id: dto.studentId, schoolId } });
     if (!student) throw new NotFoundException('Student not found');
 
+    if (dto.termId) {
+      const existing = await this.prisma.invoice.findFirst({
+        where: {
+          schoolId,
+          studentId: dto.studentId,
+          termId: dto.termId,
+          academicYear: dto.academicYear,
+          status: { notIn: [InvoiceStatus.CANCELLED] },
+        },
+      });
+      if (existing) {
+        throw new BadRequestException('An active invoice already exists for this student for the selected term');
+      }
+    }
+
     const totalAmount = dto.items.reduce((sum, i) => sum + i.amount, 0);
 
     const invoice = await this.prisma.invoice.create({
@@ -101,10 +116,29 @@ export class InvoicesService {
     });
     if (enrollments.length === 0) throw new BadRequestException('No active students in this class');
 
+    let targetEnrollments = enrollments;
+    if (dto.termId) {
+      const existingInvoices = await this.prisma.invoice.findMany({
+        where: {
+          schoolId,
+          studentId: { in: enrollments.map((e) => e.studentId) },
+          termId: dto.termId,
+          academicYear: dto.academicYear,
+          status: { notIn: [InvoiceStatus.CANCELLED] },
+        },
+        select: { studentId: true },
+      });
+      const existingSet = new Set(existingInvoices.map((i) => i.studentId));
+      targetEnrollments = enrollments.filter((e) => !existingSet.has(e.studentId));
+      if (targetEnrollments.length === 0) {
+        throw new BadRequestException('All students in this class already have invoices for the selected term');
+      }
+    }
+
     const totalAmount = dto.items.reduce((sum, i) => sum + i.amount, 0);
 
     const created = await Promise.all(
-      enrollments.map((e) =>
+      targetEnrollments.map((e) =>
         this.prisma.invoice.create({
           data: {
             schoolId,
