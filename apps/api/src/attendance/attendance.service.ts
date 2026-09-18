@@ -153,6 +153,10 @@ export class AttendanceService {
     const roster = enrollments.map((e) => {
       const record = recordMap.get(e.student.id);
       return {
+        id: e.student.id,
+        firstName: e.student.firstName,
+        lastName: e.student.lastName,
+        admissionNumber: e.student.admissionNumber,
         student: e.student,
         status: record?.status ?? null,  // null = not yet marked
         note: record?.note ?? null,

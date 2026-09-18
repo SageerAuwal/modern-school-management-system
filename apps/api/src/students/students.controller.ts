@@ -107,4 +107,15 @@ export class StudentsController {
   ) {
     return this.studentsService.unlinkGuardian(studentId, actor.schoolId, guardianId, actor.id, actor.email);
   }
+
+  /** POST /api/v1/students/:id/reset-password — reset portal password */
+  @Post(':id/reset-password')
+  @Roles(UserRole.ADMIN)
+  resetPassword(
+    @Param('id') id: string,
+    @Body('newPassword') newPassword: string,
+    @CurrentUser() actor: { id: string; email: string; schoolId: string },
+  ) {
+    return this.studentsService.resetPortalPassword(id, actor.schoolId, newPassword, actor.id, actor.email);
+  }
 }

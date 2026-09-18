@@ -81,5 +81,16 @@ export class CreateStudentDto {
   @IsString()
   @IsOptional()
   classSectionId?: string;
+
+  @IsOptional()
+  createPortalAccount?: boolean;
+
+  @IsString()
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  password?: string;
 }
 

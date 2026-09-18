@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, FormEvent } from "react";
+import Link from "next/link";
 import PhotoCaptureInput from "../components/PhotoCaptureInput";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
@@ -47,12 +48,25 @@ export default function StaffPage() {
   const [addFormData, setAddFormData] = useState({
     firstName: "",
     lastName: "",
-    role: "",
+    role: "Teacher",
     phone: "",
     gender: "",
     photoUrl: "",
     notes: "",
+    createPortalAccount: true,
+    email: "",
+    password: "",
+    portalRole: "TEACHER",
   });
+
+  // Created Credentials Modal State
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    name: string;
+    email: string;
+    password: string;
+    role: string;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Edit Staff Modal State
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
@@ -101,6 +115,23 @@ export default function StaffPage() {
     fetchStaff();
   }, []);
 
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
+    let pwd = "";
+    for (let i = 0; i < 10; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setAddFormData((prev) => ({ ...prev, password: pwd }));
+  };
+
+  const handleCopyCredentials = () => {
+    if (!createdCredentials) return;
+    const text = `Modern School Portal Login Credentials\nPortal URL: ${window.location.origin}/login\nRole: ${createdCredentials.role}\nEmail: ${createdCredentials.email}\nTemporary Password: ${createdCredentials.password}`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+  };
+
   const handleAddStaff = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!isAdmin) return;
@@ -111,9 +142,20 @@ export default function StaffPage() {
       return;
     }
 
+    if (addFormData.createPortalAccount) {
+      if (!addFormData.email.trim()) {
+        setAddFormError("Login email is required to create a portal account.");
+        return;
+      }
+      if (!addFormData.password || addFormData.password.length < 6) {
+        setAddFormError("Password must be at least 6 characters.");
+        return;
+      }
+    }
+
     setSubmittingAdd(true);
     try {
-      const payload: Record<string, string> = {
+      const payload: Record<string, any> = {
         firstName: addFormData.firstName.trim(),
         lastName: addFormData.lastName.trim(),
         role: addFormData.role.trim(),
@@ -122,6 +164,13 @@ export default function StaffPage() {
       if (addFormData.gender.trim()) payload.gender = addFormData.gender.trim();
       if (addFormData.photoUrl) payload.photoUrl = addFormData.photoUrl;
       if (addFormData.notes.trim()) payload.notes = addFormData.notes.trim();
+
+      if (addFormData.createPortalAccount) {
+        payload.createPortalAccount = true;
+        payload.email = addFormData.email.trim();
+        payload.password = addFormData.password;
+        payload.portalRole = addFormData.portalRole;
+      }
 
       const res = await fetch(`${API}/api/v1/staff`, {
         method: "POST",
@@ -137,14 +186,28 @@ export default function StaffPage() {
 
       await fetchStaff();
       setActionSuccess(`Staff member ${payload.firstName} ${payload.lastName} registered successfully.`);
+
+      if (data.user && addFormData.password) {
+        setCreatedCredentials({
+          name: `${payload.firstName} ${payload.lastName}`,
+          email: addFormData.email.trim(),
+          password: addFormData.password,
+          role: data.user.role || addFormData.portalRole,
+        });
+      }
+
       setAddFormData({
         firstName: "",
         lastName: "",
-        role: "",
+        role: "Teacher",
         phone: "",
         gender: "",
         photoUrl: "",
         notes: "",
+        createPortalAccount: true,
+        email: "",
+        password: "",
+        portalRole: "TEACHER",
       });
       setIsAddModalOpen(false);
     } catch (err: unknown) {
@@ -620,15 +683,17 @@ export default function StaffPage() {
 
                         {/* Name */}
                         <td>
-                          <div
+                          <Link
+                            href={`/staff/${member.id}`}
                             style={{
                               fontWeight: 600,
-                              color: "var(--color-ink)",
+                              color: "var(--color-primary, #0E7D75)",
                               fontSize: 14,
+                              textDecoration: "none",
                             }}
                           >
                             {member.firstName} {member.lastName}
-                          </div>
+                          </Link>
                         </td>
 
                         {/* Role / Designation */}
@@ -690,6 +755,13 @@ export default function StaffPage() {
                         {isAdmin && (
                           <td style={{ textAlign: "right" }}>
                             <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                              <Link
+                                href={`/staff/${member.id}`}
+                                className="btn btn-secondary"
+                                style={{ padding: "4px 10px", fontSize: 12, textDecoration: "none" }}
+                              >
+                                View
+                              </Link>
                               <button
                                 type="button"
                                 onClick={() => openEditModal(member)}
@@ -996,6 +1068,135 @@ export default function StaffPage() {
                   }
                   placeholder="Additional remarks"
                 />
+              </div>
+
+              {/* Portal Login Account Section */}
+              <div
+                style={{
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-control)",
+                  padding: "14px 16px",
+                  backgroundColor: "var(--color-surface-sunken, #F8FAFC)",
+                  marginBottom: 20,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: addFormData.createPortalAccount ? 14 : 0,
+                  }}
+                >
+                  <div>
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        fontSize: 13,
+                        color: "var(--color-ink)",
+                        display: "block",
+                      }}
+                    >
+                      Create Portal Login Account
+                    </span>
+                    <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                      Allow this staff member to sign in to their dashboard
+                    </span>
+                  </div>
+                  <label style={{ display: "inline-flex", alignItems: "center", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={addFormData.createPortalAccount}
+                      onChange={(e) =>
+                        setAddFormData((prev) => ({ ...prev, createPortalAccount: e.target.checked }))
+                      }
+                      style={{ width: 16, height: 16, cursor: "pointer" }}
+                    />
+                  </label>
+                </div>
+
+                {addFormData.createPortalAccount && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div>
+                      <label className="label" htmlFor="staff-email">
+                        Portal Email / Username *
+                      </label>
+                      <input
+                        id="staff-email"
+                        className="input"
+                        type="email"
+                        required={addFormData.createPortalAccount}
+                        value={addFormData.email}
+                        onChange={(e) =>
+                          setAddFormData((prev) => ({ ...prev, email: e.target.value }))
+                        }
+                        placeholder="staff.name@school.com"
+                      />
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <label className="label" htmlFor="staff-password" style={{ margin: 0 }}>
+                            Password *
+                          </label>
+                          <button
+                            type="button"
+                            onClick={generateRandomPassword}
+                            style={{
+                              border: "none",
+                              background: "none",
+                              fontSize: 11,
+                              color: "var(--color-primary, #0E7D75)",
+                              cursor: "pointer",
+                              padding: 0,
+                              fontWeight: 600,
+                            }}
+                          >
+                            Generate
+                          </button>
+                        </div>
+                        <input
+                          id="staff-password"
+                          className="input"
+                          type="text"
+                          required={addFormData.createPortalAccount}
+                          minLength={6}
+                          value={addFormData.password}
+                          onChange={(e) =>
+                            setAddFormData((prev) => ({ ...prev, password: e.target.value }))
+                          }
+                          placeholder="Min 6 chars"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="label" htmlFor="staff-portal-role">
+                          Portal Access Role *
+                        </label>
+                        <select
+                          id="staff-portal-role"
+                          className="input"
+                          value={addFormData.portalRole}
+                          onChange={(e) =>
+                            setAddFormData((prev) => ({ ...prev, portalRole: e.target.value }))
+                          }
+                        >
+                          <option value="TEACHER">Teacher (Teaching & Attendance)</option>
+                          <option value="STAFF">Staff (General Staff View)</option>
+                          <option value="ADMIN">Administrator (Full Access)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div
@@ -1364,6 +1565,91 @@ export default function StaffPage() {
                 disabled={submittingDelete}
               >
                 {submittingDelete ? "Removing…" : "Confirm removal"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Created Credentials Modal */}
+      {createdCredentials && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "color-mix(in srgb, var(--color-ink) 50%, transparent)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 70,
+            padding: 16,
+          }}
+        >
+          <div className="card" style={{ width: "100%", maxWidth: 440 }}>
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+              <div
+                className="pill-success"
+                style={{ display: "inline-block", padding: "4px 12px", marginBottom: 8, fontSize: 12 }}
+              >
+                Staff Account Created
+              </div>
+              <h2 style={{ fontSize: 18, fontWeight: 700, margin: "4px 0", color: "var(--color-ink)" }}>
+                {createdCredentials.name}
+              </h2>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0 }}>
+                Share these portal login credentials with the staff member.
+              </p>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: "var(--color-surface-sunken, #F8FAFC)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-control)",
+                padding: 14,
+                marginBottom: 16,
+                fontSize: 13,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Portal URL: </span>
+                <span style={{ fontWeight: 600 }}>/login</span>
+              </div>
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Portal Role: </span>
+                <span style={{ fontWeight: 600 }}>{createdCredentials.role}</span>
+              </div>
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Username / Email: </span>
+                <span style={{ fontWeight: 600, color: "var(--color-ink)" }}>{createdCredentials.email}</span>
+              </div>
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Temporary Password: </span>
+                <span style={{ fontWeight: 700, color: "var(--color-primary, #0E7D75)" }}>
+                  {createdCredentials.password}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+                onClick={handleCopyCredentials}
+              >
+                {copied ? "Copied!" : "Copy Details"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+                onClick={() => setCreatedCredentials(null)}
+              >
+                Done
               </button>
             </div>
           </div>

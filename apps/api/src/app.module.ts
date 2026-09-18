@@ -20,6 +20,7 @@ import { LibraryModule } from './library/library.module';
 import { TransportModule } from './transport/transport.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TimetableModule } from './timetable/timetable.module';
+import { ParentsModule } from './parents/parents.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -45,6 +46,7 @@ import { AppService } from './app.service';
     TransportModule,
     DashboardModule,
     TimetableModule,
+    ParentsModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -40,6 +40,28 @@ export default function NewStudentPage() {
   const [feeStructures, setFeeStructures] = useState<FeeStructureItem[]>([]);
   const [selectedStructureIds, setSelectedStructureIds] = useState<string[]>([]);
 
+  // Student Portal Account states
+  const [createPortalAccount, setCreatePortalAccount] = useState(false);
+  const [studentEmail, setStudentEmail] = useState("");
+  const [studentPassword, setStudentPassword] = useState("");
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    name: string;
+    email: string;
+    password: string;
+    role: string;
+    invoiceId?: string | null;
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$";
+    let pwd = "";
+    for (let i = 0; i < 10; i++) {
+      pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setStudentPassword(pwd);
+  };
+
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -123,11 +145,28 @@ export default function NewStudentPage() {
       return;
     }
 
+    if (createPortalAccount) {
+      if (!studentEmail.trim()) {
+        setError("Student portal email is required when portal account is enabled.");
+        return;
+      }
+      if (!studentPassword || studentPassword.length < 6) {
+        setError("Student portal password must be at least 6 characters.");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      const body = Object.fromEntries(
+      const body: Record<string, any> = Object.fromEntries(
         Object.entries(form).filter(([, v]) => v !== "")
       );
+
+      if (createPortalAccount) {
+        body.createPortalAccount = true;
+        body.email = studentEmail.trim();
+        body.password = studentPassword;
+      }
 
       const res = await fetch(`${API}/api/v1/students`, {
         method: "POST",
@@ -142,7 +181,8 @@ export default function NewStudentPage() {
         return;
       }
 
-      // If auto-generate invoice is enabled, create invoice and redirect to its POS receipt
+      // If auto-generate invoice is enabled, create invoice
+      let createdInvoiceId: string | null = null;
       if (autoGenerateInvoice && selectedStructureIds.length > 0) {
         try {
           const selectedItems = feeStructures
@@ -163,8 +203,7 @@ export default function NewStudentPage() {
             });
             if (invRes.ok) {
               const invData = await invRes.json();
-              router.push(`/fees/${invData.id}`);
-              return;
+              createdInvoiceId = invData.id;
             }
           }
         } catch (err) {
@@ -172,7 +211,19 @@ export default function NewStudentPage() {
         }
       }
 
-      router.push("/students");
+      if (createPortalAccount && studentPassword) {
+        setCreatedCredentials({
+          name: `${form.firstName} ${form.lastName}`,
+          email: studentEmail.trim(),
+          password: studentPassword,
+          role: "STUDENT",
+          invoiceId: createdInvoiceId,
+        });
+      } else if (createdInvoiceId) {
+        router.push(`/fees/${createdInvoiceId}`);
+      } else {
+        router.push("/students");
+      }
     } catch {
       setError("Cannot reach the server.");
     } finally {
@@ -452,6 +503,96 @@ export default function NewStudentPage() {
           <Field label="Parent Phone Number" k="guardianPhone" placeholder="e.g. 08012345678" />
         </div>
 
+        {/* Student Portal Login Account Card */}
+        <div
+          className="card"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+            marginBottom: 24,
+            border: createPortalAccount ? "1.5px solid var(--color-brand)" : undefined,
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+            <div>
+              <p className="stat-label" style={{ marginBottom: 4, color: "var(--color-ink)", fontWeight: 700 }}>
+                Student Portal Login Account
+              </p>
+              <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
+                Create login details so the student can access their academic dashboard, view grades, and check attendance.
+              </p>
+            </div>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: 8, cursor: "pointer", fontWeight: 600, fontSize: 13, color: "var(--color-ink)", whiteSpace: "nowrap" }}>
+              <input
+                type="checkbox"
+                checked={createPortalAccount}
+                onChange={(e) => {
+                  setCreatePortalAccount(e.target.checked);
+                  if (e.target.checked && !studentPassword) {
+                    generateRandomPassword();
+                  }
+                }}
+                style={{ width: 16, height: 16 }}
+              />
+              <span>Enable portal access</span>
+            </label>
+          </div>
+
+          {createPortalAccount && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingTop: 10, borderTop: "1px solid var(--color-border)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div>
+                  <label className="label" htmlFor="student-email" style={{ fontSize: 12 }}>
+                    Student Portal Email / Login *
+                  </label>
+                  <input
+                    id="student-email"
+                    className="input"
+                    type="email"
+                    required={createPortalAccount}
+                    value={studentEmail}
+                    onChange={(e) => setStudentEmail(e.target.value)}
+                    placeholder="student@school.com"
+                  />
+                </div>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <label className="label" htmlFor="student-pwd" style={{ fontSize: 12, margin: 0 }}>
+                      Password *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={generateRandomPassword}
+                      style={{
+                        border: "none",
+                        background: "none",
+                        fontSize: 11,
+                        color: "var(--color-primary, #0E7D75)",
+                        cursor: "pointer",
+                        padding: 0,
+                        fontWeight: 600,
+                      }}
+                    >
+                      Generate
+                    </button>
+                  </div>
+                  <input
+                    id="student-pwd"
+                    className="input"
+                    type="text"
+                    required={createPortalAccount}
+                    minLength={6}
+                    value={studentPassword}
+                    onChange={(e) => setStudentPassword(e.target.value)}
+                    placeholder="Min 6 characters"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Tuition & Fee Billing Card */}
         <div
           className="card"
@@ -586,6 +727,104 @@ export default function NewStudentPage() {
           </button>
         </div>
       </form>
+
+      {/* Created Credentials Modal */}
+      {createdCredentials && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "color-mix(in srgb, var(--color-ink) 50%, transparent)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 70,
+            padding: 16,
+          }}
+        >
+          <div className="card" style={{ width: "100%", maxWidth: 440 }}>
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+              <div
+                className="pill-success"
+                style={{ display: "inline-block", padding: "4px 12px", marginBottom: 8, fontSize: 12 }}
+              >
+                Student Account Created
+              </div>
+              <h2 style={{ fontSize: 18, fontWeight: 700, margin: "4px 0", color: "var(--color-ink)" }}>
+                {createdCredentials.name}
+              </h2>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0 }}>
+                Share these portal login credentials with the student or parent.
+              </p>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: "var(--color-surface-sunken, #F8FAFC)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-control)",
+                padding: 14,
+                marginBottom: 16,
+                fontSize: 13,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Portal URL: </span>
+                <span style={{ fontWeight: 600 }}>/login</span>
+              </div>
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Portal Role: </span>
+                <span style={{ fontWeight: 600 }}>{createdCredentials.role}</span>
+              </div>
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Username / Email: </span>
+                <span style={{ fontWeight: 600, color: "var(--color-ink)" }}>{createdCredentials.email}</span>
+              </div>
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Temporary Password: </span>
+                <span style={{ fontWeight: 700, color: "var(--color-primary, #0E7D75)" }}>
+                  {createdCredentials.password}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+                onClick={() => {
+                  const text = `Modern School Portal Login Credentials\nPortal URL: ${window.location.origin}/login\nRole: ${createdCredentials.role}\nEmail: ${createdCredentials.email}\nTemporary Password: ${createdCredentials.password}`;
+                  navigator.clipboard.writeText(text);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 3000);
+                }}
+              >
+                {copied ? "Copied!" : "Copy Details"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+                onClick={() => {
+                  const invId = createdCredentials.invoiceId;
+                  setCreatedCredentials(null);
+                  if (invId) {
+                    router.push(`/fees/${invId}`);
+                  } else {
+                    router.push("/students");
+                  }
+                }}
+              >
+                {createdCredentials.invoiceId ? "Proceed to Invoice" : "Done"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

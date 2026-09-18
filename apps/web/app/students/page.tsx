@@ -377,8 +377,17 @@ export default function StudentsPage() {
                         )}
                       </div>
                     </td>
-                    <td style={{ fontWeight: 600, color: "var(--color-ink)" }}>
-                      {student.firstName} {student.lastName}
+                    <td>
+                      <Link
+                        href={`/students/${student.id}`}
+                        style={{
+                          fontWeight: 600,
+                          color: "var(--color-ink)",
+                          textDecoration: "none",
+                        }}
+                      >
+                        {student.firstName} {student.lastName}
+                      </Link>
                     </td>
                     <td style={{ color: "var(--color-text-secondary)" }}>
                       {student.admissionNumber ?? "—"}
@@ -394,6 +403,13 @@ export default function StudentsPage() {
                     {isAdmin && (
                       <td style={{ textAlign: "right" }}>
                         <div style={{ display: "inline-flex", gap: 6 }}>
+                          <Link
+                            href={`/students/${student.id}`}
+                            className="btn btn-secondary"
+                            style={{ padding: "4px 10px", fontSize: 12 }}
+                          >
+                            View
+                          </Link>
                           <button
                             type="button"
                             onClick={() => openEditModal(student)}

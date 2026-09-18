@@ -48,6 +48,16 @@ export class StaffController {
     return this.staffService.reactivate(id, actor.schoolId, actor.id, actor.email);
   }
 
+  @Post(':id/reset-password')
+  @Roles(UserRole.ADMIN)
+  resetPassword(
+    @Param('id') id: string,
+    @Body('newPassword') newPassword: string,
+    @CurrentUser() actor: { id: string; email: string; schoolId: string },
+  ) {
+    return this.staffService.resetPassword(id, actor.schoolId, newPassword, actor.id, actor.email);
+  }
+
   @Delete(':id')
   @Roles(UserRole.ADMIN)
   remove(@Param('id') id: string, @CurrentUser() actor: { id: string; email: string; schoolId: string }) {

@@ -150,15 +150,23 @@ export default function AttendancePage() {
       .then((res) => res.json())
       .then((data: ClassAttendanceData) => {
         if (!isMounted) return;
-        setRosterData(data);
+        const rawRoster = Array.isArray(data.roster) ? data.roster : [];
+        const normalizedRoster: StudentRosterItem[] = rawRoster.map((item: any) => ({
+          id: item.id ?? item.student?.id ?? "",
+          firstName: item.firstName ?? item.student?.firstName ?? "",
+          lastName: item.lastName ?? item.student?.lastName ?? "",
+          admissionNumber: item.admissionNumber ?? item.student?.admissionNumber ?? null,
+          status: item.status ?? null,
+          recordId: item.recordId ?? null,
+          note: item.note ?? null,
+        }));
+        setRosterData({ ...data, roster: normalizedRoster });
         const prefill: Record<string, AttendanceStatus> = {};
-        if (Array.isArray(data.roster)) {
-          data.roster.forEach((student) => {
-            if (student.status) {
-              prefill[student.id] = student.status;
-            }
-          });
-        }
+        normalizedRoster.forEach((student) => {
+          if (student.status) {
+            prefill[student.id] = student.status;
+          }
+        });
         setAttendance(prefill);
         setInitialAttendance(prefill);
       })

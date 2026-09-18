@@ -100,6 +100,14 @@ const icons = {
       <polyline points="12 6 12 12 16 14" />
     </svg>
   ),
+  parents: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
   portals: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -141,9 +149,10 @@ interface NavItem {
 const ADMIN_NAV: NavItem[] = [
   { href: "/dashboard", icon: icons.dashboard, label: "Dashboard", keywords: "home overview stats command center" },
   { href: "/students", icon: icons.students, label: "Students", keywords: "pupils enrollment admission directory" },
+  { href: "/parents", icon: icons.parents, label: "Parents", keywords: "guardians family portal accounts directory monitor" },
   { href: "/classes", icon: icons.classes, label: "Classes", keywords: "classrooms sections levels streams" },
   { href: "/timetable", icon: icons.timetable, label: "Timetable", keywords: "schedule routine period auto classes planner master routine" },
-  { href: "/staff", icon: icons.staff, label: "Staff", keywords: "teachers employees payroll admin" },
+  { href: "/staff", icon: icons.staff, label: "Staff", keywords: "teachers employees payroll admin accounts monitor" },
   { href: "/attendance", icon: icons.attendance, label: "Attendance", keywords: "roll mark daily register present absent" },
   { href: "/grades", icon: icons.grades, label: "Grades", keywords: "scores marks assessments ca1 ca2 exam" },
   { href: "/results", icon: icons.results, label: "Results", keywords: "report cards transcripts terminal" },

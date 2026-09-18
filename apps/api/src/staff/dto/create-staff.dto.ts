@@ -45,6 +45,28 @@ export class CreateStaffRecordDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @IsString()
+  @IsOptional()
+  email?: string;
+
+  @IsString()
+  @IsOptional()
+  password?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  createPortalAccount?: boolean;
+
+  @IsString()
+  @IsOptional()
+  portalRole?: string;
+}
+
+export class ResetStaffPasswordDto {
+  @IsString()
+  @MinLength(6)
+  newPassword: string;
 }
 
 
