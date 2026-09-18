@@ -190,6 +190,20 @@ export class ScoresService {
       }
     }
 
+    if (actor?.role === UserRole.STUDENT) {
+      const studentMatch = await this.prisma.student.findFirst({
+        where: {
+          id: studentId,
+          schoolId,
+          firstName: { equals: (actor as any).firstName, mode: 'insensitive' },
+          lastName: { equals: (actor as any).lastName, mode: 'insensitive' },
+        },
+      });
+      if (!studentMatch) {
+        throw new ForbiddenException("You do not have permission to view this student's report card");
+      }
+    }
+
     const student = await this.prisma.student.findFirst({
       where: { id: studentId, schoolId },
       select: { id: true, firstName: true, lastName: true, admissionNumber: true, gender: true },

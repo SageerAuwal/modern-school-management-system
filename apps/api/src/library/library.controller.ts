@@ -76,7 +76,7 @@ export class LibraryController {
 
   /** GET /api/v1/library/loans/student/:studentId — student borrowing history */
   @Get('loans/student/:studentId')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT, UserRole.STUDENT)
   getStudentHistory(@Param('studentId') studentId: string, @CurrentUser() actor: { schoolId: string }) {
     return this.libraryService.getStudentLoanHistory(studentId, actor.schoolId);
   }

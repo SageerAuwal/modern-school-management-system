@@ -194,7 +194,21 @@ export class StudentsService {
           orderBy: { enrolledAt: 'desc' },
           include: {
             classSection: {
-              select: { id: true, name: true, level: true, academicYear: true },
+              select: {
+                id: true,
+                name: true,
+                level: true,
+                academicYear: true,
+                teacher: {
+                  select: { id: true, firstName: true, lastName: true, phone: true, email: true },
+                },
+                classSubjects: {
+                  include: {
+                    subject: { select: { id: true, name: true, code: true } },
+                    teacher: { select: { id: true, firstName: true, lastName: true } },
+                  },
+                },
+              },
             },
           },
         },
@@ -213,6 +227,8 @@ export class StudentsService {
         invoices: {
           orderBy: { createdAt: 'desc' },
           include: {
+            term: { select: { id: true, name: true, academicYear: true } },
+            items: true,
             payments: { select: { id: true, amount: true, method: true, paidAt: true, reference: true } },
           },
         },
@@ -220,6 +236,18 @@ export class StudentsService {
           orderBy: { createdAt: 'desc' },
           include: {
             book: { select: { id: true, title: true, author: true } },
+          },
+        },
+        transportAssignments: {
+          where: { isActive: true },
+          take: 1,
+          include: {
+            bus: true,
+            route: {
+              include: {
+                stops: { orderBy: { stopOrder: 'asc' } },
+              },
+            },
           },
         },
       },
@@ -306,6 +334,38 @@ export class StudentsService {
         outstandingBalance,
       },
     };
+  }
+
+  /**
+   * Get 360-degree self-profile for a logged-in student user
+   */
+  async getMyProfile(actor: { id: string; email: string; firstName?: string; lastName?: string; schoolId: string }) {
+    // 1. Primary: Match by firstName & lastName in the same school
+    let student = await this.prisma.student.findFirst({
+      where: {
+        schoolId: actor.schoolId,
+        firstName: { equals: actor.firstName, mode: 'insensitive' },
+        lastName: { equals: actor.lastName, mode: 'insensitive' },
+      },
+    });
+
+    // 2. Secondary: Match by email prefix (e.g. student.amina@school.local -> "Amina")
+    if (!student && actor.email) {
+      const emailLocal = actor.email.split('@')[0];
+      const namePart = emailLocal.replace(/^student\./i, '');
+      student = await this.prisma.student.findFirst({
+        where: {
+          schoolId: actor.schoolId,
+          firstName: { equals: namePart, mode: 'insensitive' },
+        },
+      });
+    }
+
+    if (!student) {
+      throw new NotFoundException('Student profile not found for this account');
+    }
+
+    return this.findOne(student.id, actor.schoolId);
   }
 
   // ── Update ────────────────────────────────────────────────────────────────

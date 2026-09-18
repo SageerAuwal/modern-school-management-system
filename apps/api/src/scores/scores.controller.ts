@@ -46,11 +46,11 @@ export class ScoresController {
    * Full student report card with position in class.
    */
   @Get('report-card/:studentId')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT, UserRole.STUDENT)
   getReportCard(
     @Param('studentId') studentId: string,
     @Query() query: ReportCardQueryDto,
-    @CurrentUser() actor: { id: string; email: string; role: UserRole; schoolId: string },
+    @CurrentUser() actor: { id: string; email: string; role: UserRole; schoolId: string; firstName?: string; lastName?: string },
   ) {
     return this.scoresService.getReportCard(studentId, query, actor.schoolId, actor);
   }

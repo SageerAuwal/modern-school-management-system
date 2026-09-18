@@ -44,6 +44,15 @@ export class StudentsController {
     return this.studentsService.findAll(actor.schoolId, filters);
   }
 
+  /** GET /api/v1/students/my-profile — self profile for authenticated student */
+  @Get('my-profile')
+  @Roles(UserRole.STUDENT, UserRole.ADMIN)
+  getMyProfile(
+    @CurrentUser() actor: { id: string; email: string; firstName?: string; lastName?: string; schoolId: string },
+  ) {
+    return this.studentsService.getMyProfile(actor);
+  }
+
   /** GET /api/v1/students/:id — full student profile */
   @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.TEACHER)

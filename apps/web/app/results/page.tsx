@@ -104,12 +104,13 @@ function formatOrdinal(n: number | null): string {
 }
 
 export default function ResultsPage() {
-  const { user, isParent, loading: loadingUser } = useCurrentUser();
+  const { user, isParent, isStudent, loading: loadingUser } = useCurrentUser();
 
   const [classes, setClasses] = useState<ClassSection[]>([]);
   const [terms, setTerms] = useState<Term[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [parentWards, setParentWards] = useState<ParentWard[]>([]);
+  const [studentProfile, setStudentProfile] = useState<any>(null);
 
   const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedTermId, setSelectedTermId] = useState("");
@@ -164,7 +165,42 @@ export default function ResultsPage() {
 
     async function loadInitialData() {
       try {
-        if (isParent) {
+        if (isStudent) {
+          // Student flow: fetch own student profile and academic terms
+          const [profRes, trmRes] = await Promise.all([
+            fetch(`${API}/api/v1/students/my-profile`, { credentials: "include" }).then((r) =>
+              r.ok ? r.json() : null
+            ),
+            fetch(`${API}/api/v1/terms`, { credentials: "include" }).then((r) =>
+              r.ok ? r.json() : []
+            ),
+          ]);
+
+          if (ignore) return;
+
+          let loadedTerms: Term[] = [];
+          if (Array.isArray(trmRes)) {
+            loadedTerms = trmRes;
+            setTerms(trmRes);
+          }
+
+          const currentTerm = loadedTerms.find((t) => t.isCurrent) ?? loadedTerms[0];
+          const initialTermId = currentTerm ? currentTerm.id : "";
+          if (initialTermId) {
+            setSelectedTermId(initialTermId);
+          }
+
+          if (profRes && profRes.id) {
+            setStudentProfile(profRes);
+            setSelectedStudentId(profRes.id);
+            const classId = profRes.enrollments?.[0]?.classSection?.id ?? "";
+            if (classId) setSelectedClassId(classId);
+
+            if (initialTermId) {
+              fetchReportCard(profRes.id, initialTermId, classId);
+            }
+          }
+        } else if (isParent) {
           // Parent flow: fetch linked wards and academic terms
           const [wardsRes, trmRes] = await Promise.all([
             fetch(`${API}/api/v1/parents/my-children`, { credentials: "include" }).then((r) =>
@@ -243,11 +279,11 @@ export default function ResultsPage() {
     return () => {
       ignore = true;
     };
-  }, [isParent, loadingUser, fetchReportCard]);
+  }, [isParent, isStudent, loadingUser, fetchReportCard]);
 
   // When class changes for Admin/Teacher, fetch students in that class
   useEffect(() => {
-    if (isParent) return;
+    if (isParent || isStudent) return;
 
     if (!selectedClassId) {
       setStudents([]);
@@ -271,7 +307,7 @@ export default function ResultsPage() {
     return () => {
       ignore = true;
     };
-  }, [selectedClassId, isParent]);
+  }, [selectedClassId, isParent, isStudent]);
 
   function handleWardChange(wardId: string) {
     setSelectedStudentId(wardId);
@@ -287,7 +323,7 @@ export default function ResultsPage() {
   function handleTermChange(termId: string) {
     setSelectedTermId(termId);
 
-    if (isParent && selectedStudentId && termId) {
+    if ((isParent || isStudent) && selectedStudentId && termId) {
       fetchReportCard(selectedStudentId, termId, selectedClassId);
     }
   }
@@ -309,9 +345,17 @@ export default function ResultsPage() {
       {/* Header with Print action */}
       <div className="page-header no-print">
         <div>
-          <h1 className="page-title">{isParent ? "Report Cards" : "Online Results & Report Cards"}</h1>
+          <h1 className="page-title">
+            {isStudent
+              ? "My Academic Report Card"
+              : isParent
+              ? "Report Cards"
+              : "Online Results & Report Cards"}
+          </h1>
           <p className="page-subtitle">
-            {isParent
+            {isStudent
+              ? "Official terminal report card, grades, teacher remarks, and academic performance."
+              : isParent
               ? "Official terminal report cards, grades, subject remarks, and class positions for your registered wards."
               : "Generate and inspect official student terminal academic reports."}
           </p>
@@ -345,7 +389,80 @@ export default function ResultsPage() {
 
       {/* Control Selection Card */}
       <div className="card no-print" style={{ marginBottom: 24 }}>
-        {isParent ? (
+        {isStudent ? (
+          // Student Mode: Streamlined Enrolled Profile + Term Selector
+          <form onSubmit={handleCheckResult}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 16,
+                alignItems: "flex-end",
+              }}
+            >
+              <div>
+                <label className="label">Enrolled Student</label>
+                <div
+                  style={{
+                    padding: "9px 12px",
+                    borderRadius: "var(--radius-control, 6px)",
+                    border: "1px solid var(--color-border, #e2e8f0)",
+                    backgroundColor: "var(--color-bg-subtle, #f8fafc)",
+                    fontWeight: 500,
+                    fontSize: 14,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    minHeight: 42,
+                  }}
+                >
+                  <span>
+                    {studentProfile
+                      ? `${studentProfile.firstName} ${studentProfile.lastName}`
+                      : user
+                      ? `${user.firstName} ${user.lastName}`
+                      : "Enrolled Student"}
+                    {studentProfile?.admissionNumber ? ` (${studentProfile.admissionNumber})` : ""}
+                  </span>
+                  {studentProfile?.enrollments?.[0]?.classSection && (
+                    <span className="pill pill-neutral" style={{ fontSize: 12 }}>
+                      {studentProfile.enrollments[0].classSection.name}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="label">Academic Term</label>
+                <select
+                  value={selectedTermId}
+                  onChange={(e) => handleTermChange(e.target.value)}
+                  className="input"
+                  required
+                  disabled={loadingData || terms.length === 0}
+                >
+                  <option value="">Select a term</option>
+                  {terms.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({t.academicYear}) {t.isCurrent ? "— Current" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <button
+                  type="submit"
+                  disabled={loading || !selectedStudentId || !selectedTermId}
+                  className="btn btn-primary"
+                  style={{ width: "100%", height: 42 }}
+                >
+                  {loading ? "Generating..." : "View Report Card"}
+                </button>
+              </div>
+            </div>
+          </form>
+        ) : isParent ? (
           // Parent Mode: Streamlined Ward & Term Selector
           <form onSubmit={handleCheckResult}>
             <div
@@ -533,6 +650,34 @@ export default function ResultsPage() {
           <div className="empty-state-title">No registered wards found</div>
           <div className="empty-state-text">
             Your parent account is not currently linked to any active student records. Please contact the school administration to link your child.
+          </div>
+        </div>
+      )}
+
+      {/* Student Empty State if No Profile Found */}
+      {isStudent && !loadingData && !selectedStudentId && (
+        <div className="card empty-state" style={{ marginBottom: 24 }}>
+          <div className="empty-state-icon">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <div className="empty-state-title">No student record found</div>
+          <div className="empty-state-text">
+            Your login account is not linked to an active student admission record. Please contact the school administration.
           </div>
         </div>
       )}
