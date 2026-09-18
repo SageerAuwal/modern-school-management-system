@@ -22,7 +22,7 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting full test data seeding...');
+  console.log('[INFO] Starting full test data seeding...');
 
   // ── 1. School & Admin Check ──────────────────────────────────────────────
   let school = await prisma.school.findFirst();
@@ -38,7 +38,7 @@ async function main() {
       },
     });
   }
-  console.log(`✅ School identified: ${school.name}`);
+  console.log(`[OK] School identified: ${school.name}`);
 
   let admin = await prisma.user.findFirst({ where: { role: 'ADMIN', schoolId: school.id } });
   if (!admin) {
@@ -55,7 +55,7 @@ async function main() {
       },
     });
   }
-  console.log(`✅ System admin ready: ${admin.email}`);
+  console.log(`[OK] System admin ready: ${admin.email}`);
 
   // ── 2. Terms ─────────────────────────────────────────────────────────────
   const term1 = await prisma.term.upsert({
@@ -83,7 +83,20 @@ async function main() {
       isCurrent: false,
     },
   });
-  console.log('✅ Academic terms initialized (First Term 2025/2026 set to Current)');
+
+  const term3 = await prisma.term.upsert({
+    where: { schoolId_name_academicYear: { schoolId: school.id, name: 'Third Term', academicYear: '2025/2026' } },
+    update: { isCurrent: false },
+    create: {
+      schoolId: school.id,
+      name: 'Third Term',
+      academicYear: '2025/2026',
+      startDate: new Date('2026-04-27'),
+      endDate: new Date('2026-07-24'),
+      isCurrent: false,
+    },
+  });
+  console.log('[OK] Academic terms initialized (First Term, Second Term, and Third Term for 2025/2026)');
 
   // ── 3. 5 Teachers ────────────────────────────────────────────────────────
   const teacherPasswordHash = await bcrypt.hash('Teacher@1234', 10);
@@ -131,7 +144,7 @@ async function main() {
       });
     }
   }
-  console.log('✅ 5 Teacher accounts and staff records created');
+  console.log('[OK] 5 Teacher accounts and staff records created');
 
   // ── 4. 5 Classes ─────────────────────────────────────────────────────────
   const classesData = [
@@ -160,7 +173,7 @@ async function main() {
     });
     classSections.push(cls);
   }
-  console.log('✅ 5 Classes created with assigned form teachers');
+  console.log('[OK] 5 Classes created with assigned form teachers');
 
   // ── 5. Academic Subjects ─────────────────────────────────────────────────
   const subjectsData = [
@@ -193,7 +206,7 @@ async function main() {
       });
     }
   }
-  console.log('✅ 7 Academic subjects assigned to all class sections');
+  console.log('[OK] 7 Academic subjects assigned to all class sections');
 
   // ── 6. 5 Students & 5 Linked Parents ─────────────────────────────────────
   const parentPasswordHash = await bcrypt.hash('Parent@1234', 10);
@@ -303,7 +316,7 @@ async function main() {
       });
     }
   }
-  console.log('✅ 5 Students & 5 Linked Parents created with portal accounts and guardian relations');
+  console.log('[OK] 5 Students & 5 Linked Parents created with portal accounts and guardian relations');
 
   // ── 7. Scores & Terminal Report Cards ────────────────────────────────────
   function computeGrade(total) {
@@ -370,7 +383,7 @@ async function main() {
       });
     }
   }
-  console.log('✅ Academic score sheets populated for First Term terminal reports');
+  console.log('[OK] Academic score sheets populated for First Term terminal reports');
 
   // ── 8. 5 Days of Attendance Records ──────────────────────────────────────
   const dates = [
@@ -410,135 +423,199 @@ async function main() {
       });
     }
   }
-  console.log('✅ 5 days of attendance history recorded');
+  console.log('[OK] 5 days of attendance history recorded');
 
   // ── 9. Fee Structures, Invoices & Payments ────────────────────────────────
-  const fee1 = await prisma.feeStructure.create({
-    data: {
-      schoolId: school.id,
-      name: 'First Term Tuition Fee',
-      academicYear: '2025/2026',
-      termId: term1.id,
-      amount: 65000,
-    },
+  // Fee structures totaling 50,000 for the full session across 3 terms:
+  // First Term: 20,000 (Tuition 15,000 + Development Levy 5,000)
+  // Second Term: 15,000 (Tuition 15,000)
+  // Third Term: 15,000 (Tuition 15,000)
+  let fee1 = await prisma.feeStructure.findFirst({
+    where: { schoolId: school.id, name: 'First Term Tuition Fee', academicYear: '2025/2026', termId: term1.id },
   });
-
-  const fee2 = await prisma.feeStructure.create({
-    data: {
-      schoolId: school.id,
-      name: 'Development Levy',
-      academicYear: '2025/2026',
-      termId: term1.id,
-      amount: 15000,
-    },
-  });
-
-  // Invoice 1: Amina Sageer (PAID in full)
-  let invAmina = await prisma.invoice.findFirst({
-    where: { schoolId: school.id, studentId: students[0].id, termId: term1.id },
-  });
-  if (!invAmina) {
-    invAmina = await prisma.invoice.create({
+  if (!fee1) {
+    fee1 = await prisma.feeStructure.create({
       data: {
         schoolId: school.id,
-        studentId: students[0].id,
-        termId: term1.id,
+        name: 'First Term Tuition Fee',
         academicYear: '2025/2026',
-        totalAmount: 80000,
-        paidAmount: 80000,
-        status: 'PAID',
-        dueDate: new Date('2025-10-31'),
-        createdById: admin.id,
-        items: {
-          create: [
-            { feeStructureId: fee1.id, name: 'Tuition', amount: 65000 },
-            { feeStructureId: fee2.id, name: 'Development Levy', amount: 15000 },
-          ],
-        },
+        termId: term1.id,
+        amount: 15000,
       },
     });
-
-    await prisma.payment.create({
-      data: {
-        schoolId: school.id,
-        invoiceId: invAmina.id,
-        amount: 80000,
-        method: 'CASH',
-        status: 'SUCCESS',
-        reference: `PAY-REC-001-${Date.now()}`,
-        paidAt: new Date('2025-09-15'),
-        recordedById: admin.id,
-        notes: 'Paid in full at bursar desk',
-      },
+  } else if (fee1.amount !== 15000) {
+    fee1 = await prisma.feeStructure.update({
+      where: { id: fee1.id },
+      data: { amount: 15000 },
     });
   }
 
-  // Invoice 2: Zainab Ibrahim (PARTIAL: 50,000 of 80,000 paid)
-  let invZainab = await prisma.invoice.findFirst({
-    where: { schoolId: school.id, studentId: students[1].id, termId: term1.id },
+  let fee2 = await prisma.feeStructure.findFirst({
+    where: { schoolId: school.id, name: 'Development Levy', academicYear: '2025/2026', termId: term1.id },
   });
-  if (!invZainab) {
-    invZainab = await prisma.invoice.create({
+  if (!fee2) {
+    fee2 = await prisma.feeStructure.create({
       data: {
         schoolId: school.id,
-        studentId: students[1].id,
-        termId: term1.id,
+        name: 'Development Levy',
         academicYear: '2025/2026',
-        totalAmount: 80000,
-        paidAmount: 50000,
-        status: 'PARTIAL',
-        dueDate: new Date('2025-10-31'),
-        createdById: admin.id,
-        items: {
-          create: [
-            { feeStructureId: fee1.id, name: 'Tuition', amount: 65000 },
-            { feeStructureId: fee2.id, name: 'Development Levy', amount: 15000 },
-          ],
-        },
+        termId: term1.id,
+        amount: 5000,
       },
     });
-
-    await prisma.payment.create({
-      data: {
-        schoolId: school.id,
-        invoiceId: invZainab.id,
-        amount: 50000,
-        method: 'BANK_DEPOSIT',
-        status: 'SUCCESS',
-        reference: `PAY-REC-002-${Date.now()}`,
-        paidAt: new Date('2025-09-20'),
-        recordedById: admin.id,
-        notes: 'First installment paid via bank teller',
-      },
+  } else if (fee2.amount !== 5000) {
+    fee2 = await prisma.feeStructure.update({
+      where: { id: fee2.id },
+      data: { amount: 5000 },
     });
   }
 
-  // Invoice 3: David Okoro (UNPAID: 80,000 outstanding)
-  const existingDavidInv = await prisma.invoice.findFirst({
-    where: { schoolId: school.id, studentId: students[2].id, termId: term1.id },
+  let fee3 = await prisma.feeStructure.findFirst({
+    where: { schoolId: school.id, name: 'Second Term Tuition Fee', academicYear: '2025/2026', termId: term2.id },
   });
-  if (!existingDavidInv) {
-    await prisma.invoice.create({
+  if (!fee3) {
+    fee3 = await prisma.feeStructure.create({
       data: {
         schoolId: school.id,
-        studentId: students[2].id,
-        termId: term1.id,
+        name: 'Second Term Tuition Fee',
         academicYear: '2025/2026',
-        totalAmount: 80000,
-        paidAmount: 0,
-        status: 'UNPAID',
-        dueDate: new Date('2025-10-31'),
-        createdById: admin.id,
-        items: {
-          create: [
-            { feeStructureId: fee1.id, name: 'Tuition', amount: 65000 },
-            { feeStructureId: fee2.id, name: 'Development Levy', amount: 15000 },
-          ],
-        },
+        termId: term2.id,
+        amount: 15000,
       },
     });
+  } else if (fee3.amount !== 15000) {
+    fee3 = await prisma.feeStructure.update({
+      where: { id: fee3.id },
+      data: { amount: 15000 },
+    });
   }
-  console.log('✅ Fee structures and sample Paid, Partial, and Unpaid invoices recorded');
+
+  let fee4 = await prisma.feeStructure.findFirst({
+    where: { schoolId: school.id, name: 'Third Term Tuition Fee', academicYear: '2025/2026', termId: term3.id },
+  });
+  if (!fee4) {
+    fee4 = await prisma.feeStructure.create({
+      data: {
+        schoolId: school.id,
+        name: 'Third Term Tuition Fee',
+        academicYear: '2025/2026',
+        termId: term3.id,
+        amount: 15000,
+      },
+    });
+  } else if (fee4.amount !== 15000) {
+    fee4 = await prisma.feeStructure.update({
+      where: { id: fee4.id },
+      data: { amount: 15000 },
+    });
+  }
+
+  // Seed invoices for all 5 students across all 3 terms (total 50,000 per student)
+  const studentFeeProfiles = [
+    { studentIndex: 0, t1Paid: 20000, t1Status: 'PAID', payMethod: 'CASH', note: 'Paid in full at bursar desk' },
+    { studentIndex: 1, t1Paid: 12000, t1Status: 'PARTIAL', payMethod: 'BANK_DEPOSIT', note: 'First installment paid via bank teller' },
+    { studentIndex: 2, t1Paid: 0, t1Status: 'UNPAID', payMethod: null, note: null },
+    { studentIndex: 3, t1Paid: 20000, t1Status: 'PAID', payMethod: 'CASH', note: 'Paid in full at bursar desk' },
+    { studentIndex: 4, t1Paid: 0, t1Status: 'UNPAID', payMethod: null, note: null },
+  ];
+
+  for (const profile of studentFeeProfiles) {
+    const student = students[profile.studentIndex];
+    if (!student) continue;
+
+    // Term 1 Invoice (Total 20,000: Tuition 15,000 + Levy 5,000)
+    let invT1 = await prisma.invoice.findFirst({
+      where: { schoolId: school.id, studentId: student.id, termId: term1.id },
+    });
+    if (!invT1) {
+      invT1 = await prisma.invoice.create({
+        data: {
+          schoolId: school.id,
+          studentId: student.id,
+          termId: term1.id,
+          academicYear: '2025/2026',
+          totalAmount: 20000,
+          paidAmount: profile.t1Paid,
+          status: profile.t1Status,
+          dueDate: new Date('2025-10-31'),
+          createdById: admin.id,
+          items: {
+            create: [
+              { feeStructureId: fee1.id, name: 'Tuition', amount: 15000 },
+              { feeStructureId: fee2.id, name: 'Development Levy', amount: 5000 },
+            ],
+          },
+        },
+      });
+
+      if (profile.t1Paid > 0) {
+        await prisma.payment.create({
+          data: {
+            schoolId: school.id,
+            invoiceId: invT1.id,
+            amount: profile.t1Paid,
+            method: profile.payMethod || 'CASH',
+            status: 'SUCCESS',
+            reference: `PAY-T1-${profile.studentIndex + 1}-${Date.now()}`,
+            paidAt: new Date('2025-09-15'),
+            recordedById: admin.id,
+            notes: profile.note,
+          },
+        });
+      }
+    }
+
+    // Term 2 Invoice (Total 15,000: Tuition 15,000, UNPAID)
+    let invT2 = await prisma.invoice.findFirst({
+      where: { schoolId: school.id, studentId: student.id, termId: term2.id },
+    });
+    if (!invT2) {
+      await prisma.invoice.create({
+        data: {
+          schoolId: school.id,
+          studentId: student.id,
+          termId: term2.id,
+          academicYear: '2025/2026',
+          totalAmount: 15000,
+          paidAmount: 0,
+          status: 'UNPAID',
+          dueDate: new Date('2026-02-15'),
+          createdById: admin.id,
+          items: {
+            create: [
+              { feeStructureId: fee3.id, name: 'Second Term Tuition', amount: 15000 },
+            ],
+          },
+        },
+      });
+    }
+
+    // Term 3 Invoice (Total 15,000: Tuition 15,000, UNPAID)
+    let invT3 = await prisma.invoice.findFirst({
+      where: { schoolId: school.id, studentId: student.id, termId: term3.id },
+    });
+    if (!invT3) {
+      await prisma.invoice.create({
+        data: {
+          schoolId: school.id,
+          studentId: student.id,
+          termId: term3.id,
+          academicYear: '2025/2026',
+          totalAmount: 15000,
+          paidAmount: 0,
+          status: 'UNPAID',
+          dueDate: new Date('2026-05-30'),
+          createdById: admin.id,
+          items: {
+            create: [
+              { feeStructureId: fee4.id, name: 'Third Term Tuition', amount: 15000 },
+            ],
+          },
+        },
+      });
+    }
+  }
+  console.log('[OK] Fee structures and sample Paid, Partial, and Unpaid invoices recorded across 3 terms (total 50,000 per student)');
 
   // ── 10. Library Catalog & Book Loans ─────────────────────────────────────
   const booksData = [
@@ -595,7 +672,7 @@ async function main() {
       notes: '5 days overdue',
     },
   });
-  console.log('✅ Library catalog and active/overdue book loans created');
+  console.log('[OK] Library catalog and active/overdue book loans created');
 
   // ── 11. Transport Fleet & Routes ─────────────────────────────────────────
   const bus1 = await prisma.bus.upsert({
@@ -672,10 +749,10 @@ async function main() {
       isActive: true,
     },
   });
-  console.log('✅ Transport buses, routes, stops, and student bus passes assigned');
+  console.log('[OK] Transport buses, routes, stops, and student bus passes assigned');
 
   console.log('\n============================================================');
-  console.log('🎉 FULL DEMO SEED COMPLETED SUCCESSFULLY!');
+  console.log('[OK] FULL DEMO SEED COMPLETED SUCCESSFULLY!');
   console.log('============================================================');
   console.log('Logins ready:');
   console.log('  Admin:   admin@school.local          | Admin@1234');
@@ -688,7 +765,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('❌ Seeding error:', e);
+    console.error('[ERROR] Seeding error:', e);
     process.exit(1);
   })
   .finally(async () => {
