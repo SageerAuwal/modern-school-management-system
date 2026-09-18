@@ -129,7 +129,7 @@ function getSubjectShortName(name: string = ""): string {
 }
 
 export default function TimetablePage() {
-  const { isAdmin } = useCurrentUser();
+  const { user, isAdmin, isTeacher, isParent, isStudent } = useCurrentUser();
   const [timetable, setTimetable] = useState<TimetableData | null>(null);
   const [classes, setClasses] = useState<ClassSection[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -137,16 +137,10 @@ export default function TimetablePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Views: 'class' (Weekly Routine) | 'teacher' (Teacher Roster) | 'master' (Master Day Matrix)
-  const [activeView, setActiveView] = useState<"class" | "teacher" | "master">("class");
-  const [selectedClassId, setSelectedClassId] = useState<string>("all"); // Default to "all" so generated timetable shows weekly for all classes
-  const [printMode, setPrintMode] = useState<"single-master" | "booklet">("single-master"); // "single-master": fits all classes on 1 A4 page; "booklet": 1 page per class
+  // Views: 'class' (Class 5-Day Weekly Routine) | 'master' (General Master Sheet) | 'teacher' (Teacher Roster)
+  const [activeView, setActiveView] = useState<"class" | "master" | "teacher">("class");
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
-  const [selectedMasterDay, setSelectedMasterDay] = useState<string>("WEDNESDAY");
-
-  // Left Calendar State
-  const [calMonth, setCalMonth] = useState(new Date(2025, 5, 1));
-  const [selectedDayNum, setSelectedDayNum] = useState(18);
 
   // Filters Checklist State
   const [filters, setFilters] = useState({
@@ -200,6 +194,35 @@ export default function TimetablePage() {
         const data = await resCls.json();
         if (Array.isArray(data)) {
           setClasses(data);
+
+          // Auto-select class for student or parent if not yet chosen
+          if (isStudent) {
+            fetch(`${API}/api/v1/students/my-profile`, { credentials: "include" })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((prof) => {
+                const cId = prof?.enrollments?.[0]?.classSection?.id;
+                if (cId) setSelectedClassId(cId);
+                else if (data.length > 0) setSelectedClassId((prev) => prev || data[0].id);
+              })
+              .catch(() => {
+                if (data.length > 0) setSelectedClassId((prev) => prev || data[0].id);
+              });
+          } else if (isParent) {
+            fetch(`${API}/api/v1/parents/my-children`, { credentials: "include" })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((wardsRes) => {
+                const cId = wardsRes?.children?.[0]?.classSection?.id;
+                if (cId) setSelectedClassId(cId);
+                else if (data.length > 0) setSelectedClassId((prev) => prev || data[0].id);
+              })
+              .catch(() => {
+                if (data.length > 0) setSelectedClassId((prev) => prev || data[0].id);
+              });
+          } else {
+            if (data.length > 0) {
+              setSelectedClassId((prev) => prev || data[0].id);
+            }
+          }
         }
       }
 
@@ -306,6 +329,12 @@ export default function TimetablePage() {
     return single ? [single] : classes;
   }, [classes, selectedClassId]);
 
+  /* ── Selected Class Object ────────────────────────────────────────────────── */
+  const selectedClass = useMemo(
+    () => classes.find((c) => c.id === selectedClassId) || classes[0],
+    [classes, selectedClassId]
+  );
+
   /* ── Helper to build Lesson Map for any specific Class ───────────────────── */
   const getLessonsMapForClass = (classId: string) => {
     const map = new Map<string, Lesson>();
@@ -329,18 +358,6 @@ export default function TimetablePage() {
     }
     return map;
   }, [timetable, selectedTeacherId]);
-
-  /* ── Filtered Lessons for Master Day Grid ─────────────────────────────────── */
-  const masterDayLessonsMap = useMemo(() => {
-    if (!timetable?.lessons) return new Map<string, Lesson>();
-    const map = new Map<string, Lesson>();
-    for (const l of timetable.lessons) {
-      if (getDay(l) === selectedMasterDay) {
-        map.set(`${l.classSectionId}_${l.periodNumber}`, l);
-      }
-    }
-    return map;
-  }, [timetable, selectedMasterDay]);
 
   const selectedTeacherObj = useMemo(
     () => teachers.find((t) => t.id === selectedTeacherId) || teachers[0],
@@ -444,14 +461,6 @@ export default function TimetablePage() {
     }
   };
 
-  const calendarDays = useMemo(() => {
-    const days = [];
-    for (let i = 1; i <= 30; i++) {
-      days.push(i);
-    }
-    return days;
-  }, []);
-
   return (
     <div className="timetable-page-container" style={{ padding: "24px 28px", backgroundColor: "#FFFFFF", minHeight: "100%" }}>
       {/* ── Error Banner ───────────────────────────────────────────────────── */}
@@ -471,9 +480,9 @@ export default function TimetablePage() {
           alignItems: "start",
         }}
       >
-        {/* ════ LEFT COLUMN: Mini Calendar, Teal Card, Filters (NO PRINT) ═════ */}
+        {/* ════ LEFT COLUMN: Info Card, Reminder Card, Filters (NO PRINT) ═════ */}
         <div className="no-print" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {/* Card 1: Mini Month Calendar Card */}
+          {/* Card 1: Academic Routine Overview Card */}
           <div
             className="card"
             style={{
@@ -483,107 +492,42 @@ export default function TimetablePage() {
               backgroundColor: "#FFFFFF",
             }}
           >
-            {/* Header: Month and Chevron controls */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <span style={{ fontSize: 16, fontWeight: 700, color: "var(--color-ink, #182220)" }}>
-                June 2025
-              </span>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDayNum((prev) => Math.max(1, prev - 1))}
-                  style={{
-                    border: "none",
-                    background: "none",
-                    color: "var(--color-text-secondary, #70817B)",
-                    cursor: "pointer",
-                    fontSize: 14,
-                    padding: 4,
-                  }}
-                >
-                  &lt;
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedDayNum((prev) => Math.min(30, prev + 1))}
-                  style={{
-                    border: "none",
-                    background: "none",
-                    color: "var(--color-text-secondary, #70817B)",
-                    cursor: "pointer",
-                    fontSize: 14,
-                    padding: 4,
-                  }}
-                >
-                  &gt;
-                </button>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--color-brand-teal, #0E7D75)", marginBottom: 6 }}>
+              Academic Schedule Info
+            </div>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: "var(--color-ink, #182220)", margin: "0 0 14px" }}>
+              {activeView === "class"
+                ? `${selectedClass?.name || "Class"} Weekly Routine`
+                : activeView === "master"
+                ? "School Master Routine"
+                : "Teacher Weekly Roster"}
+            </h3>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #F0F2F1", paddingBottom: 6 }}>
+                <span style={{ color: "var(--color-text-secondary)" }}>School Days</span>
+                <span style={{ fontWeight: 700, color: "var(--color-ink)" }}>Mon – Fri (5 Days)</span>
               </div>
-            </div>
-
-            {/* Day of Week Letters */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(7, 1fr)",
-                textAlign: "center",
-                fontSize: 11,
-                fontWeight: 600,
-                color: "var(--color-text-secondary, #70817B)",
-                marginBottom: 10,
-              }}
-            >
-              <span>S</span>
-              <span>M</span>
-              <span>T</span>
-              <span>W</span>
-              <span>T</span>
-              <span>F</span>
-              <span>S</span>
-            </div>
-
-            {/* Days Grid */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(7, 1fr)",
-                gap: "4px",
-                textAlign: "center",
-              }}
-            >
-              {calendarDays.map((d) => {
-                const isSelected = d === selectedDayNum;
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setSelectedDayNum(d)}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      margin: "0 auto",
-                      border: "none",
-                      borderRadius: "50%",
-                      backgroundColor: isSelected ? "var(--color-brand-teal, #0E7D75)" : "transparent",
-                      color: isSelected ? "#FFFFFF" : "var(--color-ink, #182220)",
-                      fontWeight: isSelected ? 700 : 500,
-                      fontSize: 12,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      transition: "all 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isSelected) e.currentTarget.style.backgroundColor = "var(--color-surface-subtle, #F4F7F5)";
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isSelected) e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                  >
-                    {d}
-                  </button>
-                );
-              })}
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #F0F2F1", paddingBottom: 6 }}>
+                <span style={{ color: "var(--color-text-secondary)" }}>Daily Periods</span>
+                <span style={{ fontWeight: 700, color: "var(--color-ink)" }}>{timetable?.periodsPerDay || 8} Periods / Day</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #F0F2F1", paddingBottom: 6 }}>
+                <span style={{ color: "var(--color-text-secondary)" }}>Period Duration</span>
+                <span style={{ fontWeight: 700, color: "var(--color-ink)" }}>{timetable?.periodDuration || 40} Mins</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #F0F2F1", paddingBottom: 6 }}>
+                <span style={{ color: "var(--color-text-secondary)" }}>Recess Break</span>
+                <span style={{ fontWeight: 700, color: "var(--color-warning-text, #92400E)" }}>10:40 AM – 11:10 AM</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #F0F2F1", paddingBottom: 6 }}>
+                <span style={{ color: "var(--color-text-secondary)" }}>Closing Bell</span>
+                <span style={{ fontWeight: 700, color: "var(--color-ink)" }}>01:50 PM</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--color-text-secondary)" }}>Weekly Schedule</span>
+                <span style={{ fontWeight: 700, color: "var(--color-brand-teal, #0E7D75)" }}>Balanced 5-Day Load</span>
+              </div>
             </div>
           </div>
 
@@ -801,39 +745,18 @@ export default function TimetablePage() {
               gap: 14,
             }}
           >
-            {/* Left: Date Navigation */}
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => setSelectedDayNum((prev) => Math.max(1, prev - 1))}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  fontSize: 16,
-                  color: "var(--color-text-secondary)",
-                  cursor: "pointer",
-                  padding: "4px 8px",
-                }}
-              >
-                &lt;
-              </button>
-              <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--color-ink, #182220)", margin: 0 }}>
-                June, {selectedDayNum} 2025
+            {/* Left: Section Title & Academic Year Subtitle */}
+            <div>
+              <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--color-ink, #182220)", margin: 0 }}>
+                {activeView === "class"
+                  ? `${selectedClass?.name || "Class"} Weekly Timetable`
+                  : activeView === "master"
+                  ? "General Master Timetable (All Classes & 5 Days)"
+                  : `${selectedTeacherObj ? `${selectedTeacherObj.firstName} ${selectedTeacherObj.lastName}` : "Teacher"} Weekly Roster`}
               </h2>
-              <button
-                type="button"
-                onClick={() => setSelectedDayNum((prev) => Math.min(30, prev + 1))}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  fontSize: 16,
-                  color: "var(--color-text-secondary)",
-                  cursor: "pointer",
-                  padding: "4px 8px",
-                }}
-              >
-                &gt;
-              </button>
+              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>
+                {timetable?.academicYear || "2025/2026"} Academic Session · {timetable?.term?.name || "Active Term"} · Monday through Friday (5 Days)
+              </p>
             </div>
 
             {/* Center: Segmented View Switcher */}
@@ -853,7 +776,7 @@ export default function TimetablePage() {
                   border: "none",
                   background: activeView === "class" ? "#FFFFFF" : "transparent",
                   color: activeView === "class" ? "var(--color-ink, #182220)" : "var(--color-text-secondary, #70817B)",
-                  padding: "6px 18px",
+                  padding: "7px 18px",
                   borderRadius: 9999,
                   fontSize: 13,
                   fontWeight: activeView === "class" ? 700 : 500,
@@ -862,7 +785,26 @@ export default function TimetablePage() {
                   transition: "all 0.15s",
                 }}
               >
-                Weekly Routine
+                Class Timetable
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveView("master")}
+                style={{
+                  border: "none",
+                  background: activeView === "master" ? "#FFFFFF" : "transparent",
+                  color: activeView === "master" ? "var(--color-ink, #182220)" : "var(--color-text-secondary, #70817B)",
+                  padding: "7px 18px",
+                  borderRadius: 9999,
+                  fontSize: 13,
+                  fontWeight: activeView === "master" ? 700 : 500,
+                  boxShadow: activeView === "master" ? "0 2px 8px rgba(0, 0, 0, 0.06)" : "none",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                General Master Sheet
               </button>
 
               <button
@@ -872,7 +814,7 @@ export default function TimetablePage() {
                   border: "none",
                   background: activeView === "teacher" ? "#FFFFFF" : "transparent",
                   color: activeView === "teacher" ? "var(--color-ink, #182220)" : "var(--color-text-secondary, #70817B)",
-                  padding: "6px 18px",
+                  padding: "7px 18px",
                   borderRadius: 9999,
                   fontSize: 13,
                   fontWeight: activeView === "teacher" ? 700 : 500,
@@ -883,42 +825,23 @@ export default function TimetablePage() {
               >
                 Teacher Roster
               </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveView("master")}
-                style={{
-                  border: "none",
-                  background: activeView === "master" ? "#FFFFFF" : "transparent",
-                  color: activeView === "master" ? "var(--color-ink, #182220)" : "var(--color-text-secondary, #70817B)",
-                  padding: "6px 18px",
-                  borderRadius: 9999,
-                  fontSize: 13,
-                  fontWeight: activeView === "master" ? 700 : 500,
-                  boxShadow: activeView === "master" ? "0 2px 8px rgba(0, 0, 0, 0.06)" : "none",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                Master Day Matrix
-              </button>
             </div>
 
-            {/* Right: Class / Teacher / Day Selector & Action Buttons */}
+            {/* Right: Dropdowns & Print Actions */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {activeView === "class" && (
                 <select
                   className="input"
-                  style={{ width: "auto", minWidth: 180, height: 38, padding: "6px 14px", borderRadius: 9999 }}
+                  style={{ width: "auto", minWidth: 170, height: 38, padding: "6px 14px", borderRadius: 9999 }}
                   value={selectedClassId}
                   onChange={(e) => setSelectedClassId(e.target.value)}
                 >
-                  <option value="all">All Classes ({classes.length} Sections)</option>
                   {classes.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.level})
                     </option>
                   ))}
+                  <option value="all">All Classes Booklet ({classes.length} Pages)</option>
                 </select>
               )}
 
@@ -935,72 +858,6 @@ export default function TimetablePage() {
                     </option>
                   ))}
                 </select>
-              )}
-
-              {activeView === "master" && (
-                <select
-                  className="input"
-                  style={{ width: "auto", minWidth: 130, height: 38, padding: "6px 14px", borderRadius: 9999 }}
-                  value={selectedMasterDay}
-                  onChange={(e) => setSelectedMasterDay(e.target.value)}
-                >
-                  {DAYS_OF_WEEK.map((d) => (
-                    <option key={d.key} value={d.key}>
-                      {d.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              {/* Mode Switcher for All Classes */}
-              {activeView === "class" && selectedClassId === "all" && (
-                <div
-                  className="no-print"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
-                    border: "1px solid var(--color-border, #E8ECE9)",
-                    borderRadius: 9999,
-                    padding: 3,
-                    gap: 3,
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={() => setPrintMode("single-master")}
-                    style={{
-                      border: "none",
-                      backgroundColor: printMode === "single-master" ? "var(--color-brand-teal, #0E7D75)" : "transparent",
-                      color: printMode === "single-master" ? "#FFFFFF" : "var(--color-text-secondary, #70817B)",
-                      fontWeight: 700,
-                      fontSize: 12,
-                      padding: "5px 12px",
-                      borderRadius: 9999,
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    Single A4 Master
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPrintMode("booklet")}
-                    style={{
-                      border: "none",
-                      backgroundColor: printMode === "booklet" ? "var(--color-brand-teal, #0E7D75)" : "transparent",
-                      color: printMode === "booklet" ? "#FFFFFF" : "var(--color-text-secondary, #70817B)",
-                      fontWeight: 700,
-                      fontSize: 12,
-                      padding: "5px 12px",
-                      borderRadius: 9999,
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    Class Booklet
-                  </button>
-                </div>
               )}
 
               {/* Auto-Generate Button (Admin Only) */}
@@ -1025,7 +882,7 @@ export default function TimetablePage() {
                 </button>
               )}
 
-              {/* Print Button (Scales to A4 Paper) */}
+              {/* Print Button */}
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1033,11 +890,13 @@ export default function TimetablePage() {
                 onClick={() => window.print()}
                 title="Print clean official A4 timetable"
               >
-                {selectedClassId === "all"
-                  ? printMode === "single-master"
-                    ? "Print Master Sheet (1 A4 Page)"
-                    : `Print All Classes Booklet (${classes.length} Pages)`
-                  : `Print ${classes.find((c) => c.id === selectedClassId)?.name || "Class"} (1 Page)`}
+                {activeView === "master"
+                  ? "Print Master Sheet (1 A4 Page)"
+                  : activeView === "teacher"
+                  ? "Print Teacher Roster (A4)"
+                  : selectedClassId === "all"
+                  ? `Print All Classes Booklet (${classes.length} Pages)`
+                  : `Print ${selectedClass?.name || "Class"} (1 Page)`}
               </button>
             </div>
           </div>
@@ -1062,53 +921,51 @@ export default function TimetablePage() {
           )}
 
           {/* ═══════════════════════════════════════════════════════════════════
-              WEEKLY ROUTINE FOR ALL CLASSES (SCREEN & A4 PRINT READY)
+          {/* ═══════════════════════════════════════════════════════════════════
+              GENERAL MASTER TIMETABLE (ALL CLASSES & 5 DAYS ON 1 A4 SHEET)
           ══════════════════════════════════════════════════════════════════════ */}
-          {timetable && activeView === "class" && (
-            <>
-              {/* ── OPTION A: SINGLE A4 MASTER SHEET (ALL CLASSES ON 1 A4 PAGE) ── */}
-              {selectedClassId === "all" && printMode === "single-master" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {/* Screen Info Banner */}
-                  <div
-                    className="no-print"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "14px 20px",
-                      backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
-                      borderRadius: 16,
-                      border: "1px solid var(--color-border, #E8ECE9)",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                        Single A4 Master Routine View
-                      </div>
-                      <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
-                        All {classes.length} classes and assigned subjects across Monday–Friday are formatted to fit standard A4 landscape paper on a single page.
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => setPrintMode("booklet")}
-                        style={{ fontSize: 12, padding: "6px 14px", fontWeight: 700, backgroundColor: "#FFFFFF" }}
-                      >
-                        Switch to Full Class Booklet View
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => window.print()}
-                        style={{ fontSize: 12, padding: "6px 16px", fontWeight: 700, backgroundColor: "var(--color-brand-teal, #0E7D75)" }}
-                      >
-                        Print Master Sheet (1 A4)
-                      </button>
-                    </div>
+          {timetable && activeView === "master" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Screen Info Banner */}
+              <div
+                className="no-print"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "14px 20px",
+                  backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                  borderRadius: 16,
+                  border: "1px solid var(--color-border, #E8ECE9)",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    General Master Academic Routine (Single A4 Sheet)
                   </div>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
+                    All {classes.length} classes and assigned subjects across Monday–Friday are formatted to fit standard A4 landscape paper on a single consolidated sheet.
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setActiveView("class")}
+                    style={{ fontSize: 12, padding: "6px 14px", fontWeight: 700, backgroundColor: "#FFFFFF" }}
+                  >
+                    Switch to Class Timetable
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => window.print()}
+                    style={{ fontSize: 12, padding: "6px 16px", fontWeight: 700, backgroundColor: "var(--color-brand-teal, #0E7D75)" }}
+                  >
+                    Print Master Sheet (1 A4)
+                  </button>
+                </div>
+              </div>
 
                   {/* ── Official Single A4 Master Sheet ── */}
                   <div
@@ -1322,56 +1179,58 @@ export default function TimetablePage() {
                         <div style={{ width: 140, borderBottom: "1px solid #182220", marginBottom: 2, marginLeft: "auto" }} />
                         <div style={{ fontSize: 8, fontWeight: 700, textTransform: "uppercase" }}>Principal / Vice-Principal Academics</div>
                       </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              CLASS ROUTINE VIEW (5-DAY WEEKLY SCHEDULE)
+          ══════════════════════════════════════════════════════════════════════ */}
+          {timetable && activeView === "class" && (
+            <div className="timetable-class-routine-wrapper" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+              {/* Screen Info Banner (when booklet is selected for all classes) */}
+              {selectedClassId === "all" && (
+                <div
+                  className="no-print"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "14px 20px",
+                    backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                    borderRadius: 16,
+                    border: "1px solid var(--color-border, #E8ECE9)",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      Class-by-Class Booklet View
                     </div>
+                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
+                      Displaying full individual weekly timetable sheets for all {classes.length} classes. Each class prints onto its own dedicated A4 landscape sheet.
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setActiveView("master")}
+                      style={{ fontSize: 12, padding: "6px 14px", fontWeight: 700, backgroundColor: "#FFFFFF" }}
+                    >
+                      Switch to 1-Page Master Sheet
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => window.print()}
+                      style={{ fontSize: 12, padding: "6px 16px", fontWeight: 700, backgroundColor: "var(--color-brand-teal, #0E7D75)" }}
+                    >
+                      Print All Classes ({classes.length} Pages)
+                    </button>
                   </div>
                 </div>
               )}
-
-              {/* ── OPTION B: FULL CLASS BOOKLET OR INDIVIDUAL CLASS VIEW ── */}
-              {(selectedClassId !== "all" || printMode === "booklet") && (
-                <div className="timetable-class-routine-wrapper" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-                  {/* Screen Info Banner (when booklet is selected for all classes) */}
-                  {selectedClassId === "all" && (
-                    <div
-                      className="no-print"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "14px 20px",
-                        backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
-                        borderRadius: 16,
-                        border: "1px solid var(--color-border, #E8ECE9)",
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                          Class-by-Class Booklet View
-                        </div>
-                        <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
-                          Displaying full individual weekly timetable sheets for all {classes.length} classes. Each class prints onto its own dedicated A4 landscape sheet.
-                        </div>
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          onClick={() => setPrintMode("single-master")}
-                          style={{ fontSize: 12, padding: "6px 14px", fontWeight: 700, backgroundColor: "#FFFFFF" }}
-                        >
-                          Switch to Single A4 Master Sheet
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={() => window.print()}
-                          style={{ fontSize: 12, padding: "6px 16px", fontWeight: 700, backgroundColor: "var(--color-brand-teal, #0E7D75)" }}
-                        >
-                          Print All Classes ({classes.length} Pages)
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {/* If "all" is selected on screen, show quick index navigation */}
                   {selectedClassId === "all" && classes.length > 1 && (
@@ -1605,9 +1464,7 @@ export default function TimetablePage() {
                       </div>
                     );
                   })}
-                </div>
-              )}
-            </>
+            </div>
           )}
 
           {/* ── TEACHER ROSTER VIEW ─────────────────────────────────────────── */}
@@ -1712,81 +1569,7 @@ export default function TimetablePage() {
             </div>
           )}
 
-          {/* ── MASTER DAY MATRIX VIEW ──────────────────────────────────────── */}
-          {timetable && activeView === "master" && (
-            <div className="card" style={{ padding: "16px 20px", borderRadius: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                <div>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
-                    Master Day Matrix · {DAYS_OF_WEEK.find((d) => d.key === selectedMasterDay)?.label}
-                  </h3>
-                  <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
-                    All classes scheduled simultaneously across periods
-                  </p>
-                </div>
-                <span className="pill-neutral">Master Schedule</span>
-              </div>
 
-              <div style={{ overflowX: "auto" }}>
-                <table className="table" style={{ minWidth: 800 }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: 140 }}>Class Section</th>
-                      {periodSlots.map((slot, sIdx) => (
-                        <th key={sIdx} style={{ textAlign: "center" }}>
-                          {slot.isBreak ? "Break" : `P${slot.periodNumber}`}
-                          <div style={{ fontSize: 9, fontWeight: 500 }}>{slot.startTime}</div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {classes.map((cls) => (
-                      <tr key={cls.id}>
-                        <td style={{ fontWeight: 700 }}>
-                          {cls.name} <span style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)" }}>({cls.level})</span>
-                        </td>
-                        {periodSlots.map((slot, sIdx) => {
-                          if (slot.isBreak) {
-                            return (
-                              <td key={sIdx} style={{ backgroundColor: "var(--color-warning-bg)", textAlign: "center", fontSize: 10, fontWeight: 700, color: "var(--color-warning-text)" }}>
-                                BREAK
-                              </td>
-                            );
-                          }
-                          const lesson = masterDayLessonsMap.get(`${cls.id}_${slot.periodNumber}`);
-                          const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
-                          return (
-                            <td
-                              key={sIdx}
-                              onClick={() => lesson && openEditModal(lesson)}
-                              style={{
-                                backgroundColor: theme ? theme.bg : "transparent",
-                                color: theme ? theme.text : "inherit",
-                                cursor: lesson && isAdmin ? "pointer" : "default",
-                                padding: 6,
-                              }}
-                            >
-                              {lesson ? (
-                                <div style={{ fontSize: 11, fontWeight: 700 }}>
-                                  {lesson.subject.name}
-                                  <div style={{ fontSize: 9, fontWeight: 500, opacity: 0.8 }}>
-                                    {lesson.teacher ? `${lesson.teacher.firstName[0]}. ${lesson.teacher.lastName}` : "—"}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span style={{ opacity: 0.2 }}>—</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

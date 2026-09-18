@@ -166,12 +166,17 @@ export class TimetableService {
     const teacherBusy = new Map<string, Set<string>>();
     // classBusy: Map<classId, Set<"DAY_PERIOD">>
     const classBusy = new Map<string, Set<string>>();
+    // classDayCount: Map<"classId_day", number> tracks daily periods to balance Monday–Friday
+    const classDayCount = new Map<string, number>();
 
     for (const t of teachers) {
       teacherBusy.set(t.id, new Set<string>());
     }
     for (const c of classes) {
       classBusy.set(c.id, new Set<string>());
+      for (const d of WEEKDAYS) {
+        classDayCount.set(`${c.id}_${d}`, 0);
+      }
     }
 
     const lessonsToCreate: Array<{
@@ -186,9 +191,9 @@ export class TimetableService {
       isDouble?: boolean;
     }> = [];
 
-    // Prioritization: Core subjects (Math, English) get 5 periods/week (1 per day)
-    // Sciences / Tech get 4 periods/week
-    // Other subjects get 2-3 periods/week
+    // Target ~35 to 40 periods per week (7-8 periods per day across all 5 school days)
+    const targetWeeklyPeriods = Math.min(periodsPerDay * 5, 38);
+
     for (const cls of classes) {
       const clsSubjects = allClassSubjects.filter((cs) => cs.classSectionId === cls.id);
       if (clsSubjects.length === 0) continue;
@@ -206,19 +211,35 @@ export class TimetableService {
         const isCore = subName.includes('math') || subName.includes('english');
         const isLab = subName.includes('science') || subName.includes('chemistry') || subName.includes('physics') || subName.includes('computer');
 
-        const periodsCount = isCore ? 5 : isLab ? 4 : 3;
+        // Balanced period distribution: Core gets 6, Labs get 5, Humanities/Commercial get 4-5
+        const periodsCount = isCore ? 6 : isLab ? 5 : 5;
 
         for (let i = 0; i < periodsCount; i++) {
           subjectQueue.push({
             subjectId: cs.subjectId,
             teacherId: cs.teacherId ?? undefined,
             isCore,
-            isDouble: isLab && i === 0, // Mark first of lab as potential double
+            isDouble: isLab && i === 0,
           });
         }
       }
 
-      // Shuffle subject queue slightly to prevent monotonous grouping, keeping core balanced
+      // Pad remaining periods with subjects to reach full 35-38 period weekly load
+      let padIdx = 0;
+      while (subjectQueue.length < targetWeeklyPeriods && clsSubjects.length > 0) {
+        const cs = clsSubjects[padIdx % clsSubjects.length];
+        const subName = cs.subject.name.toLowerCase();
+        const isCore = subName.includes('math') || subName.includes('english');
+        subjectQueue.push({
+          subjectId: cs.subjectId,
+          teacherId: cs.teacherId ?? undefined,
+          isCore,
+          isDouble: false,
+        });
+        padIdx++;
+      }
+
+      // Distribute core subjects evenly
       subjectQueue.sort((a, b) => (b.isCore ? 1 : 0) - (a.isCore ? 1 : 0));
 
       const classSubjectDayCount = new Map<string, number>();
@@ -226,8 +247,14 @@ export class TimetableService {
       for (const item of subjectQueue) {
         let placed = false;
 
-        // Try days in order (prefer days where this subject hasn't been taught yet)
+        // Sort days by:
+        // 1. Least filled day for this class (guarantees equal Monday–Friday distribution)
+        // 2. Least taught day for this subject (spreads the subject throughout the week)
         const sortedDays = [...WEEKDAYS].sort((d1, d2) => {
+          const load1 = classDayCount.get(`${cls.id}_${d1}`) || 0;
+          const load2 = classDayCount.get(`${cls.id}_${d2}`) || 0;
+          if (load1 !== load2) return load1 - load2;
+
           const c1 = classSubjectDayCount.get(`${item.subjectId}_${d1}`) || 0;
           const c2 = classSubjectDayCount.get(`${item.subjectId}_${d2}`) || 0;
           return c1 - c2;
@@ -236,9 +263,12 @@ export class TimetableService {
         for (const day of sortedDays) {
           if (placed) break;
 
+          const currentDayLoad = classDayCount.get(`${cls.id}_${day}`) || 0;
+          if (currentDayLoad >= periodsPerDay) continue;
+
           const dayCount = classSubjectDayCount.get(`${item.subjectId}_${day}`) || 0;
-          // Avoid more than 1 period of same subject on the same day unless queue is overflowing
-          if (dayCount >= 1 && subjectQueue.length < 35) continue;
+          // Avoid more than 2 periods of same subject on the same day
+          if (dayCount >= 2) continue;
 
           // Search periods: Core subjects prefer morning (periods 1-4)
           const periodsOrder = item.isCore
@@ -276,6 +306,7 @@ export class TimetableService {
               isDouble: false,
             });
 
+            classDayCount.set(`${cls.id}_${day}`, currentDayLoad + 1);
             classSubjectDayCount.set(`${item.subjectId}_${day}`, dayCount + 1);
             placed = true;
             break;
