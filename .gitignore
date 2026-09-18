@@ -57,3 +57,7 @@ coverage/
 .turbo/
 .cache/
 *.pem
+
+# Local credentials and user directory documents
+SYSTEM_USERS_LOGIN_CREDENTIALS.*
+credentials*
