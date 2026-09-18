@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -33,6 +34,7 @@ function formatNaira(amount: number) {
 }
 
 export default function FeeStructuresPage() {
+  const { isAdmin } = useCurrentUser();
   const [structures, setStructures] = useState<FeeStructure[]>([]);
   const [terms, setTerms] = useState<TermOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +86,7 @@ export default function FeeStructuresPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     setError("");
     setSuccess("");
 
@@ -140,6 +143,7 @@ export default function FeeStructuresPage() {
   };
 
   const handleDeactivate = async (id: string, name: string) => {
+    if (!isAdmin) return;
     if (!window.confirm(`Are you sure you want to deactivate "${name}"?`)) return;
 
     try {
@@ -186,15 +190,17 @@ export default function FeeStructuresPage() {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setIsModalOpen(true)}
-          >
-            + Add Fee Structure
-          </button>
-        </div>
+        {isAdmin && (
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setIsModalOpen(true)}
+            >
+              + Add Fee Structure
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -293,7 +299,7 @@ export default function FeeStructuresPage() {
                     )}
                   </td>
                   <td style={{ textAlign: "right" }}>
-                    {s.isActive && (
+                    {isAdmin && s.isActive && (
                       <button
                         type="button"
                         onClick={() => handleDeactivate(s.id, s.name)}
@@ -318,7 +324,7 @@ export default function FeeStructuresPage() {
       </div>
 
       {/* Add Fee Structure Modal */}
-      {isModalOpen && (
+      {isModalOpen && isAdmin && (
         <div
           style={{
             position: "fixed",
@@ -351,7 +357,7 @@ export default function FeeStructuresPage() {
                 onClick={() => setIsModalOpen(false)}
                 style={{ border: "none", background: "none", fontSize: 18, cursor: "pointer", color: "var(--color-text-secondary)" }}
               >
-                ✕
+                &times;
               </button>
             </div>
 

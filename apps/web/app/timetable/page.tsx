@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface ClassSection {
   id: string;
@@ -128,6 +129,7 @@ function getSubjectShortName(name: string = ""): string {
 }
 
 export default function TimetablePage() {
+  const { isAdmin } = useCurrentUser();
   const [timetable, setTimetable] = useState<TimetableData | null>(null);
   const [classes, setClasses] = useState<ClassSection[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
@@ -403,6 +405,7 @@ export default function TimetablePage() {
 
   /* ── Lesson Quick Edit ───────────────────────────────────────────────────── */
   const openEditModal = (lesson: Lesson) => {
+    if (!isAdmin) return;
     setEditingLesson(lesson);
     setEditRoom(lesson.room || "");
     setEditTeacherId(lesson.teacherId || "");
@@ -675,7 +678,7 @@ export default function TimetablePage() {
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {upcomingLesson && (
+                {upcomingLesson && isAdmin && (
                   <button
                     type="button"
                     onClick={() => openEditModal(upcomingLesson)}
@@ -1000,25 +1003,27 @@ export default function TimetablePage() {
                 </div>
               )}
 
-              {/* Auto-Generate Button */}
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{
-                  backgroundColor: "var(--color-accent-gold, #F7C844)",
-                  color: "#182220",
-                  fontWeight: 700,
-                  boxShadow: "0 4px 12px rgba(247, 200, 68, 0.35)",
-                  padding: "9px 20px",
-                }}
-                onClick={() => {
-                  setGenError("");
-                  setGenSuccessMsg("");
-                  setIsGenModalOpen(true);
-                }}
-              >
-                Auto-Generate Routine
-              </button>
+              {/* Auto-Generate Button (Admin Only) */}
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{
+                    backgroundColor: "var(--color-accent-gold, #F7C844)",
+                    color: "#182220",
+                    fontWeight: 700,
+                    boxShadow: "0 4px 12px rgba(247, 200, 68, 0.35)",
+                    padding: "9px 20px",
+                  }}
+                  onClick={() => {
+                    setGenError("");
+                    setGenSuccessMsg("");
+                    setIsGenModalOpen(true);
+                  }}
+                >
+                  Auto-Generate Routine
+                </button>
+              )}
 
               {/* Print Button (Scales to A4 Paper) */}
               <button
@@ -1044,13 +1049,15 @@ export default function TimetablePage() {
               <p style={{ color: "var(--color-text-secondary)", maxWidth: 460, margin: "0 auto 20px" }}>
                 Generate an automated conflict-free academic routine across all classes and subjects with one click.
               </p>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setIsGenModalOpen(true)}
-              >
-                Auto-Generate Timetable Now
-              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setIsGenModalOpen(true)}
+                >
+                  Auto-Generate Timetable Now
+                </button>
+              )}
             </div>
           )}
 
@@ -1259,7 +1266,7 @@ export default function TimetablePage() {
                                         textAlign: "center",
                                         backgroundColor: theme ? theme.bg : "#FFFFFF",
                                         border: "1px solid #182220",
-                                        cursor: lesson ? "pointer" : "default",
+                                        cursor: lesson && isAdmin ? "pointer" : "default",
                                         height: 18,
                                       }}
                                       title={lesson ? `${lesson.subject.name} · ${lesson.teacher ? `${lesson.teacher.firstName} ${lesson.teacher.lastName}` : "Unassigned"}` : undefined}
@@ -1536,7 +1543,7 @@ export default function TimetablePage() {
                                           verticalAlign: "top",
                                           borderRight: pIdx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
                                           backgroundColor: theme ? theme.bg : "transparent",
-                                          cursor: lesson ? "pointer" : "default",
+                                          cursor: lesson && isAdmin ? "pointer" : "default",
                                         }}
                                       >
                                         {lesson ? (
@@ -1685,7 +1692,7 @@ export default function TimetablePage() {
                               color: theme?.text,
                               borderRadius: 14,
                               padding: "10px 12px",
-                              cursor: "pointer",
+                              cursor: isAdmin ? "pointer" : "default",
                             }}
                           >
                             <div style={{ fontSize: 12, fontWeight: 700 }}>{lesson.subject.name}</div>
@@ -1756,7 +1763,7 @@ export default function TimetablePage() {
                               style={{
                                 backgroundColor: theme ? theme.bg : "transparent",
                                 color: theme ? theme.text : "inherit",
-                                cursor: lesson ? "pointer" : "default",
+                                cursor: lesson && isAdmin ? "pointer" : "default",
                                 padding: 6,
                               }}
                             >
@@ -1784,7 +1791,7 @@ export default function TimetablePage() {
       </div>
 
       {/* ── MODAL: AUTO-GENERATE TIMETABLE ─────────────────────────────────── */}
-      {isGenModalOpen && (
+      {isGenModalOpen && isAdmin && (
         <div
           style={{
             position: "fixed",
@@ -1979,7 +1986,7 @@ export default function TimetablePage() {
       )}
 
       {/* ── MODAL: EDIT / REASSIGN SINGLE LESSON ────────────────────────────── */}
-      {editingLesson && (
+      {editingLesson && isAdmin && (
         <div
           style={{
             position: "fixed",

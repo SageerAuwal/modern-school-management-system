@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
 
@@ -74,6 +75,8 @@ const STATUS_OPTIONS: StatusOption[] = [
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 export default function AttendancePage() {
+  const { isAdmin, isTeacher } = useCurrentUser();
+  const canMarkAttendance = isAdmin || isTeacher;
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [date, setDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
@@ -194,6 +197,7 @@ export default function AttendancePage() {
   }, [rosterData, attendance, initialAttendance]);
 
   const handleToggle = (studentId: string, status: AttendanceStatus) => {
+    if (!canMarkAttendance) return;
     setAttendance((prev) => {
       if (prev[studentId] === status) {
         const next = { ...prev };
@@ -205,6 +209,7 @@ export default function AttendancePage() {
   };
 
   const handleMarkAll = (status: AttendanceStatus) => {
+    if (!canMarkAttendance) return;
     if (!rosterData || rosterData.roster.length === 0) return;
     const allMarked: Record<string, AttendanceStatus> = {};
     rosterData.roster.forEach((student) => {
@@ -214,6 +219,7 @@ export default function AttendancePage() {
   };
 
   const handleSave = async () => {
+    if (!canMarkAttendance) return;
     if (!selectedClassId || !rosterData || !hasChanges) return;
 
     setSaving(true);
@@ -447,37 +453,39 @@ export default function AttendancePage() {
                 </p>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    color: "var(--color-text-secondary)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  Mark all:
-                </span>
-                {STATUS_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.status}
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => handleMarkAll(opt.status)}
+              {canMarkAttendance && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span
                     style={{
-                      padding: "4px 10px",
-                      fontSize: "12px",
+                      fontSize: "11px",
                       fontWeight: 600,
-                      backgroundColor: opt.bgColor,
-                      color: opt.textColor,
-                      borderColor: "transparent",
+                      color: "var(--color-text-secondary)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
                     }}
                   >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+                    Mark all:
+                  </span>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.status}
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => handleMarkAll(opt.status)}
+                      style={{
+                        padding: "4px 10px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        backgroundColor: opt.bgColor,
+                        color: opt.textColor,
+                        borderColor: "transparent",
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Table */}
@@ -530,6 +538,7 @@ export default function AttendancePage() {
                                 <button
                                   key={opt.status}
                                   type="button"
+                                  disabled={!canMarkAttendance}
                                   onClick={() => handleToggle(student.id, opt.status)}
                                   aria-pressed={isSelected}
                                   aria-label={`Mark ${student.firstName} ${student.lastName} as ${opt.label}`}
@@ -550,11 +559,12 @@ export default function AttendancePage() {
                                     fontFamily: '"Manrope", sans-serif',
                                     fontSize: "12px",
                                     fontWeight: 600,
-                                    cursor: "pointer",
+                                    cursor: canMarkAttendance ? "pointer" : "default",
                                     display: "inline-flex",
                                     alignItems: "center",
                                     justifyContent: "center",
                                     transition: "background-color 0.15s, border-color 0.15s, color 0.15s",
+                                    opacity: !canMarkAttendance && !isSelected ? 0.45 : 1,
                                   }}
                                 >
                                   {opt.code}
@@ -586,14 +596,16 @@ export default function AttendancePage() {
               <div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
                 {markedStudentsCount} of {totalStudents} marked
               </div>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleSave}
-                disabled={!hasChanges || saving}
-              >
-                {saving ? "Saving attendance…" : "Save attendance"}
-              </button>
+              {canMarkAttendance && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleSave}
+                  disabled={!hasChanges || saving}
+                >
+                  {saving ? "Saving attendance…" : "Save attendance"}
+                </button>
+              )}
             </div>
           </div>
         </>

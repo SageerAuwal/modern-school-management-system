@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 interface Stop {
   id: string;
@@ -32,6 +33,7 @@ interface Route {
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 export default function TransportRoutesPage() {
+  const { isAdmin } = useCurrentUser();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,22 +117,24 @@ export default function TransportRoutesPage() {
             Organize pickup and drop-off schedules for school transport
           </p>
         </div>
-        <Link href="/transport/routes/new" className="btn btn-primary">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Add a route
-        </Link>
+        {isAdmin && (
+          <Link href="/transport/routes/new" className="btn btn-primary">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add a route
+          </Link>
+        )}
       </div>
 
       {/* Error Message */}
@@ -240,22 +244,24 @@ export default function TransportRoutesPage() {
           <p className="empty-state-text">
             Create a route to organize pickup and drop-off stops.
           </p>
-          <Link href="/transport/routes/new" className="btn btn-primary">
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            Add a route
-          </Link>
+          {isAdmin && (
+            <Link href="/transport/routes/new" className="btn btn-primary">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              Add a route
+            </Link>
+          )}
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PhotoCaptureInput from "../components/PhotoCaptureInput";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface Enrollment {
   classSection: {
@@ -54,6 +55,7 @@ function getStatusPillClass(status: string): string {
 
 export default function StudentsPage() {
   const router = useRouter();
+  const { isAdmin } = useCurrentUser();
   const [students, setStudents] = useState<Student[]>([]);
   const [classes, setClasses] = useState<Array<{ id: string; name: string; level: string }>>([]);
   const [search, setSearch] = useState("");
@@ -125,6 +127,7 @@ export default function StudentsPage() {
   }, []);
 
   function openEditModal(student: Student) {
+    if (!isAdmin) return;
     setEditingStudent(student);
     setEditFirstName(student.firstName);
     setEditLastName(student.lastName);
@@ -210,6 +213,7 @@ export default function StudentsPage() {
   }
 
   async function handleReenroll(student: Student) {
+    if (!isAdmin) return;
     try {
       const res = await fetch(`${API}/api/v1/students/${student.id}/reenroll`, {
         method: "PATCH",
@@ -239,9 +243,11 @@ export default function StudentsPage() {
             {students.length} {students.length === 1 ? "student" : "students"} registered
           </p>
         </div>
-        <Link href="/students/new" className="btn btn-primary">
-          Add a student
-        </Link>
+        {isAdmin && (
+          <Link href="/students/new" className="btn btn-primary">
+            Add a student
+          </Link>
+        )}
       </div>
 
       {/* Action Notification Banner */}
@@ -290,7 +296,7 @@ export default function StudentsPage() {
                 <th>Admission No</th>
                 <th>Class</th>
                 <th>Status</th>
-                <th style={{ textAlign: "right" }}>Actions</th>
+                {isAdmin && <th style={{ textAlign: "right" }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -303,7 +309,7 @@ export default function StudentsPage() {
                   <td><div className="skeleton" style={{ height: 16, width: "45%" }} /></td>
                   <td><div className="skeleton" style={{ height: 16, width: "50%" }} /></td>
                   <td><div className="skeleton" style={{ height: 20, width: 72, borderRadius: "var(--radius-pill-badge)" }} /></td>
-                  <td><div className="skeleton" style={{ height: 24, width: 90, marginLeft: "auto" }} /></td>
+                  {isAdmin && <td><div className="skeleton" style={{ height: 24, width: 90, marginLeft: "auto" }} /></td>}
                 </tr>
               ))}
             </tbody>
@@ -322,9 +328,11 @@ export default function StudentsPage() {
           </div>
           <h3 className="empty-state-title">No students yet</h3>
           <p className="empty-state-text">Add your first student to start tracking enrollment.</p>
-          <Link href="/students/new" className="btn btn-primary">
-            Add a student
-          </Link>
+          {isAdmin && (
+            <Link href="/students/new" className="btn btn-primary">
+              Add a student
+            </Link>
+          )}
         </div>
       ) : (
         /* Students Table with Edit & Remove/Withdraw Actions */
@@ -337,7 +345,7 @@ export default function StudentsPage() {
                 <th>Admission No</th>
                 <th>Class</th>
                 <th>Status</th>
-                <th style={{ textAlign: "right" }}>Actions</th>
+                {isAdmin && <th style={{ textAlign: "right" }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -383,37 +391,39 @@ export default function StudentsPage() {
                         {student.enrollmentStatus}
                       </span>
                     </td>
-                    <td style={{ textAlign: "right" }}>
-                      <div style={{ display: "inline-flex", gap: 6 }}>
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(student)}
-                          className="btn btn-secondary"
-                          style={{ padding: "4px 10px", fontSize: 12 }}
-                        >
-                          Edit
-                        </button>
-                        {isWithdrawn ? (
+                    {isAdmin && (
+                      <td style={{ textAlign: "right" }}>
+                        <div style={{ display: "inline-flex", gap: 6 }}>
                           <button
                             type="button"
-                            onClick={() => handleReenroll(student)}
+                            onClick={() => openEditModal(student)}
                             className="btn btn-secondary"
-                            style={{ padding: "4px 10px", fontSize: 12, color: "var(--color-success-text)" }}
+                            style={{ padding: "4px 10px", fontSize: 12 }}
                           >
-                            Re-enroll
+                            Edit
                           </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setWithdrawingStudent(student)}
-                            className="btn btn-secondary"
-                            style={{ padding: "4px 10px", fontSize: 12, color: "var(--color-danger-text)" }}
-                          >
-                            Withdraw
-                          </button>
-                        )}
-                      </div>
-                    </td>
+                          {isWithdrawn ? (
+                            <button
+                              type="button"
+                              onClick={() => handleReenroll(student)}
+                              className="btn btn-secondary"
+                              style={{ padding: "4px 10px", fontSize: 12, color: "var(--color-success-text)" }}
+                            >
+                              Re-enroll
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setWithdrawingStudent(student)}
+                              className="btn btn-secondary"
+                              style={{ padding: "4px 10px", fontSize: 12, color: "var(--color-danger-text)" }}
+                            >
+                              Withdraw
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -423,7 +433,7 @@ export default function StudentsPage() {
       )}
 
       {/* Edit Student Modal */}
-      {editingStudent && (
+      {editingStudent && isAdmin && (
         <div
           style={{
             position: "fixed",
@@ -613,7 +623,7 @@ export default function StudentsPage() {
       )}
 
       {/* Withdraw Confirmation Modal */}
-      {withdrawingStudent && (
+      {withdrawingStudent && isAdmin && (
         <div
           style={{
             position: "fixed",

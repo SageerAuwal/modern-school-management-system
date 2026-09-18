@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, FormEvent } from "react";
 import PhotoCaptureInput from "../components/PhotoCaptureInput";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface StaffMember {
   id: string;
@@ -31,6 +32,7 @@ function getInitials(firstName?: string | null, lastName?: string | null): strin
 }
 
 export default function StaffPage() {
+  const { isAdmin } = useCurrentUser();
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -101,6 +103,7 @@ export default function StaffPage() {
 
   const handleAddStaff = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!isAdmin) return;
     setAddFormError(null);
 
     if (!addFormData.firstName.trim() || !addFormData.lastName.trim() || !addFormData.role.trim()) {
@@ -153,6 +156,7 @@ export default function StaffPage() {
   };
 
   const openEditModal = (member: StaffMember) => {
+    if (!isAdmin) return;
     setEditingStaff(member);
     setEditFormData({
       firstName: member.firstName,
@@ -168,7 +172,7 @@ export default function StaffPage() {
 
   const handleSaveEdit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!editingStaff) return;
+    if (!editingStaff || !isAdmin) return;
     setEditFormError(null);
 
     if (!editFormData.firstName.trim() || !editFormData.lastName.trim() || !editFormData.role.trim()) {
@@ -212,6 +216,7 @@ export default function StaffPage() {
   };
 
   const handleDeactivate = async (member: StaffMember) => {
+    if (!isAdmin) return;
     try {
       const res = await fetch(`${API}/api/v1/staff/${member.id}/deactivate`, {
         method: "PATCH",
@@ -230,6 +235,7 @@ export default function StaffPage() {
   };
 
   const handleReactivate = async (member: StaffMember) => {
+    if (!isAdmin) return;
     try {
       const res = await fetch(`${API}/api/v1/staff/${member.id}/reactivate`, {
         method: "PATCH",
@@ -248,7 +254,7 @@ export default function StaffPage() {
   };
 
   const handleConfirmDelete = async () => {
-    if (!deletingStaff) return;
+    if (!deletingStaff || !isAdmin) return;
     setSubmittingDelete(true);
     try {
       const res = await fetch(`${API}/api/v1/staff/${deletingStaff.id}`, {
@@ -305,16 +311,18 @@ export default function StaffPage() {
               : `${staffList.length} staff member${staffList.length === 1 ? "" : "s"}`}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            setAddFormError(null);
-            setIsAddModalOpen(true);
-          }}
-        >
-          Add staff member
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setAddFormError(null);
+              setIsAddModalOpen(true);
+            }}
+          >
+            Add staff member
+          </button>
+        )}
       </div>
 
       {/* Action Notification Banner */}
@@ -345,7 +353,7 @@ export default function StaffPage() {
               padding: "0 4px",
             }}
           >
-            ✕
+            &times;
           </button>
         </div>
       )}
@@ -386,7 +394,7 @@ export default function StaffPage() {
                 <th>Role / Designation</th>
                 <th>Contact</th>
                 <th>Status</th>
-                <th style={{ textAlign: "right" }}>Actions</th>
+                {isAdmin && <th style={{ textAlign: "right" }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -429,16 +437,18 @@ export default function StaffPage() {
                       }}
                     />
                   </td>
-                  <td>
-                    <div
-                      className="skeleton"
-                      style={{
-                        height: 24,
-                        width: 140,
-                        marginLeft: "auto",
-                      }}
-                    />
-                  </td>
+                  {isAdmin && (
+                    <td>
+                      <div
+                        className="skeleton"
+                        style={{
+                          height: 24,
+                          width: 140,
+                          marginLeft: "auto",
+                        }}
+                      />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -473,16 +483,18 @@ export default function StaffPage() {
             </div>
             <h3 className="empty-state-title">No staff records yet</h3>
             <p className="empty-state-text">Add your teaching and administrative staff.</p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                setAddFormError(null);
-                setIsAddModalOpen(true);
-              }}
-            >
-              Add staff member
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setAddFormError(null);
+                  setIsAddModalOpen(true);
+                }}
+              >
+                Add staff member
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -571,7 +583,7 @@ export default function StaffPage() {
                     <th>Role / Designation</th>
                     <th>Contact</th>
                     <th>Status</th>
-                    <th style={{ textAlign: "right" }}>Actions</th>
+                    {isAdmin && <th style={{ textAlign: "right" }}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -675,59 +687,61 @@ export default function StaffPage() {
                         </td>
 
                         {/* Actions (Edit / Deactivate / Reactivate / Remove) */}
-                        <td style={{ textAlign: "right" }}>
-                          <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-                            <button
-                              type="button"
-                              onClick={() => openEditModal(member)}
-                              className="btn btn-secondary"
-                              style={{ padding: "4px 10px", fontSize: 12 }}
-                            >
-                              Edit
-                            </button>
-
-                            {member.isActive ? (
+                        {isAdmin && (
+                          <td style={{ textAlign: "right" }}>
+                            <div style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
                               <button
                                 type="button"
-                                onClick={() => handleDeactivate(member)}
+                                onClick={() => openEditModal(member)}
+                                className="btn btn-secondary"
+                                style={{ padding: "4px 10px", fontSize: 12 }}
+                              >
+                                Edit
+                              </button>
+
+                              {member.isActive ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeactivate(member)}
+                                  className="btn btn-secondary"
+                                  style={{
+                                    padding: "4px 10px",
+                                    fontSize: 12,
+                                    color: "var(--color-warning-text, #b45309)",
+                                  }}
+                                >
+                                  Deactivate
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleReactivate(member)}
+                                  className="btn btn-secondary"
+                                  style={{
+                                    padding: "4px 10px",
+                                    fontSize: 12,
+                                    color: "var(--color-success-text)",
+                                  }}
+                                >
+                                  Reactivate
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => setDeletingStaff(member)}
                                 className="btn btn-secondary"
                                 style={{
                                   padding: "4px 10px",
                                   fontSize: 12,
-                                  color: "var(--color-warning-text, #b45309)",
+                                  color: "var(--color-danger-text)",
                                 }}
                               >
-                                Deactivate
+                                Remove
                               </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleReactivate(member)}
-                                className="btn btn-secondary"
-                                style={{
-                                  padding: "4px 10px",
-                                  fontSize: 12,
-                                  color: "var(--color-success-text)",
-                                }}
-                              >
-                                Reactivate
-                              </button>
-                            )}
-
-                            <button
-                              type="button"
-                              onClick={() => setDeletingStaff(member)}
-                              className="btn btn-secondary"
-                              style={{
-                                padding: "4px 10px",
-                                fontSize: 12,
-                                color: "var(--color-danger-text)",
-                              }}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </td>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -739,7 +753,7 @@ export default function StaffPage() {
       )}
 
       {/* Add Staff Member Modal */}
-      {isAddModalOpen && (
+      {isAddModalOpen && isAdmin && (
         <div
           style={{
             position: "fixed",
@@ -1013,7 +1027,7 @@ export default function StaffPage() {
       )}
 
       {/* Edit Staff Member Modal */}
-      {editingStaff && (
+      {editingStaff && isAdmin && (
         <div
           style={{
             position: "fixed",
@@ -1269,8 +1283,8 @@ export default function StaffPage() {
         </div>
       )}
 
-      {/* Delete / Remove Confirmation Modal */}
-      {deletingStaff && (
+      {/* Delete Confirmation Modal */}
+      {deletingStaff && isAdmin && (
         <div
           style={{
             position: "fixed",

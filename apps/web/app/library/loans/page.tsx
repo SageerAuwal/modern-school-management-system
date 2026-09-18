@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 interface Loan {
   id: string;
@@ -59,6 +60,7 @@ function getBorrowerName(loan: Loan): string {
 }
 
 export default function LibraryLoansPage() {
+  const { isAdmin } = useCurrentUser();
   const [tab, setTab] = useState<"active" | "overdue">("active");
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -128,6 +130,7 @@ export default function LibraryLoansPage() {
 
   const handleIssueSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return;
     if (!issueBookId || !issueBorrowerName || !issueDueDate) return;
 
     setSubmittingIssue(true);
@@ -206,13 +209,15 @@ export default function LibraryLoansPage() {
           </div>
           <h1 className="page-title">Book Loans</h1>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setShowIssueModal(true)}
-        >
-          Issue a book
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setShowIssueModal(true)}
+          >
+            Issue a book
+          </button>
+        )}
       </div>
 
       {/* Notifications */}
@@ -359,13 +364,15 @@ export default function LibraryLoansPage() {
             <p className="empty-state-text">
               All borrowed books have been returned. Issue a book to record a new loan.
             </p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setShowIssueModal(true)}
-            >
-              Issue a book
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setShowIssueModal(true)}
+              >
+                Issue a book
+              </button>
+            )}
           </div>
         ) : (
           <div className="card empty-state">
@@ -492,7 +499,7 @@ export default function LibraryLoansPage() {
       )}
 
       {/* Issue Book Modal */}
-      {showIssueModal && (
+      {showIssueModal && isAdmin && (
         <div
           style={{
             position: "fixed",
@@ -547,7 +554,7 @@ export default function LibraryLoansPage() {
                 }}
                 aria-label="Close dialog"
               >
-                ✕
+                &times;
               </button>
             </div>
 

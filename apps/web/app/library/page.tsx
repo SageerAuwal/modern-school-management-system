@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface Book {
   id: string;
@@ -17,6 +18,7 @@ interface Book {
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 export default function LibraryPage() {
+  const { isAdmin } = useCurrentUser();
   const [books, setBooks] = useState<Book[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -93,9 +95,11 @@ export default function LibraryPage() {
           <Link href="/library/loans" className="btn btn-secondary">
             View loans
           </Link>
-          <Link href="/library/new" className="btn btn-primary">
-            Add a book
-          </Link>
+          {isAdmin && (
+            <Link href="/library/new" className="btn btn-primary">
+              Add a book
+            </Link>
+          )}
         </div>
       </div>
 
@@ -226,11 +230,13 @@ export default function LibraryPage() {
           <p className="empty-state-text">
             Add books to start managing your school library.
           </p>
-          <div>
-            <Link href="/library/new" className="btn btn-primary">
-              Add your first book
-            </Link>
-          </div>
+          {isAdmin && (
+            <div>
+              <Link href="/library/new" className="btn btn-primary">
+                Add your first book
+              </Link>
+            </div>
+          )}
         </div>
       ) : (
         /* Grid of cards (3 columns) */

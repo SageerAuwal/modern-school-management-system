@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface ClassItem {
   id: string;
@@ -72,6 +73,8 @@ function getGradePillClass(grade: string | null): string {
 }
 
 export default function GradesPage() {
+  const { isAdmin, isTeacher } = useCurrentUser();
+  const canEnterScores = isAdmin || isTeacher;
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [selectedClassId, setSelectedClassId] = useState("");
@@ -278,6 +281,7 @@ export default function GradesPage() {
 
   // 5. Save scores bulk
   const handleSave = async () => {
+    if (!canEnterScores) return;
     if (!selectedClassId || !selectedSubjectId) return;
 
     setSaving(true);
@@ -603,6 +607,7 @@ export default function GradesPage() {
                       <td>
                         <input
                           type="number"
+                          disabled={!canEnterScores}
                           min={0}
                           max={100}
                           className="input"
@@ -621,6 +626,7 @@ export default function GradesPage() {
                       <td>
                         <input
                           type="number"
+                          disabled={!canEnterScores}
                           min={0}
                           max={100}
                           className="input"
@@ -639,6 +645,7 @@ export default function GradesPage() {
                       <td>
                         <input
                           type="number"
+                          disabled={!canEnterScores}
                           min={0}
                           max={100}
                           className="input"
@@ -693,14 +700,16 @@ export default function GradesPage() {
             <p style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>
               {students.length} {students.length === 1 ? "student" : "students"} listed
             </p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? "Saving scores…" : "Save scores"}
-            </button>
+            {canEnterScores && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? "Saving scores…" : "Save scores"}
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface RouteItem {
   id: string;
@@ -33,6 +34,7 @@ function getOccupancyColor(pct: number): string {
 }
 
 export default function TransportPage() {
+  const { isAdmin } = useCurrentUser();
   const [buses, setBuses] = useState<Bus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -93,9 +95,11 @@ export default function TransportPage() {
           <Link href="/transport/routes" className="btn btn-secondary">
             View routes
           </Link>
-          <Link href="/transport/new" className="btn btn-primary">
-            Add a bus
-          </Link>
+          {isAdmin && (
+            <Link href="/transport/new" className="btn btn-primary">
+              Add a bus
+            </Link>
+          )}
         </div>
       </div>
 
@@ -210,11 +214,13 @@ export default function TransportPage() {
           <p className="empty-state-text">
             Add your first bus to manage school transport.
           </p>
-          <div>
-            <Link href="/transport/new" className="btn btn-primary">
-              Add a bus
-            </Link>
-          </div>
+          {isAdmin && (
+            <div>
+              <Link href="/transport/new" className="btn btn-primary">
+                Add a bus
+              </Link>
+            </div>
+          )}
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>

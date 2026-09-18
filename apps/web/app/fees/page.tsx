@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PosReceiptSlip from "../components/PosReceiptSlip";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface Student {
   firstName: string;
@@ -81,6 +82,7 @@ function getFeeType(invoice: Invoice): string {
 
 export default function FeesPage() {
   const router = useRouter();
+  const { isAdmin } = useCurrentUser();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -160,21 +162,23 @@ export default function FeesPage() {
             {invoices.length} {invoices.length === 1 ? "invoice" : "invoices"}
           </p>
         </div>
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            alignItems: "center",
-            flexWrap: "wrap",
-          }}
-        >
-          <Link href="/fees/structures" className="btn btn-secondary">
-            Fee structures
-          </Link>
-          <Link href="/fees/new" className="btn btn-primary">
-            Create invoice
-          </Link>
-        </div>
+        {isAdmin && (
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <Link href="/fees/structures" className="btn btn-secondary">
+              Fee structures
+            </Link>
+            <Link href="/fees/new" className="btn btn-primary">
+              Create invoice
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Stats Grid */}
@@ -327,21 +331,23 @@ export default function FeesPage() {
           <p className="empty-state-text">
             Create fee structures first, then generate invoices for students.
           </p>
-          <div
-            style={{
-              display: "inline-flex",
-              gap: 10,
-              justifyContent: "center",
-              flexWrap: "wrap",
-            }}
-          >
-            <Link href="/fees/structures" className="btn btn-secondary">
-              Fee structures
-            </Link>
-            <Link href="/fees/new" className="btn btn-primary">
-              Create invoice
-            </Link>
-          </div>
+          {isAdmin && (
+            <div
+              style={{
+                display: "inline-flex",
+                gap: 10,
+                justifyContent: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <Link href="/fees/structures" className="btn btn-secondary">
+                Fee structures
+              </Link>
+              <Link href="/fees/new" className="btn btn-primary">
+                Create invoice
+              </Link>
+            </div>
+          )}
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>

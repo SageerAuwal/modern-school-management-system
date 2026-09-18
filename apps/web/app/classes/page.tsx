@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface Teacher {
   id?: string;
@@ -32,6 +33,7 @@ interface UserTeacher {
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 export default function ClassesPage() {
+  const { isAdmin } = useCurrentUser();
   const [classes, setClasses] = useState<ClassSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -92,6 +94,7 @@ export default function ClassesPage() {
   }, []);
 
   const handleOpenModal = () => {
+    if (!isAdmin) return;
     setCreateError("");
     setClassNameInput("");
     setLevelInput("");
@@ -168,13 +171,15 @@ export default function ClassesPage() {
               : `${classes.length} ${classes.length === 1 ? "class" : "classes"} configured`}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={handleOpenModal}
-        >
-          Create a class
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleOpenModal}
+          >
+            Create a class
+          </button>
+        )}
       </div>
 
       {/* Error Banner */}
@@ -291,13 +296,15 @@ export default function ClassesPage() {
           <div className="empty-state-text">
             Create your first class to organize students.
           </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleOpenModal}
-          >
-            Create a class
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleOpenModal}
+            >
+              Create a class
+            </button>
+          )}
         </div>
       )}
 
@@ -328,6 +335,8 @@ export default function ClassesPage() {
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
+                  gap: "16px",
+                  padding: "20px",
                 }}
               >
                 <div>
@@ -337,101 +346,130 @@ export default function ClassesPage() {
                       alignItems: "flex-start",
                       justifyContent: "space-between",
                       gap: "8px",
-                      marginBottom: "4px",
+                      marginBottom: "6px",
                     }}
                   >
                     <h2
                       style={{
-                        fontSize: "16px",
+                        margin: 0,
+                        fontSize: "17px",
                         fontWeight: 600,
                         color: "var(--color-ink)",
-                        margin: 0,
                         lineHeight: 1.3,
                       }}
                     >
                       {cls.name}
                     </h2>
-                    <span className={cls.isActive ? "pill-success" : "pill-neutral"}>
-                      {cls.isActive ? "Active" : "Inactive"}
+                    <span className="pill-neutral" style={{ flexShrink: 0 }}>
+                      {cls.level}
                     </span>
                   </div>
+                  {cls.stream && (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "var(--color-text-secondary)",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      Stream: {cls.stream}
+                    </div>
+                  )}
+                  {cls.academicYear && (
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "var(--color-text-secondary)",
+                      }}
+                    >
+                      Session: {cls.academicYear}
+                    </div>
+                  )}
+                </div>
 
-                  <p
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      color: "var(--color-text-secondary)",
-                      margin: "0 0 16px 0",
-                    }}
-                  >
-                    {cls.level}
-                    {cls.stream ? ` · ${cls.stream}` : ""}
-                  </p>
-
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    padding: "10px 12px",
+                    backgroundColor: "var(--color-surface-subtle)",
+                    borderRadius: "var(--radius-control)",
+                  }}
+                >
                   <div
+                    className="avatar"
                     style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      marginBottom: "16px",
+                      width: "32px",
+                      height: "32px",
+                      fontSize: "11px",
+                      flexShrink: 0,
                     }}
+                    aria-hidden="true"
                   >
-                    <div className="avatar">{initials}</div>
-                    <div>
-                      <div
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.05em",
-                          color: "var(--color-text-secondary)",
-                        }}
-                      >
-                        Class Teacher
-                      </div>
-                      <div
-                        style={{
-                          fontSize: "13px",
-                          fontWeight: 500,
-                          color: cls.teacher
-                            ? "var(--color-ink)"
-                            : "var(--color-text-secondary)",
-                        }}
-                      >
-                        {teacherName}
-                      </div>
+                    {initials}
+                  </div>
+                  <div style={{ minWidth: 0, overflow: "hidden" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-text-secondary)",
+                        lineHeight: 1.2,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Class Teacher
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: cls.teacher ? "var(--color-ink)" : "var(--color-text-secondary)",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {teacherName}
                     </div>
                   </div>
                 </div>
 
                 <div
                   style={{
-                    borderTop: "var(--border-width) solid var(--color-border)",
+                    marginTop: "auto",
                     paddingTop: "12px",
+                    borderTop: "var(--border-width) solid var(--color-border)",
                     display: "flex",
-                    alignItems: "center",
                     justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
                   <span
                     style={{
                       fontSize: "13px",
-                      fontWeight: 600,
-                      color: "var(--color-ink)",
+                      color: "var(--color-text-secondary)",
+                      fontWeight: 500,
                     }}
                   >
                     {studentLabel}
                   </span>
-                  {cls.capacity ? (
+                  {cls.capacity && (
                     <span
                       style={{
                         fontSize: "12px",
-                        color: "var(--color-text-secondary)",
+                        color:
+                          studentCount >= cls.capacity
+                            ? "var(--color-danger-text)"
+                            : "var(--color-text-secondary)",
+                        fontWeight: 500,
                       }}
                     >
-                      Capacity: {cls.capacity}
+                      Capacity: {studentCount}/{cls.capacity}
                     </span>
-                  ) : null}
+                  )}
                 </div>
               </div>
             );
@@ -440,7 +478,7 @@ export default function ClassesPage() {
       )}
 
       {/* Modal: Create a Class */}
-      {isModalOpen && (
+      {isModalOpen && isAdmin && (
         <div
           style={{
             position: "fixed",

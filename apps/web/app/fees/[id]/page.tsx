@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PosReceiptSlip from "../../components/PosReceiptSlip";
+import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 interface Payment {
   id: string;
@@ -165,6 +166,7 @@ function InvoiceDetailContent() {
   const searchParams = useSearchParams();
   const idParam = params?.id;
   const invoiceId = Array.isArray(idParam) ? idParam[0] : idParam;
+  const { isAdmin } = useCurrentUser();
 
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -221,6 +223,7 @@ function InvoiceDetailContent() {
     : "";
 
   const openCashModal = () => {
+    if (!isAdmin) return;
     setPayError("");
     setCashAmount(balance > 0 ? String(balance) : "");
     setCashMethod("CASH");
@@ -230,6 +233,7 @@ function InvoiceDetailContent() {
 
   const handleRecordCashPayment = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!isAdmin) return;
     const numericAmount = parseFloat(cashAmount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
       setPayError("Enter a valid payment amount greater than zero.");
@@ -449,13 +453,15 @@ function InvoiceDetailContent() {
 
           {isNotPaid && (
             <>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={openCashModal}
-              >
-                Record cash payment
-              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={openCashModal}
+                >
+                  Record cash payment
+                </button>
+              )}
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -696,13 +702,15 @@ function InvoiceDetailContent() {
             paddingTop: 4,
           }}
         >
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={openCashModal}
-          >
-            Record cash payment
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={openCashModal}
+            >
+              Record cash payment
+            </button>
+          )}
           <button
             type="button"
             className="btn btn-secondary"
@@ -715,7 +723,7 @@ function InvoiceDetailContent() {
       )}
 
       {/* Cash Payment Dialog */}
-      {isCashModalOpen && (
+      {isCashModalOpen && isAdmin && (
         <div
           style={{
             position: "fixed",

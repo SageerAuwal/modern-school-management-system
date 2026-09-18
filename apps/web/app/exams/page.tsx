@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -103,6 +104,7 @@ const DEFAULT_EXAMS: ExamSession[] = [
 
 export default function ExamsPage() {
   const router = useRouter();
+  const { isAdmin } = useCurrentUser();
 
   // Tabs: "terms" | "grading" | "timetable"
   const [activeTab, setActiveTab] = useState<"terms" | "grading" | "timetable">("terms");
@@ -408,7 +410,7 @@ export default function ExamsPage() {
             Class Routine Timetable 
           </Link>
 
-          {activeTab === "terms" && (
+          {activeTab === "terms" && isAdmin && (
             <button
               type="button"
               onClick={() => setShowTermModal(true)}
@@ -426,15 +428,17 @@ export default function ExamsPage() {
                 onClick={() => window.print()}
                 title="Print Official Examination Docket"
               >
-                ️ Print Exam Docket
+                Print Exam Docket
               </button>
-              <button
-                type="button"
-                onClick={() => setShowExamModal(true)}
-                className="btn btn-primary"
-              >
-                + Schedule Exam Paper
-              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setShowExamModal(true)}
+                  className="btn btn-primary"
+                >
+                  + Schedule Exam Paper
+                </button>
+              )}
             </>
           )}
         </div>
@@ -542,7 +546,7 @@ export default function ExamsPage() {
             transition: "all 0.15s",
           }}
         >
-           Academic Terms &amp; Sessions
+          Academic Terms &amp; Sessions
         </button>
         <button
           type="button"
@@ -562,7 +566,7 @@ export default function ExamsPage() {
             transition: "all 0.15s",
           }}
         >
-           Grading Scale &amp; Assessment
+          Grading Scale &amp; Assessment
         </button>
         <button
           type="button"
@@ -582,7 +586,7 @@ export default function ExamsPage() {
             transition: "all 0.15s",
           }}
         >
-           Examination Timetable &amp; Halls
+          Examination Master Schedule
         </button>
       </div>
 
@@ -598,14 +602,16 @@ export default function ExamsPage() {
                 Term dates govern attendance rosters, score sheet submission deadlines, and fee invoicing.
               </p>
             </div>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setShowTermModal(true)}
-              style={{ padding: "6px 14px", fontSize: 12 }}
-            >
-              + Add Term
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setShowTermModal(true)}
+                style={{ padding: "6px 14px", fontSize: 12 }}
+              >
+                + Add Term
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -619,13 +625,15 @@ export default function ExamsPage() {
               <div className="empty-state-text" style={{ maxWidth: 400, margin: "0 auto 16px" }}>
                 Establish your school academic sessions and term calendar to start recording attendance and grades.
               </div>
-              <button
-                type="button"
-                onClick={() => setShowTermModal(true)}
-                className="btn btn-primary"
-              >
-                Create Academic Term
-              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setShowTermModal(true)}
+                  className="btn btn-primary"
+                >
+                  Create Academic Term
+                </button>
+              )}
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
@@ -638,7 +646,7 @@ export default function ExamsPage() {
                     <th>End Date</th>
                     <th>Duration</th>
                     <th>Status</th>
-                    <th style={{ textAlign: "right" }}>Action</th>
+                    {isAdmin && <th style={{ textAlign: "right" }}>Action</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -664,18 +672,20 @@ export default function ExamsPage() {
                             <span className="pill-neutral">Inactive</span>
                           )}
                         </td>
-                        <td style={{ textAlign: "right" }}>
-                          {!t.isCurrent && (
-                            <button
-                              type="button"
-                              onClick={() => handleSetCurrentTerm(t.id)}
-                              className="btn btn-secondary"
-                              style={{ padding: "4px 12px", fontSize: 12 }}
-                            >
-                              Set as Active
-                            </button>
-                          )}
-                        </td>
+                        {isAdmin && (
+                          <td style={{ textAlign: "right" }}>
+                            {!t.isCurrent && (
+                              <button
+                                type="button"
+                                onClick={() => handleSetCurrentTerm(t.id)}
+                                className="btn btn-secondary"
+                                style={{ padding: "4px 12px", fontSize: 12 }}
+                              >
+                                Set as Active
+                              </button>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -699,37 +709,56 @@ export default function ExamsPage() {
             </p>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-              <div style={{ padding: "14px 16px", backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-secondary)" }}>Assessment 1 (CA 1)</span>
-                  <span className="pill-info">20% Weight</span>
+              <div style={{ padding: "16px 18px", backgroundColor: "var(--color-page)", borderRadius: "var(--radius-card, 16px)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 120 }}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-secondary)", letterSpacing: "0.05em" }}>Assessment 1 (CA 1)</span>
+                    <span className="pill-info" style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", whiteSpace: "nowrap" }}>20% Weight</span>
+                  </div>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: "var(--color-ink)", lineHeight: 1.1 }}>20 Marks</div>
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 800, margin: "6px 0 2px", color: "var(--color-ink)" }}>20 Marks</div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Mid-term diagnostic test &amp; homework exercises</div>
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 10, lineHeight: 1.4 }}>
+                  Mid-term diagnostic test and homework assignments
+                </div>
               </div>
 
-              <div style={{ padding: "14px 16px", backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-secondary)" }}>Assessment 2 (CA 2)</span>
-                  <span className="pill-info">20% Weight</span>
+              <div style={{ padding: "16px 18px", backgroundColor: "var(--color-page)", borderRadius: "var(--radius-card, 16px)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 120 }}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-secondary)", letterSpacing: "0.05em" }}>Assessment 2 (CA 2)</span>
+                    <span className="pill-info" style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", whiteSpace: "nowrap" }}>20% Weight</span>
+                  </div>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: "var(--color-ink)", lineHeight: 1.1 }}>20 Marks</div>
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 800, margin: "6px 0 2px", color: "var(--color-ink)" }}>20 Marks</div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Practical projects, laboratory reports &amp; classwork</div>
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 10, lineHeight: 1.4 }}>
+                  Practical projects, laboratory coursework and tests
+                </div>
               </div>
 
-              <div style={{ padding: "14px 16px", backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-secondary)" }}>Terminal Exam</span>
-                  <span className="pill-success">60% Weight</span>
+              <div style={{ padding: "16px 18px", backgroundColor: "var(--color-page)", borderRadius: "var(--radius-card, 16px)", border: "1px solid var(--color-border)", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 120 }}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--color-text-secondary)", letterSpacing: "0.05em" }}>Terminal Exam</span>
+                    <span className="pill-success" style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", whiteSpace: "nowrap" }}>60% Weight</span>
+                  </div>
+                  <div style={{ fontSize: 26, fontWeight: 800, color: "var(--color-ink)", lineHeight: 1.1 }}>60 Marks</div>
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 800, margin: "6px 0 2px", color: "var(--color-ink)" }}>60 Marks</div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Formal end-of-term paper &amp; theory evaluation</div>
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 10, lineHeight: 1.4 }}>
+                  End-of-term examination theory and practical paper
+                </div>
               </div>
 
-              <div style={{ padding: "14px 16px", backgroundColor: "var(--color-ink)", color: "#FFFFFF", borderRadius: "var(--radius-control)" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", opacity: 0.8 }}>Composite Total</div>
-                <div style={{ fontSize: 24, fontWeight: 800, margin: "6px 0 2px" }}>100% (100 Marks)</div>
-                <div style={{ fontSize: 11, opacity: 0.8 }}>Auto-aggregated into official terminal report cards</div>
+              <div style={{ padding: "16px 18px", backgroundColor: "var(--color-ink)", color: "#FFFFFF", borderRadius: "var(--radius-card, 16px)", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 120 }}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", opacity: 0.85, letterSpacing: "0.05em" }}>Composite Total</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 9999, backgroundColor: "rgba(255,255,255,0.2)", color: "#FFFFFF", whiteSpace: "nowrap" }}>100% Total</span>
+                  </div>
+                  <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.1 }}>100 Marks</div>
+                </div>
+                <div style={{ fontSize: 12, opacity: 0.85, marginTop: 10, lineHeight: 1.4 }}>
+                  Official terminal performance recorded on report cards
+                </div>
               </div>
             </div>
           </div>
@@ -738,8 +767,8 @@ export default function ExamsPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
             {/* Simulator Card */}
             <div className="card">
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-                 Live Grade Evaluation Simulator
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "var(--color-ink)" }}>
+                Live Grade Evaluation Simulator
               </h3>
               <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 14 }}>
                 Simulate candidate scores to preview computed total, WAEC letter grade, GPA weight, and teacher remark.
@@ -782,20 +811,23 @@ export default function ExamsPage() {
               </div>
 
               {/* Computed Outcome Display */}
-              <div style={{ padding: 14, backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600 }}>Total Score: <strong>{simTotal} / 100</strong></span>
+              <div style={{ padding: "16px 18px", backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)", border: "1px solid var(--color-border)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
+                  <div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-secondary)" }}>Composite Score:</span>
+                    <span style={{ fontSize: 17, fontWeight: 800, color: "var(--color-ink)", marginLeft: 6 }}>{simTotal} / 100</span>
+                  </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span className={simEvaluation.pill} style={{ fontSize: 13, fontWeight: 800, padding: "3px 12px" }}>
                       {simEvaluation.grade}
                     </span>
-                    <span className="pill-neutral">GPA: {simEvaluation.gpa}</span>
+                    <span className="pill-neutral" style={{ fontWeight: 700 }}>GPA {simEvaluation.gpa}</span>
                   </div>
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-ink)", marginBottom: 2 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)", marginBottom: 4 }}>
                   Classification: {simEvaluation.label}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
                   {simEvaluation.remark}
                 </div>
               </div>
@@ -803,44 +835,44 @@ export default function ExamsPage() {
 
             {/* Academic Honors Card */}
             <div className="card">
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
-                 Academic Honors &amp; Distinction Thresholds
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: "var(--color-ink)" }}>
+                Academic Honors &amp; Distinction Thresholds
               </h3>
               <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 14 }}>
                 Official criteria for termly academic honor roll and graduation citations.
               </p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#FEF3C7", border: "1px solid #FDE68A" }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#92400E" }}> Principal's First-Class Honors</div>
-                    <div style={{ fontSize: 11, color: "#B45309" }}>Overall average of 85.0% and above across all subjects</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", borderRadius: "var(--radius-control)", backgroundColor: "#FEF3C7", border: "1px solid #FDE68A" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#92400E" }}>Principal's First-Class Honors</div>
+                    <div style={{ fontSize: 11, color: "#B45309", marginTop: 2, lineHeight: 1.3 }}>Overall average of 85.0% and above across all subjects</div>
                   </div>
-                  <span className="pill-warning" style={{ fontWeight: 800 }}>&ge; 85%</span>
+                  <span className="pill-warning" style={{ fontWeight: 800, flexShrink: 0, minWidth: 64, textAlign: "center" }}>&ge; 85%</span>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#EFF6FF", border: "1px solid #BFDBFE" }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#1E40AF" }}> Academic Merit Roll</div>
-                    <div style={{ fontSize: 11, color: "#2563EB" }}>Overall average between 75.0% and 84.9%</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", borderRadius: "var(--radius-control)", backgroundColor: "#EFF6FF", border: "1px solid #BFDBFE" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#1E40AF" }}>Academic Merit Roll</div>
+                    <div style={{ fontSize: 11, color: "#2563EB", marginTop: 2, lineHeight: 1.3 }}>Overall average between 75.0% and 84.9%</div>
                   </div>
-                  <span className="pill-info" style={{ fontWeight: 800 }}>75% - 84%</span>
+                  <span className="pill-info" style={{ fontWeight: 800, flexShrink: 0, minWidth: 64, textAlign: "center" }}>75% - 84%</span>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "var(--color-page)", border: "1px solid var(--color-border)" }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-ink)" }}> Academic Good Standing</div>
-                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Pass criteria met without deficiency</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", borderRadius: "var(--radius-control)", backgroundColor: "var(--color-page)", border: "1px solid var(--color-border)" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)" }}>Academic Good Standing</div>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2, lineHeight: 1.3 }}>Pass criteria met without deficiency</div>
                   </div>
-                  <span className="pill-neutral" style={{ fontWeight: 700 }}>50% - 74%</span>
+                  <span className="pill-neutral" style={{ fontWeight: 700, flexShrink: 0, minWidth: 64, textAlign: "center" }}>50% - 74%</span>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "var(--radius-control)", backgroundColor: "#FEF2F2", border: "1px solid #FECACA" }}>
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#991B1B" }}>️ Academic Watch / Remedial</div>
-                    <div style={{ fontSize: 11, color: "#B91C1C" }}>Below passing threshold; parent counseling triggered</div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 14px", borderRadius: "var(--radius-control)", backgroundColor: "#FEF2F2", border: "1px solid #FECACA" }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#991B1B" }}>Academic Watch / Remedial</div>
+                    <div style={{ fontSize: 11, color: "#B91C1C", marginTop: 2, lineHeight: 1.3 }}>Below passing threshold; parent counseling triggered</div>
                   </div>
-                  <span className="pill-danger" style={{ fontWeight: 800 }}>&lt; 40%</span>
+                  <span className="pill-danger" style={{ fontWeight: 800, flexShrink: 0, minWidth: 64, textAlign: "center" }}>&lt; 40%</span>
                 </div>
               </div>
             </div>
@@ -976,21 +1008,25 @@ export default function ExamsPage() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleAutoGenerateExamSchedule}
-                title="Automatically schedule exam papers across 2 exam weeks"
-              >
-                 Auto-Schedule Exam Timetable
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => setShowExamModal(true)}
-              >
-                + Schedule Paper
-              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleAutoGenerateExamSchedule}
+                    title="Automatically schedule exam papers across 2 exam weeks"
+                  >
+                    Auto-Schedule Exam Timetable
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => setShowExamModal(true)}
+                  >
+                    + Schedule Paper
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -1033,7 +1069,7 @@ export default function ExamsPage() {
                 onClick={() => window.print()}
                 style={{ padding: "5px 12px", fontSize: 12 }}
               >
-                ️ Print Docket
+                Print Docket
               </button>
             </div>
 
@@ -1042,13 +1078,15 @@ export default function ExamsPage() {
                 <div className="empty-state-icon" style={{ fontSize: 36 }}></div>
                 <div className="empty-state-title">No examination papers scheduled for this level</div>
                 <div className="empty-state-text">Use Auto-Schedule or add individual subject papers.</div>
-                <button
-                  type="button"
-                  onClick={handleAutoGenerateExamSchedule}
-                  className="btn btn-primary"
-                >
-                   Auto-Schedule All Exams Now
-                </button>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={handleAutoGenerateExamSchedule}
+                    className="btn btn-primary"
+                  >
+                    Auto-Schedule All Exams Now
+                  </button>
+                )}
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
@@ -1062,7 +1100,7 @@ export default function ExamsPage() {
                       <th>Time Window</th>
                       <th>Examination Venue</th>
                       <th>Chief Invigilator</th>
-                      <th className="no-print" style={{ textAlign: "right" }}>Action</th>
+                      {isAdmin && <th className="no-print" style={{ textAlign: "right" }}>Action</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1089,7 +1127,7 @@ export default function ExamsPage() {
                         </td>
                         <td style={{ fontWeight: 600 }}>{ex.time}</td>
                         <td>
-                          <div style={{ fontWeight: 600 }}> {ex.hall}</div>
+                          <div style={{ fontWeight: 600 }}>{ex.hall}</div>
                           {ex.capacity && (
                             <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
                               Cap: {ex.capacity} seats
@@ -1104,17 +1142,19 @@ export default function ExamsPage() {
                             <span style={{ fontSize: 12, fontWeight: 500 }}>{ex.invigilator}</span>
                           </div>
                         </td>
-                        <td className="no-print" style={{ textAlign: "right" }}>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteExam(ex.id)}
-                            className="btn btn-danger"
-                            style={{ padding: "4px 8px", fontSize: 11 }}
-                            title="Remove paper from schedule"
-                          >
-                            
-                          </button>
-                        </td>
+                        {isAdmin && (
+                          <td className="no-print" style={{ textAlign: "right" }}>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteExam(ex.id)}
+                              className="btn btn-danger"
+                              style={{ padding: "4px 10px", fontSize: 11 }}
+                              title="Remove paper from schedule"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -1164,7 +1204,7 @@ export default function ExamsPage() {
       )}
 
       {/* ── MODAL: CREATE ACADEMIC TERM ─────────────────────────────────────── */}
-      {showTermModal && (
+      {showTermModal && isAdmin && (
         <div
           style={{
             position: "fixed",
@@ -1192,9 +1232,10 @@ export default function ExamsPage() {
               <button
                 type="button"
                 onClick={() => setShowTermModal(false)}
-                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18 }}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--color-text-secondary)", padding: 4 }}
+                title="Close"
               >
-                
+                &times;
               </button>
             </div>
 
@@ -1266,7 +1307,7 @@ export default function ExamsPage() {
       )}
 
       {/* ── MODAL: SCHEDULE EXAM PAPER ──────────────────────────────────────── */}
-      {showExamModal && (
+      {showExamModal && isAdmin && (
         <div
           style={{
             position: "fixed",
@@ -1294,9 +1335,10 @@ export default function ExamsPage() {
               <button
                 type="button"
                 onClick={() => setShowExamModal(false)}
-                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18 }}
+                style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--color-text-secondary)", padding: 4 }}
+                title="Close"
               >
-                
+                &times;
               </button>
             </div>
 
