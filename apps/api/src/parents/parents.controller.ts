@@ -27,6 +27,12 @@ export class ParentsController {
     return this.parentsService.findAll(actor.schoolId);
   }
 
+  @Get('my-children')
+  @Roles(UserRole.PARENT, UserRole.ADMIN)
+  getMyChildren(@CurrentUser() actor: { id: string; schoolId: string }) {
+    return this.parentsService.findOne(actor.id, actor.schoolId);
+  }
+
   @Get(':id')
   @Roles(UserRole.ADMIN)
   findOne(

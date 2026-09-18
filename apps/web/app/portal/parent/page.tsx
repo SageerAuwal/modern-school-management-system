@@ -8,15 +8,24 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 interface Student {
   id: string;
+  studentId?: string;
   firstName: string;
   lastName: string;
   admissionNumber: string | null;
   photoUrl?: string | null;
-  enrollmentStatus: string;
+  enrollmentStatus?: string;
+  attendanceRate?: number;
+  classSection?: { id: string; name: string; level: string } | null;
   enrollments?: Array<{
     classSection: { id: string; name: string; level: string };
     academicYear: string;
   }>;
+  invoices?: Invoice[];
+  feeSummary?: {
+    totalInvoiced: number;
+    totalPaid: number;
+    outstandingBalance: number;
+  };
 }
 
 interface UserProfile {
@@ -55,17 +64,23 @@ export default function ParentDashboardPage() {
   useEffect(() => {
     async function loadParentData() {
       try {
-        const [studRes, invRes, meRes] = await Promise.all([
-          fetch(`${API}/api/v1/students`, { credentials: "include" }).then((r) => r.json()),
-          fetch(`${API}/api/v1/fees/invoices`, { credentials: "include" }).then((r) => r.json()),
-          fetch(`${API}/api/v1/auth/me`, { credentials: "include" }).then((r) => r.json()).catch(() => null),
+        const [overviewRes, meRes] = await Promise.all([
+          fetch(`${API}/api/v1/parents/my-children`, { credentials: "include" })
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
+          fetch(`${API}/api/v1/auth/me`, { credentials: "include" })
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null),
         ]);
 
-        if (Array.isArray(studRes)) {
-          setChildren(studRes);
-          if (studRes.length > 0) setSelectedChildId(studRes[0].id);
+        if (overviewRes && Array.isArray(overviewRes.children)) {
+          setChildren(overviewRes.children);
+          if (overviewRes.children.length > 0) {
+            setSelectedChildId(overviewRes.children[0].id);
+            const allInvoices = overviewRes.children.flatMap((c: any) => c.invoices || []);
+            setInvoices(allInvoices);
+          }
         }
-        if (Array.isArray(invRes)) setInvoices(invRes);
         if (meRes && meRes.id) {
           setParentProfile(meRes);
           setEditPhotoUrl(meRes.photoUrl ?? null);
@@ -220,15 +235,19 @@ export default function ParentDashboardPage() {
             </div>
             <div className="card">
               <div className="stat-label">Term Attendance</div>
-              <div className="stat-value" style={{ color: "var(--color-success-text)" }}>97%</div>
+              <div className="stat-value" style={{ color: "var(--color-success-text)" }}>
+                {activeChild.attendanceRate ?? 100}%
+              </div>
               <div className="stat-sub">Consistent attendance</div>
             </div>
             <div className="card">
               <div className="stat-label">Current Class</div>
               <div className="stat-value" style={{ fontSize: 18 }}>
-                {activeChild.enrollments?.[0]?.classSection?.name ?? "Assigned Class"}
+                {activeChild.classSection?.name ?? activeChild.enrollments?.[0]?.classSection?.name ?? "Assigned Class"}
               </div>
-              <div className="stat-sub">{activeChild.enrollments?.[0]?.classSection?.level ?? "Junior Secondary"}</div>
+              <div className="stat-sub">
+                {activeChild.classSection?.level ?? activeChild.enrollments?.[0]?.classSection?.level ?? "Junior Secondary"}
+              </div>
             </div>
             <div className="card">
               <div className="stat-label">Academic Report</div>
