@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
@@ -127,11 +128,30 @@ export class InvoicesService {
 
   // ── Get invoices ──────────────────────────────────────────────────────────
 
-  async findAll(schoolId: string, filters: { studentId?: string; status?: string; academicYear?: string; termId?: string }) {
+  async findAll(
+    schoolId: string,
+    filters: { studentId?: string; status?: string; academicYear?: string; termId?: string },
+    actor?: { id: string; role?: string },
+  ) {
+    let studentIdCondition: any = filters.studentId ? filters.studentId : undefined;
+
+    if (actor?.role === "PARENT") {
+      const guardianLinks = await this.prisma.guardianLink.findMany({
+        where: { guardianId: actor.id },
+        select: { studentId: true },
+      });
+      const myStudentIds = guardianLinks.map((l) => l.studentId);
+      if (filters.studentId) {
+        studentIdCondition = myStudentIds.includes(filters.studentId) ? filters.studentId : { in: [] };
+      } else {
+        studentIdCondition = { in: myStudentIds };
+      }
+    }
+
     return this.prisma.invoice.findMany({
       where: {
         schoolId,
-        ...(filters.studentId ? { studentId: filters.studentId } : {}),
+        ...(studentIdCondition ? { studentId: studentIdCondition } : {}),
         ...(filters.status ? { status: filters.status as InvoiceStatus } : {}),
         ...(filters.academicYear ? { academicYear: filters.academicYear } : {}),
         ...(filters.termId ? { termId: filters.termId } : {}),
@@ -142,11 +162,11 @@ export class InvoicesService {
         items: true,
         _count: { select: { payments: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   }
 
-  async findOne(id: string, schoolId: string) {
+  async findOne(id: string, schoolId: string, actor?: { id: string; role?: string }) {
     const inv = await this.prisma.invoice.findFirst({
       where: { id, schoolId },
       include: {
@@ -157,6 +177,16 @@ export class InvoicesService {
       },
     });
     if (!inv) throw new NotFoundException('Invoice not found');
+
+    if (actor?.role === 'PARENT') {
+      const link = await this.prisma.guardianLink.findFirst({
+        where: { guardianId: actor.id, studentId: inv.studentId },
+      });
+      if (!link) {
+        throw new ForbiddenException('You do not have permission to view this invoice');
+      }
+    }
+
     return inv;
   }
 

@@ -56,8 +56,10 @@ export class BulkEnterScoresDto {
 
 export class ReportCardQueryDto {
   @IsString()
-  termId: string;
+  @IsOptional()
+  termId?: string;
 
   @IsString()
-  classSectionId: string;
+  @IsOptional()
+  classSectionId?: string;
 }

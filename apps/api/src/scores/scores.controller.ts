@@ -50,9 +50,9 @@ export class ScoresController {
   getReportCard(
     @Param('studentId') studentId: string,
     @Query() query: ReportCardQueryDto,
-    @CurrentUser() actor: { schoolId: string },
+    @CurrentUser() actor: { id: string; email: string; role: UserRole; schoolId: string },
   ) {
-    return this.scoresService.getReportCard(studentId, query, actor.schoolId);
+    return this.scoresService.getReportCard(studentId, query, actor.schoolId, actor);
   }
 
   /**

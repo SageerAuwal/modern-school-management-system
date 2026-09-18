@@ -71,15 +71,15 @@ export class InvoicesController {
 
   /** GET /api/v1/fees/invoices?studentId=&status=&academicYear= */
   @Get()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.PARENT)
   findAll(
     @Query('studentId') studentId: string,
     @Query('status') status: string,
     @Query('academicYear') academicYear: string,
     @Query('termId') termId: string,
-    @CurrentUser() actor: { schoolId: string },
+    @CurrentUser() actor: { id: string; schoolId: string; role?: string },
   ) {
-    return this.invoicesService.findAll(actor.schoolId, { studentId, status, academicYear, termId });
+    return this.invoicesService.findAll(actor.schoolId, { studentId, status, academicYear, termId }, actor);
   }
 
   /** GET /api/v1/fees/invoices/outstanding — unpaid + partial balances */
@@ -92,8 +92,8 @@ export class InvoicesController {
   /** GET /api/v1/fees/invoices/:id — invoice detail with payments */
   @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.PARENT)
-  findOne(@Param('id') id: string, @CurrentUser() actor: { schoolId: string }) {
-    return this.invoicesService.findOne(id, actor.schoolId);
+  findOne(@Param('id') id: string, @CurrentUser() actor: { id: string; schoolId: string; role?: string }) {
+    return this.invoicesService.findOne(id, actor.schoolId, actor);
   }
 
   /** PATCH /api/v1/fees/invoices/:id/cancel */

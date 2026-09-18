@@ -82,7 +82,7 @@ function getFeeType(invoice: Invoice): string {
 
 export default function FeesPage() {
   const router = useRouter();
-  const { isAdmin } = useCurrentUser();
+  const { isAdmin, isParent } = useCurrentUser();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -157,9 +157,11 @@ export default function FeesPage() {
       {/* Page Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">Fees</h1>
+          <h1 className="page-title">{isParent ? "Fees & Receipts" : "Fees"}</h1>
           <p className="page-subtitle">
-            {invoices.length} {invoices.length === 1 ? "invoice" : "invoices"}
+            {isParent
+              ? "Official school fee statements, payment records, and printable receipts for your wards."
+              : `${invoices.length} ${invoices.length === 1 ? "invoice" : "invoices"}`}
           </p>
         </div>
         {isAdmin && (
@@ -327,9 +329,11 @@ export default function FeesPage() {
               <line x1="2" y1="10" x2="22" y2="10" />
             </svg>
           </div>
-          <h3 className="empty-state-title">No invoices yet</h3>
+          <h3 className="empty-state-title">{isParent ? "No fee records yet" : "No invoices yet"}</h3>
           <p className="empty-state-text">
-            Create fee structures first, then generate invoices for students.
+            {isParent
+              ? "No fee invoices have been issued for your registered wards."
+              : "Create fee structures first, then generate invoices for students."}
           </p>
           {isAdmin && (
             <div

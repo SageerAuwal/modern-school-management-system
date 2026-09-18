@@ -19,19 +19,19 @@ export class TermsController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT, UserRole.STUDENT)
   findAll(@CurrentUser() actor: { schoolId: string }) {
     return this.termsService.findAll(actor.schoolId);
   }
 
   @Get('current')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT, UserRole.STUDENT)
   getCurrent(@CurrentUser() actor: { schoolId: string }) {
     return this.termsService.getCurrent(actor.schoolId);
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT, UserRole.STUDENT)
   findOne(@Param('id') id: string, @CurrentUser() actor: { schoolId: string }) {
     return this.termsService.findOne(id, actor.schoolId);
   }

@@ -679,13 +679,25 @@ function InvoiceDetailContent() {
               Record a cash payment or initiate an online transaction to clear this invoice balance.
             </p>
             {isNotPaid && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={openCashModal}
-              >
-                Record cash payment
-              </button>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={openCashModal}
+                  >
+                    Record cash payment
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handlePaystack}
+                  disabled={submittingPaystack}
+                >
+                  {submittingPaystack ? "Connecting..." : "Pay via Paystack"}
+                </button>
+              </div>
             )}
           </div>
         )}

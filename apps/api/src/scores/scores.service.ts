@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { BulkEnterScoresDto, ReportCardQueryDto } from './dto/score.dto';
-import { EnrollmentStatus } from '@prisma/client';
+import { EnrollmentStatus, UserRole } from '@prisma/client';
 
 // Nigerian standard grading scale (out of 100)
 function computeGrade(total: number): { grade: string; remark: string } {
@@ -175,24 +175,79 @@ export class ScoresService {
   // ── Student Report Card ───────────────────────────────────────────────────
   // All subjects for a student in a term, with position in class.
 
-  async getReportCard(studentId: string, query: ReportCardQueryDto, schoolId: string) {
+  async getReportCard(
+    studentId: string,
+    query: ReportCardQueryDto,
+    schoolId: string,
+    actor?: { id: string; email?: string; role?: UserRole; schoolId: string },
+  ) {
+    if (actor?.role === UserRole.PARENT) {
+      const isLinked = await this.prisma.guardianLink.findFirst({
+        where: { guardianId: actor.id, studentId },
+      });
+      if (!isLinked) {
+        throw new ForbiddenException("You do not have permission to view this student's report card");
+      }
+    }
+
     const student = await this.prisma.student.findFirst({
       where: { id: studentId, schoolId },
       select: { id: true, firstName: true, lastName: true, admissionNumber: true, gender: true },
     });
     if (!student) throw new NotFoundException('Student not found');
 
-    const term = await this.prisma.term.findFirst({ where: { id: query.termId, schoolId } });
-    if (!term) throw new NotFoundException('Term not found');
+    // Auto-resolve term: if not provided, look for current term or latest term
+    let termId = query.termId;
+    let term;
+    if (termId) {
+      term = await this.prisma.term.findFirst({ where: { id: termId, schoolId } });
+      if (!term) throw new NotFoundException('Term not found');
+    } else {
+      term =
+        (await this.prisma.term.findFirst({
+          where: { schoolId, isCurrent: true },
+        })) ??
+        (await this.prisma.term.findFirst({
+          where: { schoolId },
+          orderBy: { createdAt: 'desc' },
+        }));
+      if (!term) throw new NotFoundException('Academic term not found');
+      termId = term.id;
+    }
+
+    // Auto-resolve class section if not provided
+    let sectionId = query.classSectionId;
+    if (!sectionId) {
+      const enrollment = await this.prisma.enrollment.findFirst({
+        where: { studentId, status: EnrollmentStatus.ACTIVE },
+        orderBy: { enrolledAt: 'desc' },
+      });
+      if (enrollment) {
+        sectionId = enrollment.classSectionId;
+      }
+    }
+
+    if (!sectionId) {
+      const score = await this.prisma.score.findFirst({
+        where: { studentId, termId },
+      });
+      if (score) {
+        sectionId = score.classSectionId;
+      }
+    }
+
+    if (!sectionId) {
+      throw new NotFoundException('Class section not found for this student');
+    }
 
     const section = await this.prisma.classSection.findFirst({
-      where: { id: query.classSectionId, schoolId },
+      where: { id: sectionId, schoolId },
     });
     if (!section) throw new NotFoundException('Class section not found');
 
     // Fetch this student's scores
     const scores = await this.prisma.score.findMany({
-      where: { studentId, termId: query.termId, classSectionId: query.classSectionId },
+      where: { studentId, termId, classSectionId: sectionId },
       include: { subject: { select: { id: true, name: true, code: true } } },
       orderBy: { subject: { name: 'asc' } },
     });
@@ -207,7 +262,7 @@ export class ScoresService {
     // Compute class position using overall average across all students in the class
     const allStudentScores = await this.prisma.score.groupBy({
       by: ['studentId'],
-      where: { termId: query.termId, classSectionId: query.classSectionId },
+      where: { termId, classSectionId: sectionId },
       _avg: { total: true },
       orderBy: { _avg: { total: 'desc' } },
     });
