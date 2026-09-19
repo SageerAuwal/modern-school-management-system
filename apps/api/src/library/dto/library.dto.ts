@@ -86,3 +86,26 @@ export class BookSearchDto {
   @IsOptional()
   availableOnly?: boolean; // only show books with copies available
 }
+
+export class BuyBookDto {
+  @IsInt()
+  @IsOptional()
+  @Min(1)
+  quantity?: number;
+
+  @IsString()
+  @IsOptional()
+  studentId?: string;
+
+  @IsString()
+  @IsOptional()
+  buyerName?: string;
+
+  @IsString()
+  @IsOptional()
+  paymentMethod?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}

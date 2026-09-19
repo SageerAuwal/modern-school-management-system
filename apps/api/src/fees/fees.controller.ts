@@ -9,7 +9,7 @@ import { InvoicesService } from './invoices.service';
 import { CreateFeeStructureDto } from './dto/fee-structure.dto';
 import {
   CreateInvoiceDto, BulkCreateInvoicesDto,
-  RecordCashPaymentDto, InitiatePaystackDto,
+  RecordCashPaymentDto, InitiatePaystackDto, PayOnlineDto,
 } from './dto/invoice.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -71,13 +71,13 @@ export class InvoicesController {
 
   /** GET /api/v1/fees/invoices?studentId=&status=&academicYear= */
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.PARENT)
+  @Roles(UserRole.ADMIN, UserRole.PARENT, UserRole.STUDENT)
   findAll(
     @Query('studentId') studentId: string,
     @Query('status') status: string,
     @Query('academicYear') academicYear: string,
     @Query('termId') termId: string,
-    @CurrentUser() actor: { id: string; schoolId: string; role?: string },
+    @CurrentUser() actor: { id: string; schoolId: string; role?: string; email?: string; firstName?: string; lastName?: string },
   ) {
     return this.invoicesService.findAll(actor.schoolId, { studentId, status, academicYear, termId }, actor);
   }
@@ -91,8 +91,8 @@ export class InvoicesController {
 
   /** GET /api/v1/fees/invoices/:id — invoice detail with payments */
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.PARENT)
-  findOne(@Param('id') id: string, @CurrentUser() actor: { id: string; schoolId: string; role?: string }) {
+  @Roles(UserRole.ADMIN, UserRole.PARENT, UserRole.STUDENT)
+  findOne(@Param('id') id: string, @CurrentUser() actor: { id: string; schoolId: string; role?: string; email?: string; firstName?: string; lastName?: string }) {
     return this.invoicesService.findOne(id, actor.schoolId, actor);
   }
 
@@ -119,9 +119,20 @@ export class InvoicesController {
 
   /** POST /api/v1/fees/invoices/:id/pay/paystack — initiate Paystack checkout */
   @Post(':id/pay/paystack')
-  @Roles(UserRole.ADMIN, UserRole.PARENT)
+  @Roles(UserRole.ADMIN, UserRole.PARENT, UserRole.STUDENT)
   initiatePaystack(@Param('id') id: string, @Body() dto: InitiatePaystackDto, @CurrentUser() actor: { id: string; email: string; schoolId: string }) {
     return this.invoicesService.initiatePaystack(id, dto, actor.schoolId, actor.id, actor.email);
+  }
+
+  /** POST /api/v1/fees/invoices/:id/pay/online — online card/transfer settlement */
+  @Post(':id/pay/online')
+  @Roles(UserRole.ADMIN, UserRole.PARENT, UserRole.STUDENT)
+  payOnline(
+    @Param('id') id: string,
+    @Body() dto: PayOnlineDto,
+    @CurrentUser() actor: { id: string; email: string; schoolId: string; role?: string; firstName?: string; lastName?: string },
+  ) {
+    return this.invoicesService.payOnline(id, dto, actor.schoolId, actor.id, actor.email, actor);
   }
 }
 

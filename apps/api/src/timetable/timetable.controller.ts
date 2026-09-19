@@ -42,7 +42,7 @@ export class TimetableController {
 
   /** GET /api/v1/timetable/:id/teacher/:teacherId — teacher weekly roster */
   @Get(':id/teacher/:teacherId')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
   getTeacherTimetable(
     @Param('id') id: string,
     @Param('teacherId') teacherId: string,
@@ -53,7 +53,7 @@ export class TimetableController {
 
   /** GET /api/v1/timetable/:id/master?day=MONDAY — master matrix */
   @Get(':id/master')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
   getMasterDayGrid(
     @Param('id') id: string,
     @Query('day') day: string,

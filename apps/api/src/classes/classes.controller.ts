@@ -33,7 +33,7 @@ export class ClassesController {
 
   /** GET /api/v1/classes?academicYear=2025/2026 — list all classes */
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
   findAll(
     @Query('academicYear') academicYear: string,
     @CurrentUser() actor: { schoolId: string },
@@ -43,7 +43,7 @@ export class ClassesController {
 
   /** GET /api/v1/classes/:id — class detail with enrolled students */
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
   findOne(
     @Param('id') id: string,
     @CurrentUser() actor: { schoolId: string },

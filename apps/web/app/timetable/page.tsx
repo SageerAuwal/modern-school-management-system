@@ -183,8 +183,10 @@ export default function TimetablePage() {
         fetch(`${API}/api/v1/terms`, { credentials: "include" }),
       ]);
 
+      let initialTimetable: TimetableData | null = null;
       if (resTt.ok) {
         const data = await resTt.json();
+        initialTimetable = data;
         setTimetable(data);
       } else {
         setTimetable(null);
@@ -226,22 +228,45 @@ export default function TimetablePage() {
         }
       }
 
+      const teacherMap = new Map<string, { id: string; firstName: string; lastName: string; email?: string }>();
+
       if (resStaff.ok) {
         const data = await resStaff.json();
         if (Array.isArray(data)) {
-          const teacherList = data
-            .filter((s: { role?: string; isActive?: boolean }) => s.isActive !== false)
-            .map((s: { id: string; firstName: string; lastName: string; email?: string }) => ({
-              id: s.id,
-              firstName: s.firstName,
-              lastName: s.lastName,
-              email: s.email,
-            }));
-          setTeachers(teacherList);
-          if (teacherList.length > 0 && !selectedTeacherId) {
-            setSelectedTeacherId(teacherList[0].id);
+          for (const s of data) {
+            if (s.isActive !== false) {
+              const teacherId = s.user?.id || s.id;
+              teacherMap.set(teacherId, {
+                id: teacherId,
+                firstName: s.user?.firstName || s.firstName,
+                lastName: s.user?.lastName || s.lastName,
+                email: s.user?.email || s.email,
+              });
+            }
           }
         }
+      }
+
+      // Also merge any teachers that are assigned in active timetable lessons
+      if (initialTimetable && Array.isArray(initialTimetable.lessons)) {
+        for (const l of initialTimetable.lessons) {
+          if (l.teacher && l.teacher.id && !teacherMap.has(l.teacher.id)) {
+            teacherMap.set(l.teacher.id, {
+              id: l.teacher.id,
+              firstName: l.teacher.firstName,
+              lastName: l.teacher.lastName,
+              email: l.teacher.email,
+            });
+          }
+        }
+      }
+
+      const teacherList = Array.from(teacherMap.values());
+      setTeachers(teacherList);
+      if (isTeacher && user?.id) {
+        setSelectedTeacherId(user.id);
+      } else if (teacherList.length > 0 && !selectedTeacherId) {
+        setSelectedTeacherId(teacherList[0].id);
       }
 
       if (resTerms.ok) {
@@ -320,13 +345,10 @@ export default function TimetablePage() {
 
   const getDay = (l: Lesson) => l.day || l.dayOfWeek || "";
 
-  /* ── Classes to Display (Supports "all" or specific class) ─────────────────── */
+  /* ── Classes to Display (Strictly Single Selected Class in Class Routine View) ── */
   const classesToDisplay = useMemo(() => {
-    if (selectedClassId === "all" || !selectedClassId) {
-      return classes;
-    }
     const single = classes.find((c) => c.id === selectedClassId);
-    return single ? [single] : classes;
+    return single ? [single] : classes.slice(0, 1);
   }, [classes, selectedClassId]);
 
   /* ── Selected Class Object ────────────────────────────────────────────────── */
@@ -352,7 +374,7 @@ export default function TimetablePage() {
     if (!timetable?.lessons || !selectedTeacherId) return new Map<string, Lesson>();
     const map = new Map<string, Lesson>();
     for (const l of timetable.lessons) {
-      if (l.teacherId === selectedTeacherId) {
+      if (l.teacherId === selectedTeacherId || (l.teacher && l.teacher.id === selectedTeacherId)) {
         map.set(`${getDay(l)}_${l.periodNumber}`, l);
       }
     }
@@ -841,7 +863,6 @@ export default function TimetablePage() {
                       {c.name} ({c.level})
                     </option>
                   ))}
-                  <option value="all">All Classes Booklet ({classes.length} Pages)</option>
                 </select>
               )}
 
@@ -894,8 +915,6 @@ export default function TimetablePage() {
                   ? "Print Master Sheet (1 A4 Page)"
                   : activeView === "teacher"
                   ? "Print Teacher Roster (A4)"
-                  : selectedClassId === "all"
-                  ? `Print All Classes Booklet (${classes.length} Pages)`
                   : `Print ${selectedClass?.name || "Class"} (1 Page)`}
               </button>
             </div>
@@ -1189,91 +1208,9 @@ export default function TimetablePage() {
           ══════════════════════════════════════════════════════════════════════ */}
           {timetable && activeView === "class" && (
             <div className="timetable-class-routine-wrapper" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
-              {/* Screen Info Banner (when booklet is selected for all classes) */}
-              {selectedClassId === "all" && (
-                <div
-                  className="no-print"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "14px 20px",
-                    backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
-                    borderRadius: 16,
-                    border: "1px solid var(--color-border, #E8ECE9)",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                      Class-by-Class Booklet View
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
-                      Displaying full individual weekly timetable sheets for all {classes.length} classes. Each class prints onto its own dedicated A4 landscape sheet.
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => setActiveView("master")}
-                      style={{ fontSize: 12, padding: "6px 14px", fontWeight: 700, backgroundColor: "#FFFFFF" }}
-                    >
-                      Switch to 1-Page Master Sheet
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => window.print()}
-                      style={{ fontSize: 12, padding: "6px 16px", fontWeight: 700, backgroundColor: "var(--color-brand-teal, #0E7D75)" }}
-                    >
-                      Print All Classes ({classes.length} Pages)
-                    </button>
-                  </div>
-                </div>
-              )}
-
-                  {/* If "all" is selected on screen, show quick index navigation */}
-                  {selectedClassId === "all" && classes.length > 1 && (
-                    <div
-                      className="no-print"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        flexWrap: "wrap",
-                        padding: "12px 16px",
-                        backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
-                        borderRadius: 16,
-                        border: "1px solid var(--color-border, #E8ECE9)",
-                      }}
-                    >
-                      <span style={{ fontSize: 12, fontWeight: 800, color: "var(--color-ink)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                        Quick Jump:
-                      </span>
-                      {classes.map((c) => (
-                        <a
-                          key={c.id}
-                          href={`#class-section-${c.id}`}
-                          style={{
-                            padding: "4px 10px",
-                            borderRadius: 9999,
-                            backgroundColor: "#FFFFFF",
-                            border: "1px solid var(--color-border, #E8ECE9)",
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: "var(--color-brand-teal, #0E7D75)",
-                            textDecoration: "none",
-                          }}
-                        >
-                          {c.name}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Loop through classesToDisplay: If "all", renders ALL classes! */}
-                  {classesToDisplay.map((cls) => {
-                    const classLessonsMap = getLessonsMapForClass(cls.id);
+              {/* Loop through classesToDisplay (strictly the selected class) */}
+              {classesToDisplay.map((cls) => {
+                const classLessonsMap = getLessonsMapForClass(cls.id);
 
                     return (
                       <div

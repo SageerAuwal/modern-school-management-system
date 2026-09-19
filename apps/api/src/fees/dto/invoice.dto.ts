@@ -88,3 +88,21 @@ export class InitiatePaystackDto {
   @IsString()
   callbackUrl: string; // frontend page to return to after payment
 }
+
+export class PayOnlineDto {
+  @IsNumber()
+  @Min(1)
+  amount: number;
+
+  @IsString()
+  @IsOptional()
+  method?: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
+  @IsString()
+  @IsOptional()
+  cardLast4?: string;
+}

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import PhotoCaptureInput from "../../components/PhotoCaptureInput";
+import OnlinePaymentModal from "../../components/OnlinePaymentModal";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -60,39 +61,42 @@ export default function ParentDashboardPage() {
   const [selectedChildId, setSelectedChildId] = useState<string>("");
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  const loadParentData = useCallback(async () => {
+    try {
+      const [overviewRes, meRes] = await Promise.all([
+        fetch(`${API}/api/v1/parents/my-children`, { credentials: "include" })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+        fetch(`${API}/api/v1/auth/me`, { credentials: "include" })
+          .then((r) => (r.ok ? r.json() : null))
+          .catch(() => null),
+      ]);
+
+      if (overviewRes && Array.isArray(overviewRes.children)) {
+        setChildren(overviewRes.children);
+        if (overviewRes.children.length > 0) {
+          setSelectedChildId((prev) => prev || overviewRes.children[0].id);
+          const allInvoices = overviewRes.children.flatMap((c: any) => c.invoices || []);
+          setInvoices(allInvoices);
+        }
+      }
+      if (meRes && meRes.id) {
+        setParentProfile(meRes);
+        setEditPhotoUrl(meRes.photoUrl ?? null);
+      }
+    } catch (err) {
+      console.error("Failed to load parent dashboard data", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function loadParentData() {
-      try {
-        const [overviewRes, meRes] = await Promise.all([
-          fetch(`${API}/api/v1/parents/my-children`, { credentials: "include" })
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null),
-          fetch(`${API}/api/v1/auth/me`, { credentials: "include" })
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null),
-        ]);
-
-        if (overviewRes && Array.isArray(overviewRes.children)) {
-          setChildren(overviewRes.children);
-          if (overviewRes.children.length > 0) {
-            setSelectedChildId(overviewRes.children[0].id);
-            const allInvoices = overviewRes.children.flatMap((c: any) => c.invoices || []);
-            setInvoices(allInvoices);
-          }
-        }
-        if (meRes && meRes.id) {
-          setParentProfile(meRes);
-          setEditPhotoUrl(meRes.photoUrl ?? null);
-        }
-      } catch (err) {
-        console.error("Failed to load parent dashboard data", err);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadParentData();
-  }, []);
+  }, [loadParentData]);
 
   async function handleSavePhoto() {
     setSavingProfile(true);
@@ -231,7 +235,25 @@ export default function ParentDashboardPage() {
               <div className="stat-value" style={{ color: totalOutstanding > 0 ? "var(--color-danger-text)" : "var(--color-success-text)" }}>
                 {formatNaira(totalOutstanding)}
               </div>
-              <div className="stat-sub">{totalOutstanding > 0 ? "Payment outstanding" : "All fees cleared"}</div>
+              <div className="stat-sub" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+                <span>{totalOutstanding > 0 ? "Payment outstanding" : "All fees cleared"}</span>
+                {totalOutstanding > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ fontSize: 11, padding: "2px 8px" }}
+                    onClick={() => {
+                      const unpaid = childInvoices.find((i) => i.status !== "PAID");
+                      if (unpaid) {
+                        setSelectedInvoiceForPayment(unpaid);
+                        setIsPaymentModalOpen(true);
+                      }
+                    }}
+                  >
+                    Pay Online
+                  </button>
+                )}
+              </div>
             </div>
             <div className="card">
               <div className="stat-label">Term Attendance</div>
@@ -341,9 +363,24 @@ export default function ParentDashboardPage() {
                           </span>
                         </td>
                         <td style={{ textAlign: "right" }}>
-                          <Link href={`/fees/${inv.id}`} className="btn btn-secondary" style={{ padding: "4px 12px", fontSize: 12 }}>
-                            {balance > 0 ? "Pay Now" : "Receipt"}
-                          </Link>
+                          <div style={{ display: "inline-flex", gap: 6 }}>
+                            {balance > 0 && (
+                              <button
+                                type="button"
+                                className="btn btn-primary"
+                                style={{ padding: "4px 10px", fontSize: 12 }}
+                                onClick={() => {
+                                  setSelectedInvoiceForPayment(inv);
+                                  setIsPaymentModalOpen(true);
+                                }}
+                              >
+                                Pay Online
+                              </button>
+                            )}
+                            <Link href={`/fees/${inv.id}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 12 }}>
+                              {balance > 0 ? "Details" : "Receipt"}
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -404,6 +441,34 @@ export default function ParentDashboardPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Online Payment Modal */}
+      {selectedInvoiceForPayment && (
+        <OnlinePaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => {
+            setIsPaymentModalOpen(false);
+            setSelectedInvoiceForPayment(null);
+          }}
+          invoice={{
+            id: selectedInvoiceForPayment.id,
+            totalAmount: selectedInvoiceForPayment.totalAmount,
+            paidAmount: selectedInvoiceForPayment.paidAmount,
+            status: selectedInvoiceForPayment.status,
+            term: selectedInvoiceForPayment.term,
+            student: activeChild
+              ? {
+                  firstName: activeChild.firstName,
+                  lastName: activeChild.lastName,
+                  admissionNumber: activeChild.admissionNumber,
+                }
+              : null,
+          }}
+          onSuccess={() => {
+            loadParentData();
+          }}
+        />
       )}
     </div>
   );

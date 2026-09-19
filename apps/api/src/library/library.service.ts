@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
-import { CreateBookDto, IssueLoanDto, ReturnLoanDto, BookSearchDto } from './dto/library.dto';
+import { CreateBookDto, IssueLoanDto, ReturnLoanDto, BookSearchDto, BuyBookDto } from './dto/library.dto';
 import { LoanStatus } from '@prisma/client';
 
 // Fine rate: ₦50 per overdue day
@@ -284,5 +284,63 @@ export class LibraryService {
     const updated = await this.prisma.bookLoan.update({ where: { id: loanId }, data: { finePaid: true } });
     await this.auditService.log({ actorId, actorEmail, action: 'FINE_PAID', targetType: 'BOOK_LOAN', targetId: loanId, afterValue: { fine: loan.fine } as Record<string, unknown> });
     return updated;
+  }
+
+  async buyBook(bookId: string, dto: BuyBookDto, schoolId: string, actorId: string, actorEmail: string) {
+    const book = await this.prisma.book.findFirst({ where: { id: bookId, schoolId, isActive: true } });
+    if (!book) throw new NotFoundException('Book not found');
+
+    const qty = dto.quantity && dto.quantity > 0 ? dto.quantity : 1;
+    if (book.availableCopies < qty) {
+      throw new BadRequestException(`Only ${book.availableCopies} copy(ies) available for purchase`);
+    }
+
+    const unitPrice = 3500;
+    const totalAmount = unitPrice * qty;
+    const receiptNumber = `BK-BUY-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    const updatedBook = await this.prisma.book.update({
+      where: { id: bookId },
+      data: {
+        availableCopies: { decrement: qty },
+        totalCopies: { decrement: qty },
+      },
+    });
+
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'BOOK_PURCHASED',
+      targetType: 'BOOK',
+      targetId: book.id,
+      afterValue: {
+        receiptNumber,
+        title: book.title,
+        quantity: qty,
+        unitPrice,
+        totalAmount,
+        buyerName: dto.buyerName || actorEmail,
+      } as Record<string, unknown>,
+    });
+
+    return {
+      success: true,
+      message: 'Book purchased successfully',
+      receiptNumber,
+      book: {
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        category: book.category,
+        shelfLocation: book.shelfLocation,
+      },
+      quantity: qty,
+      unitPrice,
+      totalAmount,
+      buyerName: dto.buyerName || actorEmail,
+      paymentMethod: dto.paymentMethod || 'CARD',
+      purchasedAt: new Date().toISOString(),
+      remainingCopies: updatedBook.availableCopies,
+    };
   }
 }

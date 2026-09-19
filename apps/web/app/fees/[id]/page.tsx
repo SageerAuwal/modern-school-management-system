@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PosReceiptSlip from "../../components/PosReceiptSlip";
+import OnlinePaymentModal from "../../components/OnlinePaymentModal";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 interface Payment {
@@ -181,6 +182,7 @@ function InvoiceDetailContent() {
   const [savingCash, setSavingCash] = useState(false);
   const [submittingPaystack, setSubmittingPaystack] = useState(false);
   const [payError, setPayError] = useState("");
+  const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false);
 
   const loadInvoice = useCallback(async () => {
     if (!invoiceId) return;
@@ -453,10 +455,19 @@ function InvoiceDetailContent() {
 
           {isNotPaid && (
             <>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setIsOnlineModalOpen(true)}
+                style={{ backgroundColor: "var(--color-brand-teal, #0E7D75)", fontWeight: 700 }}
+              >
+                Pay Online (Card / Transfer)
+              </button>
+
               {isAdmin && (
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className="btn btn-secondary"
                   onClick={openCashModal}
                 >
                   Record cash payment
@@ -932,6 +943,25 @@ function InvoiceDetailContent() {
         <PosReceiptSlip
           invoice={invoice}
           onClose={() => setShowPosReceipt(false)}
+        />
+      )}
+
+      {/* Online Payment Modal */}
+      {isOnlineModalOpen && invoice && (
+        <OnlinePaymentModal
+          isOpen={isOnlineModalOpen}
+          onClose={() => setIsOnlineModalOpen(false)}
+          invoice={{
+            id: invoice.id,
+            totalAmount: invoice.totalAmount,
+            paidAmount: invoice.paidAmount,
+            status: invoice.status,
+            term: invoice.term,
+            student: invoice.student,
+          }}
+          onSuccess={() => {
+            loadInvoice();
+          }}
         />
       )}
     </div>

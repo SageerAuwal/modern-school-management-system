@@ -13,8 +13,9 @@ import {
   BulkCreateInvoicesDto,
   RecordCashPaymentDto,
   InitiatePaystackDto,
+  PayOnlineDto,
 } from './dto/invoice.dto';
-import { InvoiceStatus, PaymentStatus, EnrollmentStatus } from '@prisma/client';
+import { InvoiceStatus, PaymentStatus, PaymentMethod, EnrollmentStatus } from '@prisma/client';
 import * as crypto from 'crypto';
 
 // ── Paystack API helper ──────────────────────────────────────────────────────
@@ -165,7 +166,7 @@ export class InvoicesService {
   async findAll(
     schoolId: string,
     filters: { studentId?: string; status?: string; academicYear?: string; termId?: string },
-    actor?: { id: string; role?: string },
+    actor?: { id: string; role?: string; email?: string; firstName?: string; lastName?: string },
   ) {
     let studentIdCondition: any = filters.studentId ? filters.studentId : undefined;
 
@@ -179,6 +180,29 @@ export class InvoicesService {
         studentIdCondition = myStudentIds.includes(filters.studentId) ? filters.studentId : { in: [] };
       } else {
         studentIdCondition = { in: myStudentIds };
+      }
+    } else if (actor?.role === "STUDENT") {
+      let student = await this.prisma.student.findFirst({
+        where: {
+          schoolId,
+          firstName: { equals: actor.firstName, mode: 'insensitive' },
+          lastName: { equals: actor.lastName, mode: 'insensitive' },
+        },
+      });
+      if (!student && actor.email) {
+        const emailLocal = actor.email.split('@')[0];
+        const namePart = emailLocal.replace(/^student\./i, '');
+        student = await this.prisma.student.findFirst({
+          where: {
+            schoolId,
+            firstName: { equals: namePart, mode: 'insensitive' },
+          },
+        });
+      }
+      if (student) {
+        studentIdCondition = student.id;
+      } else {
+        studentIdCondition = '__none__';
       }
     }
 
@@ -200,7 +224,7 @@ export class InvoicesService {
     });
   }
 
-  async findOne(id: string, schoolId: string, actor?: { id: string; role?: string }) {
+  async findOne(id: string, schoolId: string, actor?: { id: string; role?: string; email?: string; firstName?: string; lastName?: string }) {
     const inv = await this.prisma.invoice.findFirst({
       where: { id, schoolId },
       include: {
@@ -217,6 +241,27 @@ export class InvoicesService {
         where: { guardianId: actor.id, studentId: inv.studentId },
       });
       if (!link) {
+        throw new ForbiddenException('You do not have permission to view this invoice');
+      }
+    } else if (actor?.role === 'STUDENT') {
+      let student = await this.prisma.student.findFirst({
+        where: {
+          schoolId,
+          firstName: { equals: actor.firstName, mode: 'insensitive' },
+          lastName: { equals: actor.lastName, mode: 'insensitive' },
+        },
+      });
+      if (!student && actor.email) {
+        const emailLocal = actor.email.split('@')[0];
+        const namePart = emailLocal.replace(/^student\./i, '');
+        student = await this.prisma.student.findFirst({
+          where: {
+            schoolId,
+            firstName: { equals: namePart, mode: 'insensitive' },
+          },
+        });
+      }
+      if (!student || student.id !== inv.studentId) {
         throw new ForbiddenException('You do not have permission to view this invoice');
       }
     }
@@ -280,6 +325,84 @@ export class InvoicesService {
 
     await this.auditService.log({ actorId, actorEmail, action: 'PAYMENT_RECORDED_CASH', targetType: 'PAYMENT', targetId: payment.id, afterValue: { invoiceId, amount: dto.amount, method: dto.method, reference } as Record<string, unknown> });
     return { payment, invoice: { id: invoiceId, paidAmount: newPaid, status: newStatus } };
+  }
+
+  // ── Online Payment (Instant Card / Bank Transfer Settlement) ──────────────
+
+  async payOnline(
+    invoiceId: string,
+    dto: PayOnlineDto,
+    schoolId: string,
+    actorId: string,
+    actorEmail: string,
+    actor: any,
+  ) {
+    const inv = await this.findOne(invoiceId, schoolId, actor);
+    if ((['PAID', 'CANCELLED', 'WAIVED'] as string[]).includes(inv.status as string)) {
+      throw new BadRequestException(`Invoice is ${inv.status} — cannot process payment`);
+    }
+
+    const remaining = inv.totalAmount - inv.paidAmount;
+    const paymentAmount = dto.amount ? Number(dto.amount) : remaining;
+    if (paymentAmount <= 0) {
+      throw new BadRequestException('Payment amount must be greater than zero');
+    }
+    if (paymentAmount > remaining) {
+      throw new BadRequestException(`Amount ₦${paymentAmount} exceeds outstanding balance ₦${remaining}`);
+    }
+
+    const reference = `TXN-ONL-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    const newPaid = inv.paidAmount + paymentAmount;
+    const newStatus = resolveStatus(inv.totalAmount, newPaid);
+    const paymentMethod = dto.method === 'BANK_DEPOSIT' ? PaymentMethod.BANK_DEPOSIT : PaymentMethod.PAYSTACK;
+
+    const [payment, updatedInvoice] = await this.prisma.$transaction([
+      this.prisma.payment.create({
+        data: {
+          schoolId,
+          invoiceId,
+          amount: paymentAmount,
+          method: paymentMethod,
+          status: PaymentStatus.SUCCESS,
+          reference,
+          paidAt: new Date(),
+          recordedById: actorId,
+          notes: dto.notes || `Online payment via ${dto.method || 'ONLINE_CARD'}${dto.cardLast4 ? ` (ending in ${dto.cardLast4})` : ''}`,
+        },
+      }),
+      this.prisma.invoice.update({
+        where: { id: invoiceId },
+        data: { paidAmount: newPaid, status: newStatus },
+        include: {
+          student: { select: { id: true, firstName: true, lastName: true, admissionNumber: true } },
+          term: { select: { id: true, name: true, academicYear: true } },
+          items: true,
+          payments: { orderBy: { createdAt: 'desc' } },
+        },
+      }),
+    ]);
+
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'PAYMENT_RECORDED_ONLINE',
+      targetType: 'PAYMENT',
+      targetId: payment.id,
+      afterValue: {
+        invoiceId,
+        amount: paymentAmount,
+        method: paymentMethod,
+        reference,
+        newStatus,
+      } as Record<string, unknown>,
+    });
+
+    return {
+      success: true,
+      message: 'Payment completed successfully',
+      payment,
+      invoice: updatedInvoice,
+    };
   }
 
   // ── Initiate Paystack Payment ─────────────────────────────────────────────

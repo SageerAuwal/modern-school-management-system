@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import OnlinePaymentModal from "../../components/OnlinePaymentModal";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -142,52 +143,43 @@ export default function StudentPortalPage() {
   const [reportCardSummary, setReportCardSummary] = useState<ReportCardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+
+  const loadStudentData = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/v1/students/my-profile`, { credentials: "include" });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message ?? "Failed to load student profile");
+      }
+      const data: StudentProfile = await res.json();
+      setProfile(data);
+
+      // Fetch official report card summary for academic performance
+      try {
+        const rcRes = await fetch(`${API}/api/v1/scores/report-card/${data.id}`, { credentials: "include" });
+        if (rcRes.ok) {
+          const rcData = await rcRes.json();
+          if (rcData?.summary) {
+            setReportCardSummary(rcData.summary);
+          }
+        }
+      } catch {
+        // Report card may be pending
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load student profile");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    let ignore = false;
     setLoading(true);
     setError("");
-
-    async function loadStudentData() {
-      try {
-        const res = await fetch(`${API}/api/v1/students/my-profile`, { credentials: "include" });
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.message ?? "Failed to load student profile");
-        }
-        const data: StudentProfile = await res.json();
-        if (ignore) return;
-        setProfile(data);
-
-        // Fetch official report card summary for academic performance
-        try {
-          const rcRes = await fetch(`${API}/api/v1/scores/report-card/${data.id}`, { credentials: "include" });
-          if (rcRes.ok) {
-            const rcData = await rcRes.json();
-            if (!ignore && rcData?.summary) {
-              setReportCardSummary(rcData.summary);
-            }
-          }
-        } catch {
-          // Report card may be pending
-        }
-      } catch (err: any) {
-        if (!ignore) {
-          setError(err.message || "Failed to load student profile");
-        }
-      } finally {
-        if (!ignore) {
-          setLoading(false);
-        }
-      }
-    }
-
     loadStudentData();
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  }, [loadStudentData]);
 
   const currentEnrollment = profile?.enrollments?.[0];
   const currentClass = currentEnrollment?.classSection;
@@ -259,6 +251,45 @@ export default function StudentPortalPage() {
         <>
           {/* Summary Metric Cards */}
           <div className="stats-grid" style={{ marginBottom: 24 }}>
+            {/* Fee Balance Card */}
+            <div className="card">
+              <div className="stat-label">Fee Balance</div>
+              <div
+                className="stat-value"
+                style={{
+                  fontSize: 20,
+                  color: (profile.feeSummary?.outstandingBalance ?? 0) > 0 ? "var(--color-danger-text)" : "var(--color-success-text)",
+                }}
+              >
+                {formatNaira(profile.feeSummary?.outstandingBalance ?? 0)}
+              </div>
+              <div className="stat-sub" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+                <span>
+                  {(profile.feeSummary?.outstandingBalance ?? 0) > 0 ? (
+                    <span style={{ color: "var(--color-danger-text)", fontWeight: 700 }}>Payment Due</span>
+                  ) : (
+                    <span style={{ color: "var(--color-success-text)", fontWeight: 700 }}>All Cleared</span>
+                  )}
+                </span>
+                {(profile.feeSummary?.outstandingBalance ?? 0) > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ fontSize: 11, padding: "2px 8px" }}
+                    onClick={() => {
+                      const firstUnpaid = profile.invoices?.find((i) => i.status !== "PAID");
+                      if (firstUnpaid) {
+                        setSelectedInvoiceForPayment(firstUnpaid);
+                        setIsPaymentModalOpen(true);
+                      }
+                    }}
+                  >
+                    Pay Online
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="card">
               <div className="stat-label">Term Attendance</div>
               <div className="stat-value" style={{ color: "var(--color-success-text)" }}>
@@ -452,11 +483,29 @@ export default function StudentPortalPage() {
                     Annual Session Fee: ₦50,000 across 3 terms.
                   </p>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Outstanding Balance: </span>
-                  <strong style={{ color: (profile.feeSummary?.outstandingBalance ?? 0) > 0 ? "var(--color-danger-text)" : "var(--color-success-text)" }}>
-                    {formatNaira(profile.feeSummary?.outstandingBalance ?? 0)}
-                  </strong>
+                <div style={{ textAlign: "right", display: "flex", alignItems: "center", gap: 10 }}>
+                  <div>
+                    <span style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Outstanding: </span>
+                    <strong style={{ color: (profile.feeSummary?.outstandingBalance ?? 0) > 0 ? "var(--color-danger-text)" : "var(--color-success-text)" }}>
+                      {formatNaira(profile.feeSummary?.outstandingBalance ?? 0)}
+                    </strong>
+                  </div>
+                  {(profile.feeSummary?.outstandingBalance ?? 0) > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ fontSize: 12, padding: "5px 12px" }}
+                      onClick={() => {
+                        const firstUnpaid = profile.invoices?.find((i) => i.status !== "PAID");
+                        if (firstUnpaid) {
+                          setSelectedInvoiceForPayment(firstUnpaid);
+                          setIsPaymentModalOpen(true);
+                        }
+                      }}
+                    >
+                      Pay Online
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -472,21 +521,48 @@ export default function StudentPortalPage() {
                       <th>Total</th>
                       <th>Paid</th>
                       <th>Status</th>
+                      <th style={{ textAlign: "right" }}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {profile.invoices.map((inv) => (
-                      <tr key={inv.id}>
-                        <td style={{ fontWeight: 600 }}>{inv.term?.name ?? "Academic Term"}</td>
-                        <td>{formatNaira(inv.totalAmount)}</td>
-                        <td style={{ color: "var(--color-success-text)" }}>{formatNaira(inv.paidAmount)}</td>
-                        <td>
-                          <span className={inv.status === "PAID" ? "pill-success" : inv.status === "PARTIAL" ? "pill-warning" : "pill-danger"}>
-                            {inv.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {profile.invoices.map((inv) => {
+                      const balance = Math.max(0, inv.totalAmount - inv.paidAmount);
+                      return (
+                        <tr key={inv.id}>
+                          <td style={{ fontWeight: 600 }}>{inv.term?.name ?? "Academic Term"}</td>
+                          <td>{formatNaira(inv.totalAmount)}</td>
+                          <td style={{ color: "var(--color-success-text)" }}>{formatNaira(inv.paidAmount)}</td>
+                          <td>
+                            <span className={inv.status === "PAID" ? "pill-success" : inv.status === "PARTIAL" ? "pill-warning" : "pill-danger"}>
+                              {inv.status}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            {balance > 0 ? (
+                              <button
+                                type="button"
+                                className="btn btn-primary"
+                                style={{ fontSize: 11, padding: "4px 10px" }}
+                                onClick={() => {
+                                  setSelectedInvoiceForPayment(inv);
+                                  setIsPaymentModalOpen(true);
+                                }}
+                              >
+                                Pay Online
+                              </button>
+                            ) : (
+                              <Link
+                                href={`/fees/${inv.id}`}
+                                className="btn btn-secondary"
+                                style={{ fontSize: 11, padding: "4px 10px" }}
+                              >
+                                Receipt
+                              </Link>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
@@ -539,6 +615,34 @@ export default function StudentPortalPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Online Payment Modal */}
+      {selectedInvoiceForPayment && (
+        <OnlinePaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => {
+            setIsPaymentModalOpen(false);
+            setSelectedInvoiceForPayment(null);
+          }}
+          invoice={{
+            id: selectedInvoiceForPayment.id,
+            totalAmount: selectedInvoiceForPayment.totalAmount,
+            paidAmount: selectedInvoiceForPayment.paidAmount,
+            status: selectedInvoiceForPayment.status,
+            term: selectedInvoiceForPayment.term,
+            student: profile
+              ? {
+                  firstName: profile.firstName,
+                  lastName: profile.lastName,
+                  admissionNumber: profile.admissionNumber,
+                }
+              : null,
+          }}
+          onSuccess={() => {
+            loadStudentData();
+          }}
+        />
       )}
     </div>
   );

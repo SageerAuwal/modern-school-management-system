@@ -135,13 +135,10 @@ export class ParentsService {
             },
             invoices: {
               orderBy: { createdAt: 'desc' },
-              select: {
-                id: true,
-                totalAmount: true,
-                paidAmount: true,
-                status: true,
-                dueDate: true,
-                createdAt: true,
+              include: {
+                term: { select: { id: true, name: true, academicYear: true } },
+                items: true,
+                payments: { select: { id: true, amount: true, method: true, paidAt: true, reference: true } },
               },
             },
             scores: {

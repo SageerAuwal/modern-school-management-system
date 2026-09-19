@@ -19,13 +19,13 @@ export class StaffController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
   findAll(@Query('all') all: string, @CurrentUser() actor: { schoolId: string }) {
     return this.staffService.findAll(actor.schoolId, all !== 'true');
   }
 
   @Get(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.STUDENT, UserRole.PARENT)
   findOne(@Param('id') id: string, @CurrentUser() actor: { schoolId: string }) {
     return this.staffService.findOne(id, actor.schoolId);
   }

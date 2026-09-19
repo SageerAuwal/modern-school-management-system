@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { LibraryService } from './library.service';
-import { CreateBookDto, IssueLoanDto, ReturnLoanDto, BookSearchDto } from './dto/library.dto';
+import { CreateBookDto, IssueLoanDto, ReturnLoanDto, BookSearchDto, BuyBookDto } from './dto/library.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -25,16 +25,27 @@ export class LibraryController {
 
   /** GET /api/v1/library/books?q=&category=&availableOnly= — search catalogue */
   @Get('books')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT, UserRole.STUDENT)
   searchBooks(@Query() query: BookSearchDto, @CurrentUser() actor: { schoolId: string }) {
     return this.libraryService.searchBooks(actor.schoolId, query);
   }
 
   /** GET /api/v1/library/books/:id — book detail with active loans */
   @Get('books/:id')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT, UserRole.STUDENT)
   getBook(@Param('id') id: string, @CurrentUser() actor: { schoolId: string }) {
     return this.libraryService.getBook(id, actor.schoolId);
+  }
+
+  /** POST /api/v1/library/books/:id/buy — student/parent/admin purchase book */
+  @Post('books/:id/buy')
+  @Roles(UserRole.ADMIN, UserRole.PARENT, UserRole.STUDENT)
+  buyBook(
+    @Param('id') id: string,
+    @Body() dto: BuyBookDto,
+    @CurrentUser() actor: { id: string; email: string; schoolId: string },
+  ) {
+    return this.libraryService.buyBook(id, dto, actor.schoolId, actor.id, actor.email);
   }
 
   /** PATCH /api/v1/library/books/:id — update book details or copy count */
@@ -55,21 +66,21 @@ export class LibraryController {
 
   /** POST /api/v1/library/loans — issue book to student or staff */
   @Post('loans')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT, UserRole.STUDENT)
   issueBook(@Body() dto: IssueLoanDto, @CurrentUser() actor: { id: string; email: string; schoolId: string }) {
     return this.libraryService.issueBook(dto, actor.schoolId, actor.id, actor.email);
   }
 
   /** GET /api/v1/library/loans/active — all currently borrowed books */
   @Get('loans/active')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT, UserRole.STUDENT)
   getActiveLoans(@CurrentUser() actor: { schoolId: string }) {
     return this.libraryService.getActiveLoans(actor.schoolId);
   }
 
   /** GET /api/v1/library/loans/overdue — all overdue loans with estimated fines */
   @Get('loans/overdue')
-  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.PARENT, UserRole.STUDENT)
   getOverdueLoans(@CurrentUser() actor: { schoolId: string }) {
     return this.libraryService.getOverdueLoans(actor.schoolId);
   }
