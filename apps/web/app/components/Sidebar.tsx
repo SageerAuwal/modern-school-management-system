@@ -146,6 +146,12 @@ const icons = {
       <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
   ),
+  account: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ),
 };
 
 export interface NavItem {
@@ -174,6 +180,13 @@ const ADMIN_CATEGORIES: NavCategory[] = [
         label: "Dashboard",
         category: "Overview",
         keywords: "home overview stats command center live radar summary",
+      },
+      {
+        href: "/reports",
+        icon: icons.results,
+        label: "Reports & Analytics",
+        category: "Overview",
+        keywords: "reports analytics records statistics performance finance attendance enrollment",
       },
     ],
   },
@@ -832,44 +845,43 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
             gap: 4,
           }}
         >
-          {/* Settings / Portals Icon (Only visible for Admins) */}
-          {(role || "ADMIN").toUpperCase() === "ADMIN" && (
-            <Link
-              href="/portal/teacher"
-              title="Role Portals"
-              style={{ textDecoration: "none" }}
-              onMouseEnter={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                setTooltipPos({ top: rect.top + rect.height / 2 - 18, left: rect.right + 10 });
-                setHoveredTooltip({ label: "Role Portals", category: "System" });
+          {/* Account & Profile Settings Icon (Available for all roles) */}
+          <Link
+            href="/account"
+            title="My Account & Settings"
+            style={{ textDecoration: "none" }}
+            onMouseEnter={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              setTooltipPos({ top: rect.top + rect.height / 2 - 18, left: rect.right + 10 });
+              setHoveredTooltip({ label: "My Account & Settings", category: "Account" });
+            }}
+            onMouseLeave={() => setHoveredTooltip(null)}
+          >
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: pathname.startsWith("/account") ? "var(--color-brand-teal, #0E7D75)" : "var(--color-text-secondary, #70817B)",
+                backgroundColor: pathname.startsWith("/account") ? "rgba(14, 125, 117, 0.1)" : "transparent",
+                cursor: "pointer",
+                transition: "all 0.15s",
               }}
-              onMouseLeave={() => setHoveredTooltip(null)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
+                e.currentTarget.style.color = "var(--color-ink)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = pathname.startsWith("/account") ? "rgba(14, 125, 117, 0.1)" : "transparent";
+                e.currentTarget.style.color = pathname.startsWith("/account") ? "var(--color-brand-teal, #0E7D75)" : "var(--color-text-secondary)";
+              }}
             >
-              <div
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--color-text-secondary, #70817B)",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
-                  e.currentTarget.style.color = "var(--color-ink)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "transparent";
-                  e.currentTarget.style.color = "var(--color-text-secondary)";
-                }}
-              >
-                {icons.portals}
-              </div>
-            </Link>
-          )}
+              {icons.account}
+            </div>
+          </Link>
 
           {/* Expand / Collapse Icon */}
           <div

@@ -63,14 +63,26 @@ export class UsersController {
 
   /**
    * PATCH /api/v1/users/profile
-   * Any authenticated user: update own profile (firstName, lastName, phone, photoUrl)
+   * Any authenticated user: update own profile (firstName, lastName, phone, email, photoUrl)
    */
   @Patch('profile')
   updateProfile(
-    @Body() dto: { firstName?: string; lastName?: string; phone?: string; photoUrl?: string },
+    @Body() dto: { firstName?: string; lastName?: string; phone?: string; email?: string; photoUrl?: string },
     @CurrentUser() actor: { id: string; schoolId: string; email: string },
   ) {
     return this.usersService.updateProfile(actor.id, actor.schoolId, dto, actor.id, actor.email);
+  }
+
+  /**
+   * POST /api/v1/users/change-password
+   * Any authenticated user: change own password with current password verification
+   */
+  @Post('change-password')
+  changePassword(
+    @Body() dto: { currentPassword: string; newPassword: string },
+    @CurrentUser() actor: { id: string; schoolId: string; email: string },
+  ) {
+    return this.usersService.changePassword(actor.id, actor.schoolId, dto, actor.id, actor.email);
   }
 
   /**

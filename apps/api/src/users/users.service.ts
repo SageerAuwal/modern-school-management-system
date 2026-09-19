@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
@@ -124,23 +125,33 @@ export class UsersService {
   }
 
   /**
-   * Update profile (for self / parent / staff)
+   * Update profile (for self / parent / staff / student / admin)
    */
   async updateProfile(
     userId: string,
     schoolId: string,
-    dto: { firstName?: string; lastName?: string; phone?: string; photoUrl?: string },
+    dto: { firstName?: string; lastName?: string; phone?: string; photoUrl?: string; email?: string },
     actorId: string,
     actorEmail: string,
   ) {
     const existing = await this.findOne(userId, schoolId);
 
+    if (dto.email && dto.email.trim().toLowerCase() !== existing.email.toLowerCase()) {
+      const collision = await this.prisma.user.findFirst({
+        where: { email: dto.email.trim().toLowerCase(), NOT: { id: userId } },
+      });
+      if (collision) {
+        throw new ConflictException('A user with this email address already exists');
+      }
+    }
+
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: {
-        firstName: dto.firstName !== undefined ? dto.firstName : existing.firstName,
-        lastName: dto.lastName !== undefined ? dto.lastName : existing.lastName,
-        phone: dto.phone !== undefined ? dto.phone : existing.phone,
+        firstName: dto.firstName !== undefined ? dto.firstName.trim() : existing.firstName,
+        lastName: dto.lastName !== undefined ? dto.lastName.trim() : existing.lastName,
+        phone: dto.phone !== undefined ? dto.phone.trim() : existing.phone,
+        email: dto.email !== undefined ? dto.email.trim().toLowerCase() : existing.email,
         photoUrl: dto.photoUrl !== undefined ? dto.photoUrl : existing.photoUrl,
       },
       select: {
@@ -161,10 +172,54 @@ export class UsersService {
       action: 'USER_PROFILE_UPDATED',
       targetType: 'USER',
       targetId: userId,
-      afterValue: { firstName: updated.firstName, lastName: updated.lastName, photoUrl: updated.photoUrl ? 'UPDATED' : 'REMOVED' },
+      afterValue: { firstName: updated.firstName, lastName: updated.lastName, email: updated.email, phone: updated.phone },
     });
 
     return updated;
+  }
+
+  /**
+   * Change login password for authenticated user
+   */
+  async changePassword(
+    userId: string,
+    schoolId: string,
+    dto: { currentPassword: string; newPassword: string },
+    actorId: string,
+    actorEmail: string,
+  ) {
+    if (!dto.currentPassword) {
+      throw new BadRequestException('Current password is required');
+    }
+    if (!dto.newPassword || dto.newPassword.length < 6) {
+      throw new BadRequestException('New password must be at least 6 characters');
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, schoolId },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const isValid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!isValid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'USER_PASSWORD_CHANGED',
+      targetType: 'USER',
+      targetId: userId,
+    });
+
+    return { message: 'Password changed successfully' };
   }
 
   /**

@@ -27,6 +27,8 @@ const ROUTE_LABELS: Record<string, string> = {
   "/portal/teacher": "Teacher Portal",
   "/portal/student": "Student Portal",
   "/portal/parent": "Parent & Guardian Portal",
+  "/account": "My Account & Settings",
+  "/reports": "Reports & Analytics",
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -231,14 +233,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Derive breadcrumb
-  let breadcrumb = ROUTE_LABELS[pathname];
-  if (!breadcrumb) {
-    if (pathname.startsWith("/fees/")) breadcrumb = "Fees / Invoice Details";
-    else if (pathname.startsWith("/students/")) breadcrumb = "Students / Profile";
-    else breadcrumb = "School Portal";
-  }
-
   // Derive dynamic user details for header and profile dropdown
   const userRole = (currentUser?.role || "ADMIN").toUpperCase();
   const userFullName = currentUser
@@ -251,10 +245,31 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const schoolName = currentUser?.school?.name || "Bright Future Academy";
 
   let userRoleBadge = "Super Administrator";
-  if (userRole === "TEACHER") userRoleBadge = "Teacher / Staff";
-  else if (userRole === "PARENT") userRoleBadge = "Parent / Guardian";
-  else if (userRole === "STUDENT") userRoleBadge = "Student";
-  else if (userRole === "ADMIN") userRoleBadge = "Super Administrator";
+  let rolePrefix = "Admin";
+  if (userRole === "TEACHER" || userRole === "STAFF") {
+    userRoleBadge = "Teacher / Staff";
+    rolePrefix = "Teacher";
+  } else if (userRole === "PARENT") {
+    userRoleBadge = "Parent / Guardian";
+    rolePrefix = "Parent";
+  } else if (userRole === "STUDENT") {
+    userRoleBadge = "Student";
+    rolePrefix = "Student";
+  } else if (userRole === "BURSAR") {
+    userRoleBadge = "Bursar / Accounts";
+    rolePrefix = "Bursar";
+  }
+
+  // Derive role-rigid breadcrumb
+  let baseBreadcrumb = ROUTE_LABELS[pathname];
+  if (!baseBreadcrumb) {
+    if (pathname.startsWith("/fees/")) baseBreadcrumb = "Fees / Invoice Details";
+    else if (pathname.startsWith("/students/")) baseBreadcrumb = "Students / Profile";
+    else if (pathname.startsWith("/account")) baseBreadcrumb = "My Account & Settings";
+    else if (pathname.startsWith("/reports")) baseBreadcrumb = "Reports & Analytics";
+    else baseBreadcrumb = "Overview";
+  }
+  const breadcrumb = `${rolePrefix} › ${baseBreadcrumb}`;
 
   return (
     <div
@@ -683,16 +698,62 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     {/* Divider */}
                     <div style={{ height: 1, backgroundColor: "var(--color-border)" }} />
 
-                    {/* Section 1: Role Portals or Workspace Links */}
+                    {/* Section 1: User Account & Details */}
                     <div>
                       <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
-                        {userRole === "ADMIN" ? "ROLE PORTALS" : "WORKSPACE SHORTCUTS"}
+                        ACCOUNT & PROFILE
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        <Link
+                          href="/account"
+                          onClick={() => setIsProfileOpen(false)}
+                          style={{
+                            padding: "7px 10px",
+                            borderRadius: 8,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "var(--color-ink)",
+                            textDecoration: "none",
+                            transition: "background 0.15s",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                        >
+                          My Profile & Details
+                        </Link>
+                        <Link
+                          href="/account?tab=security"
+                          onClick={() => setIsProfileOpen(false)}
+                          style={{
+                            padding: "7px 10px",
+                            borderRadius: 8,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: "var(--color-ink)",
+                            textDecoration: "none",
+                            transition: "background 0.15s",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                        >
+                          Change Password
+                        </Link>
+                      </div>
+                    </div>
+
+                    {/* Divider */}
+                    <div style={{ height: 1, backgroundColor: "var(--color-border)" }} />
+
+                    {/* Section 2: Role Rigid Workspace Shortcuts */}
+                    <div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>
+                        {userRole === "ADMIN" ? "ADMINISTRATOR WORKSPACE" : `${userRole} PORTAL`}
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         {userRole === "ADMIN" && (
                           <>
                             <Link
-                              href="/portal/teacher"
+                              href="/dashboard"
                               onClick={() => setIsProfileOpen(false)}
                               style={{
                                 padding: "7px 10px",
@@ -706,10 +767,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
                               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                             >
-                              Teacher Portal
+                              Executive Dashboard
                             </Link>
                             <Link
-                              href="/portal/student"
+                              href="/reports"
                               onClick={() => setIsProfileOpen(false)}
                               style={{
                                 padding: "7px 10px",
@@ -723,10 +784,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
                               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                             >
-                              Student Portal
+                              Reports & Analytics
                             </Link>
                             <Link
-                              href="/portal/parent"
+                              href="/students"
                               onClick={() => setIsProfileOpen(false)}
                               style={{
                                 padding: "7px 10px",
@@ -740,7 +801,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
                               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                             >
-                              Parent & Guardian Portal
+                              Student Management
                             </Link>
                           </>
                         )}
@@ -809,23 +870,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
                               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                             >
-                              Timetable & Routine
-                            </Link>
-                            <Link
-                              href="/reports"
-                              onClick={() => setIsProfileOpen(false)}
-                              style={{
-                                padding: "7px 10px",
-                                borderRadius: 8,
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: "var(--color-ink)",
-                                textDecoration: "none",
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
-                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                            >
-                              Terminal Report Cards
+                              Class Routine & Timetable
                             </Link>
                           </>
                         )}
@@ -849,22 +894,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               Parent Portal Overview
                             </Link>
                             <Link
-                              href="/reports"
-                              onClick={() => setIsProfileOpen(false)}
-                              style={{
-                                padding: "7px 10px",
-                                borderRadius: 8,
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: "var(--color-ink)",
-                                textDecoration: "none",
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
-                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                            >
-                              Child Terminal Report Cards
-                            </Link>
-                            <Link
                               href="/fees"
                               onClick={() => setIsProfileOpen(false)}
                               style={{
@@ -879,6 +908,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                             >
                               School Fee Invoices
+                            </Link>
+                            <Link
+                              href="/results"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              Child Terminal Report Cards
                             </Link>
                           </>
                         )}
@@ -902,22 +947,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               Student Portal Overview
                             </Link>
                             <Link
-                              href="/reports"
-                              onClick={() => setIsProfileOpen(false)}
-                              style={{
-                                padding: "7px 10px",
-                                borderRadius: 8,
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: "var(--color-ink)",
-                                textDecoration: "none",
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
-                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                            >
-                              My Academic Results
-                            </Link>
-                            <Link
                               href="/timetable"
                               onClick={() => setIsProfileOpen(false)}
                               style={{
@@ -932,6 +961,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                             >
                               Class Routine & Timetable
+                            </Link>
+                            <Link
+                              href="/results"
+                              onClick={() => setIsProfileOpen(false)}
+                              style={{
+                                padding: "7px 10px",
+                                borderRadius: 8,
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--color-ink)",
+                                textDecoration: "none",
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                            >
+                              My Academic Results
                             </Link>
                             <Link
                               href="/library"
