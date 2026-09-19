@@ -117,15 +117,17 @@ export default function OnlinePaymentModal({
         throw new Error(data.message || "Payment authorization failed");
       }
 
+      const isPending = Boolean(data.pendingVerification);
       setReceipt({
         reference: data.payment?.reference || `TXN-ONL-${Date.now()}`,
         amount: payAmount,
         date: new Date().toLocaleString("en-NG"),
         method: method === "CARD" ? `Mastercard / Visa (ending in ${cardLast4 || "8831"})` : "Instant Bank Transfer",
-        newBalance: Math.max(0, balance - payAmount),
-        status: "SUCCESSFUL",
+        newBalance: isPending ? balance : Math.max(0, balance - payAmount),
+        status: isPending ? "PENDING_BURSARY_VERIFICATION" : "SUCCESSFUL",
         studentName: invoice.student ? `${invoice.student.firstName} ${invoice.student.lastName}` : "Student",
         termName: invoice.term?.name || "First Term",
+        isPending,
       });
 
       if (onSuccess) {
@@ -215,25 +217,53 @@ export default function OnlinePaymentModal({
         <div style={{ padding: "20px 24px", overflowY: "auto" }}>
           {receipt ? (
             /* Digital Receipt View */
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Official Receipt Letterhead */}
+              <div style={{ textAlign: "center", borderBottom: "1px solid var(--color-border, #E8ECE9)", paddingBottom: 12 }}>
+                <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
+                  <img
+                    src="/school-logo.png"
+                    alt="Bright Future Academy"
+                    style={{ width: 44, height: 44, objectFit: "contain" }}
+                  />
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 900, color: "var(--color-ink)", letterSpacing: "0.02em", textTransform: "uppercase" }}>
+                  BRIGHT FUTURE ACADEMY
+                </div>
+                <div style={{ fontSize: 10, fontStyle: "italic", color: "var(--color-text-secondary)", margin: "2px 0" }}>
+                  &quot;Guided By Principles, Driven By Purpose&quot;
+                </div>
+                <div style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>
+                  Behind L.E.A Primary School Tumburu Kashere, Akko LGA, Gombe State
+                </div>
+                <div style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>
+                  Tel: 08029839848 | Email: brightfutureacademykashere@gmail.com
+                </div>
+              </div>
+
               <div
                 style={{
-                  padding: 18,
+                  padding: 16,
                   borderRadius: 14,
-                  backgroundColor: "#ECFDF5",
-                  border: "1px solid #A7F3D0",
+                  backgroundColor: receipt.isPending ? "#FEF3C7" : "#ECFDF5",
+                  border: `1px solid ${receipt.isPending ? "#FCD34D" : "#A7F3D0"}`,
                   textAlign: "center",
                 }}
               >
-                <div style={{ color: "#065F46", fontWeight: 800, fontSize: 16 }}>
-                  Payment Confirmed
+                <div style={{ color: receipt.isPending ? "#92400E" : "#065F46", fontWeight: 800, fontSize: 14 }}>
+                  {receipt.isPending ? "Payment Submitted - Awaiting Bursary Verification" : "Payment Confirmed"}
                 </div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: "#065F46", marginTop: 6 }}>
+                <div style={{ fontSize: 24, fontWeight: 900, color: receipt.isPending ? "#B45309" : "#065F46", marginTop: 6 }}>
                   ₦{receipt.amount.toLocaleString()}
                 </div>
-                <div style={{ fontSize: 11, color: "#047857", marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: receipt.isPending ? "#92400E" : "#047857", marginTop: 4 }}>
                   Transaction Reference: {receipt.reference}
                 </div>
+                {receipt.isPending && (
+                  <div style={{ fontSize: 11, color: "#92400E", marginTop: 6, lineHeight: 1.4 }}>
+                    Your payment submission is queued for Bursary confirmation. Once verified by the School Bursar, your invoice balance will officially clear.
+                  </div>
+                )}
               </div>
 
               <div
@@ -263,6 +293,12 @@ export default function OnlinePaymentModal({
                   <span style={{ color: "var(--color-text-secondary)" }}>Date &amp; Time:</span>
                   <span>{receipt.date}</span>
                 </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--color-text-secondary)" }}>Status:</span>
+                  <span style={{ fontWeight: 700, color: receipt.isPending ? "#B45309" : "#047857" }}>
+                    {receipt.isPending ? "Pending Verification" : "Cleared & Confirmed"}
+                  </span>
+                </div>
                 <div
                   style={{
                     display: "flex",
@@ -272,21 +308,21 @@ export default function OnlinePaymentModal({
                     fontWeight: 700,
                   }}
                 >
-                  <span>Remaining Balance:</span>
+                  <span>{receipt.isPending ? "Outstanding Balance (Unchanged):" : "Remaining Balance:"}</span>
                   <span style={{ color: receipt.newBalance > 0 ? "var(--color-danger-text)" : "var(--color-success-text)" }}>
                     ₦{receipt.newBalance.toLocaleString()}
                   </span>
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+              <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
                 <button
                   type="button"
                   className="btn btn-secondary"
                   style={{ flex: 1, padding: "10px 14px", fontWeight: 700 }}
                   onClick={() => window.print()}
                 >
-                  Print Receipt
+                  Print Slip
                 </button>
                 <button
                   type="button"
@@ -527,7 +563,7 @@ export default function OnlinePaymentModal({
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ color: "#64748B" }}>Account Name:</span>
-                    <strong>Modern School Management System</strong>
+                    <strong>Bright Future Academy</strong>
                   </div>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
                     <span style={{ color: "#64748B" }}>Account Number:</span>

@@ -16,24 +16,24 @@ const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱  Seeding database…');
+  console.log('[INFO] Seeding database...');
 
   // ── 1. Create the school (single-tenant) ──────────────────────────────────
   let school = await prisma.school.findFirst();
   if (!school) {
     school = await prisma.school.create({
       data: {
-        name: 'My School',
-        address: '1 School Road, Kano',
-        phone: '08000000000',
-        email: 'info@school.local',
-        state: 'Kano',
-        lga: 'Kano Municipal',
+        name: 'Bright Future Academy',
+        address: 'Behind L.E.A Primary School Tumburu Kashere, Akko LGA, Gombe State.',
+        phone: '08029839848',
+        email: 'brightfutureacademykashere@gmail.com',
+        state: 'Gombe',
+        lga: 'Akko',
       },
     });
-    console.log(`✅  School created: ${school.name} (${school.id})`);
+    console.log(`[OK] School created: ${school.name} (${school.id})`);
   } else {
-    console.log(`ℹ️   School already exists: ${school.name}`);
+    console.log(`[INFO] School already exists: ${school.name}`);
   }
 
   // ── 2. Create first Admin user ────────────────────────────────────────────
@@ -53,24 +53,43 @@ async function main() {
         isActive: true,
       },
     });
-    console.log(`✅  Admin user created: ${admin.email}`);
+    console.log(`[OK] Admin user created: ${admin.email}`);
     console.log('');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('  Login credentials:');
     console.log(`  Email:    ${email}`);
     console.log('  Password: Admin@1234');
-    console.log('  ⚠️  Change password after first login!');
+    console.log('  [NOTICE] Change password after first login!');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   } else {
-    console.log(`ℹ️   Admin user already exists: ${email}`);
+    console.log(`Admin user already exists: ${email}`);
   }
 
-  console.log('\n🎉  Done. Run the app and log in.');
+  // ── 3. Create Bursar user ─────────────────────────────────────────────
+  const bursarEmail = 'bursar@school.local';
+  const existingBursar = await prisma.user.findUnique({ where: { email: bursarEmail } });
+  if (!existingBursar) {
+    const bursarPass = await bcrypt.hash('Bursar@2025!', 10);
+    await prisma.user.create({
+      data: {
+        schoolId: school.id,
+        email: bursarEmail,
+        passwordHash: bursarPass,
+        firstName: 'School',
+        lastName: 'Bursar',
+        role: 'ADMIN',
+        isActive: true,
+      },
+    });
+    console.log(`Bursar user created: ${bursarEmail}`);
+  }
+
+  console.log('\n[SUCCESS] Done. Run the app and log in.');
 }
 
 main()
   .catch((e) => {
-    console.error('❌  Seed failed:', e.message);
+    console.error('[ERROR] Seed failed:', e.message);
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());

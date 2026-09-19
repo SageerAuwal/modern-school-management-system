@@ -338,7 +338,7 @@ export default function ResultsPage() {
     fetchReportCard(selectedStudentId, selectedTermId, selectedClassId);
   }
 
-  const schoolName = user?.school?.name || "Modern School Academy";
+  const schoolName = user?.school?.name || "Bright Future Academy";
 
   return (
     <div className="page">
@@ -705,41 +705,34 @@ export default function ResultsPage() {
         >
           {/* Official Letterhead Header */}
           <div style={{ textAlign: "center", borderBottom: "2px solid var(--color-ink)", paddingBottom: 18, marginBottom: 24 }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-              <div
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 8,
-                  backgroundColor: "var(--color-ink)",
-                  color: "#fff",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 700,
-                  fontSize: 18,
-                }}
-              >
-                {schoolName.charAt(0)}
-              </div>
-              <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                {schoolName}
-              </h2>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+              <img
+                src="/school-logo.png"
+                alt="Bright Future Academy Crest"
+                style={{ width: 64, height: 64, objectFit: "contain" }}
+              />
             </div>
-            <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "0 0 6px" }}>
-              Official Terminal Student Progress and Assessment Report
+            <h2 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 4px", textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--color-ink)" }}>
+              BRIGHT FUTURE ACADEMY
+            </h2>
+            <p style={{ fontSize: 11, fontStyle: "italic", color: "var(--color-text-secondary)", margin: "0 0 4px" }}>
+              &quot;Guided By Principles, Driven By Purpose&quot;
+            </p>
+            <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: "0 0 4px" }}>
+              Behind L.E.A Primary School Tumburu Kashere, Akko LGA, Gombe State. | Tel: 08029839848 | Email: brightfutureacademykashere@gmail.com
             </p>
             <div
               style={{
                 display: "inline-block",
-                padding: "3px 14px",
+                padding: "4px 16px",
                 backgroundColor: "var(--color-ink)",
                 color: "#ffffff",
                 fontSize: 12,
-                fontWeight: 600,
+                fontWeight: 700,
                 borderRadius: "var(--radius-pill-badge)",
                 letterSpacing: "0.06em",
                 textTransform: "uppercase",
+                marginTop: 6,
               }}
             >
               Academic Progress Report Card

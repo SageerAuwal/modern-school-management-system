@@ -625,55 +625,67 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
                 : "/dashboard";
             router.push(home);
           }}
-          title="Modern School Management System"
+          title="Bright Future Academy - Kashere"
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {/* Deep Teal Squircle Brand Mark */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            {/* Bright Future Academy Official Logo Crest */}
             <div
               style={{
                 width: 42,
                 height: 42,
-                borderRadius: 14,
-                backgroundColor: "var(--color-brand-teal, #0E7D75)",
+                borderRadius: "50%",
+                backgroundColor: "#FFFFFF",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
-                boxShadow: "0 4px 14px rgba(14, 125, 117, 0.25)",
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
+                border: "1px solid var(--color-border, #E8ECE9)",
+                overflow: "hidden",
+                padding: 1,
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M12 2C12 7.52285 7.52285 12 2 12C7.52285 12 12 16.4771 12 22C12 16.4771 16.4771 12 22 12C16.4771 12 12 7.52285 12 2Z"
-                  fill="#FFFFFF"
-                />
-                <circle cx="19" cy="5" r="2" fill="#F7C844" />
-              </svg>
+              <img
+                src="/school-logo.png"
+                alt="Bright Future Academy Crest"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                }}
+              />
             </div>
 
             {!isCollapsed && (
-              <div style={{ overflow: "hidden" }}>
+              <div style={{ overflow: "hidden", minWidth: 0 }}>
                 <p
                   style={{
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: 800,
                     color: "var(--color-ink, #182220)",
-                    lineHeight: 1.1,
+                    lineHeight: 1.2,
                     margin: 0,
                     whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
+                  title="Bright Future Academy"
                 >
-                  Modern School
+                  Bright Future Academy
                 </p>
                 <p
                   style={{
-                    fontSize: 11,
+                    fontSize: 10,
                     color: "var(--color-text-secondary, #70817B)",
                     margin: "2px 0 0",
                     fontWeight: 600,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
+                  title="Guided By Principles, Driven By Purpose"
                 >
-                  School System
+                  Guided By Principles, Driven By Purpose
                 </p>
               </div>
             )}

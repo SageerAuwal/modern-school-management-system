@@ -1,10 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PosReceiptSlip from "../components/PosReceiptSlip";
 import { useCurrentUser } from "../hooks/useCurrentUser";
+
+interface PendingPaymentItem {
+  id: string;
+  amount: number;
+  method: string;
+  reference: string;
+  createdAt: string;
+  notes?: string | null;
+  invoice: {
+    id: string;
+    totalAmount: number;
+    paidAmount: number;
+    student?: {
+      firstName: string;
+      lastName: string;
+      admissionNumber?: string | null;
+    } | null;
+    term?: {
+      name: string;
+    } | null;
+  };
+}
 
 interface Student {
   firstName: string;
@@ -84,46 +106,87 @@ export default function FeesPage() {
   const router = useRouter();
   const { isAdmin, isParent } = useCurrentUser();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [pendingPayments, setPendingPayments] = useState<PendingPaymentItem[]>([]);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedReceiptInvoice, setSelectedReceiptInvoice] = useState<Invoice | null>(null);
 
-  useEffect(() => {
-    let ignore = false;
+  const loadData = useCallback(async () => {
     setLoading(true);
+    setError("");
+    try {
+      const resInv = await fetch(`${API}/api/v1/fees/invoices`, { credentials: "include" });
+      if (resInv.ok) {
+        const data = await resInv.json();
+        if (Array.isArray(data)) setInvoices(data);
+      } else {
+        const err = await resInv.json();
+        setError(err.message || "Failed to load invoices");
+      }
 
-    fetch(`${API}/api/v1/fees/invoices`, { credentials: "include" })
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("Failed to load invoices");
+      if (isAdmin) {
+        const resPend = await fetch(`${API}/api/v1/fees/invoices/payments/pending`, { credentials: "include" });
+        if (resPend.ok) {
+          const pendData = await resPend.json();
+          if (Array.isArray(pendData)) setPendingPayments(pendData);
         }
-        return res.json();
-      })
-      .then((data) => {
-        if (!ignore) {
-          if (Array.isArray(data)) {
-            setInvoices(data);
-            setError("");
-          } else {
-            setError(data.message ?? "Failed to load invoices");
-          }
-        }
-      })
-      .catch((err) => {
-        if (!ignore) {
-          setError(err.message ?? "Network error");
-        }
-      })
-      .finally(() => {
-        if (!ignore) {
-          setLoading(false);
-        }
+      }
+    } catch {
+      setError("Network error while loading fees data");
+    } finally {
+      setLoading(false);
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleConfirmPendingPayment = async (paymentId: string) => {
+    setVerifyingId(paymentId);
+    try {
+      const res = await fetch(`${API}/api/v1/fees/invoices/payments/${paymentId}/confirm`, {
+        method: "POST",
+        credentials: "include",
       });
+      if (res.ok) {
+        await loadData();
+      } else {
+        const err = await res.json();
+        alert(err.message || "Failed to confirm payment");
+      }
+    } catch {
+      alert("Network error while confirming payment");
+    } finally {
+      setVerifyingId(null);
+    }
+  };
 
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const handleRejectPendingPayment = async (paymentId: string) => {
+    const reason = window.prompt("Enter reason for rejecting this payment submission (e.g. Unverified bank teller):");
+    if (reason === null) return;
+    setVerifyingId(paymentId);
+    try {
+      const res = await fetch(`${API}/api/v1/fees/invoices/payments/${paymentId}/reject`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim() || "Unverified by Bursary" }),
+      });
+      if (res.ok) {
+        await loadData();
+      } else {
+        const err = await res.json();
+        alert(err.message || "Failed to reject payment");
+      }
+    } catch {
+      alert("Network error while rejecting payment");
+    } finally {
+      setVerifyingId(null);
+    }
+  };
 
   const totalInvoiced = invoices.reduce(
     (sum, inv) => sum + (inv.totalAmount || 0),
@@ -208,6 +271,44 @@ export default function FeesPage() {
           <div className="stat-value">{loading ? "—" : overdueCount}</div>
         </div>
       </div>
+
+      {/* Bursary Verification Queue Banner (Admin/Bursar only) */}
+      {isAdmin && pendingPayments.length > 0 && (
+        <div
+          style={{
+            marginBottom: 20,
+            padding: "16px 20px",
+            borderRadius: "var(--radius-control, 12px)",
+            backgroundColor: "#FEF3C7",
+            border: "1px solid #FCD34D",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
+          <div>
+            <div style={{ fontWeight: 800, color: "#92400E", fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
+              <span>Bursary Payment Verification Required</span>
+              <span style={{ backgroundColor: "#D97706", color: "#FFFFFF", padding: "2px 8px", borderRadius: 12, fontSize: 11 }}>
+                {pendingPayments.length} Pending
+              </span>
+            </div>
+            <div style={{ fontSize: 12, color: "#B45309", marginTop: 4 }}>
+              {pendingPayments.length} submitted parent/student payment(s) require Bursary verification before reflecting in school collected revenue.
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ backgroundColor: "#D97706", borderColor: "#B45309", fontWeight: 700, fontSize: 12 }}
+            onClick={() => setShowPendingModal(true)}
+          >
+            Review &amp; Verify Payments
+          </button>
+        </div>
+      )}
 
       {/* Error Notification */}
       {error && (
@@ -454,6 +555,122 @@ export default function FeesPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Bursary Pending Payments Verification Queue Modal */}
+      {showPendingModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.65)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+            overflowY: "auto",
+          }}
+          onClick={() => setShowPendingModal(false)}
+        >
+          <div
+            className="card"
+            style={{
+              width: "100%",
+              maxWidth: 780,
+              backgroundColor: "var(--color-surface, #ffffff)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 800, color: "var(--color-ink)", margin: 0 }}>
+                  Bursary Payment Verification Queue
+                </h2>
+                <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>
+                  Verify and clear submitted parent and student fee payments into official school revenue.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPendingModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)" }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {pendingPayments.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "32px 0", color: "var(--color-text-secondary)", fontSize: 13 }}>
+                No pending payments awaiting verification.
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table className="table" style={{ width: "100%" }}>
+                  <thead>
+                    <tr>
+                      <th>Student</th>
+                      <th>Term</th>
+                      <th>Amount</th>
+                      <th>Reference</th>
+                      <th>Submitted</th>
+                      <th style={{ textAlign: "right" }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingPayments.map((p) => (
+                      <tr key={p.id}>
+                        <td>
+                          <strong>{p.invoice.student ? `${p.invoice.student.firstName} ${p.invoice.student.lastName}` : "Student"}</strong>
+                          {p.invoice.student?.admissionNumber && (
+                            <div style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "monospace" }}>
+                              {p.invoice.student.admissionNumber}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ fontSize: 12 }}>{p.invoice.term?.name || "Term"}</td>
+                        <td style={{ fontWeight: 700, color: "var(--color-ink)" }}>{formatNaira(p.amount)}</td>
+                        <td style={{ fontSize: 11, fontFamily: "monospace", color: "var(--color-text-secondary)" }}>
+                          {p.reference}
+                        </td>
+                        <td style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                          {new Date(p.createdAt).toLocaleDateString("en-GB")}
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          <div style={{ display: "inline-flex", gap: 6 }}>
+                            <button
+                              type="button"
+                              className="btn btn-primary"
+                              style={{ padding: "4px 10px", fontSize: 11, backgroundColor: "#059669", color: "#ffffff" }}
+                              disabled={verifyingId === p.id}
+                              onClick={() => handleConfirmPendingPayment(p.id)}
+                            >
+                              {verifyingId === p.id ? "Clearing..." : "Confirm & Clear"}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ padding: "4px 10px", fontSize: 11, color: "var(--color-danger-text)" }}
+                              disabled={verifyingId === p.id}
+                              onClick={() => handleRejectPendingPayment(p.id)}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -352,27 +352,146 @@ export class InvoicesService {
     }
 
     const reference = `TXN-ONL-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
-    const newPaid = inv.paidAmount + paymentAmount;
-    const newStatus = resolveStatus(inv.totalAmount, newPaid);
     const paymentMethod = dto.method === 'BANK_DEPOSIT' ? PaymentMethod.BANK_DEPOSIT : PaymentMethod.PAYSTACK;
+    const isAdmin = actor?.role === 'ADMIN';
 
-    const [payment, updatedInvoice] = await this.prisma.$transaction([
-      this.prisma.payment.create({
+    if (isAdmin) {
+      // Direct Admin / Bursar Confirmation
+      const newPaid = inv.paidAmount + paymentAmount;
+      const newStatus = resolveStatus(inv.totalAmount, newPaid);
+
+      const [payment, updatedInvoice] = await this.prisma.$transaction([
+        this.prisma.payment.create({
+          data: {
+            schoolId,
+            invoiceId,
+            amount: paymentAmount,
+            method: paymentMethod,
+            status: PaymentStatus.SUCCESS,
+            reference,
+            paidAt: new Date(),
+            recordedById: actorId,
+            notes: dto.notes || `Direct online payment via ${dto.method || 'ONLINE_CARD'}${dto.cardLast4 ? ` (ending in ${dto.cardLast4})` : ''}`,
+          },
+        }),
+        this.prisma.invoice.update({
+          where: { id: invoiceId },
+          data: { paidAmount: newPaid, status: newStatus },
+          include: {
+            student: { select: { id: true, firstName: true, lastName: true, admissionNumber: true } },
+            term: { select: { id: true, name: true, academicYear: true } },
+            items: true,
+            payments: { orderBy: { createdAt: 'desc' } },
+          },
+        }),
+      ]);
+
+      await this.auditService.log({
+        actorId,
+        actorEmail,
+        action: 'PAYMENT_RECORDED_ONLINE',
+        targetType: 'PAYMENT',
+        targetId: payment.id,
+        afterValue: {
+          invoiceId,
+          amount: paymentAmount,
+          method: paymentMethod,
+          reference,
+          newStatus,
+        } as Record<string, unknown>,
+      });
+
+      return {
+        success: true,
+        pendingVerification: false,
+        message: 'Payment verified and recorded successfully by Bursary',
+        payment,
+        invoice: updatedInvoice,
+      };
+    } else {
+      // Parent / Student Online Submission (Awaiting Bursary Verification)
+      const payment = await this.prisma.payment.create({
         data: {
           schoolId,
           invoiceId,
           amount: paymentAmount,
           method: paymentMethod,
-          status: PaymentStatus.SUCCESS,
+          status: PaymentStatus.PENDING,
           reference,
+          paidAt: null,
+          recordedById: actorId,
+          notes: dto.notes || `Submitted online payment via ${dto.method || 'ONLINE_CARD'}${dto.cardLast4 ? ` (ending in ${dto.cardLast4})` : ''} - Awaiting Bursary Verification`,
+        },
+      });
+
+      await this.auditService.log({
+        actorId,
+        actorEmail,
+        action: 'PAYMENT_SUBMITTED_FOR_VERIFICATION',
+        targetType: 'PAYMENT',
+        targetId: payment.id,
+        afterValue: {
+          invoiceId,
+          amount: paymentAmount,
+          method: paymentMethod,
+          reference,
+          status: 'PENDING',
+        } as Record<string, unknown>,
+      });
+
+      // Refetch current invoice state with all payments
+      const currentInvoice = await this.findOne(invoiceId, schoolId, actor);
+
+      return {
+        success: true,
+        pendingVerification: true,
+        message: 'Payment submitted successfully. Awaiting confirmation by the School Bursar before your balance is credited.',
+        payment,
+        invoice: currentInvoice,
+      };
+    }
+  }
+
+  // ── Bursary Payment Verification ──────────────────────────────────────────
+
+  async confirmPayment(paymentId: string, schoolId: string, actorId: string, actorEmail: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, schoolId },
+      include: { invoice: true },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment record not found');
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException(`Payment is already marked as ${payment.status}`);
+    }
+
+    const invoice = payment.invoice;
+    if (!invoice) {
+      throw new NotFoundException('Associated invoice not found');
+    }
+
+    const newPaid = invoice.paidAmount + payment.amount;
+    const newStatus = resolveStatus(invoice.totalAmount, newPaid);
+
+    const [updatedPayment, updatedInvoice] = await this.prisma.$transaction([
+      this.prisma.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: PaymentStatus.SUCCESS,
           paidAt: new Date(),
           recordedById: actorId,
-          notes: dto.notes || `Online payment via ${dto.method || 'ONLINE_CARD'}${dto.cardLast4 ? ` (ending in ${dto.cardLast4})` : ''}`,
+          notes: `${payment.notes || ''} [Verified and cleared by Bursary]`.trim(),
         },
       }),
       this.prisma.invoice.update({
-        where: { id: invoiceId },
-        data: { paidAmount: newPaid, status: newStatus },
+        where: { id: invoice.id },
+        data: {
+          paidAmount: newPaid,
+          status: newStatus,
+        },
         include: {
           student: { select: { id: true, firstName: true, lastName: true, admissionNumber: true } },
           term: { select: { id: true, name: true, academicYear: true } },
@@ -385,24 +504,79 @@ export class InvoicesService {
     await this.auditService.log({
       actorId,
       actorEmail,
-      action: 'PAYMENT_RECORDED_ONLINE',
+      action: 'BURSARY_PAYMENT_CONFIRMED',
       targetType: 'PAYMENT',
       targetId: payment.id,
       afterValue: {
-        invoiceId,
-        amount: paymentAmount,
-        method: paymentMethod,
-        reference,
+        invoiceId: invoice.id,
+        paymentId: payment.id,
+        amount: payment.amount,
+        newPaid,
         newStatus,
       } as Record<string, unknown>,
     });
 
     return {
       success: true,
-      message: 'Payment completed successfully',
-      payment,
+      message: 'Payment verified and credited to school revenue successfully',
+      payment: updatedPayment,
       invoice: updatedInvoice,
     };
+  }
+
+  async rejectPayment(paymentId: string, reason: string, schoolId: string, actorId: string, actorEmail: string) {
+    const payment = await this.prisma.payment.findFirst({
+      where: { id: paymentId, schoolId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Payment record not found');
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new BadRequestException(`Payment is already marked as ${payment.status}`);
+    }
+
+    const updated = await this.prisma.payment.update({
+      where: { id: paymentId },
+      data: {
+        status: PaymentStatus.FAILED,
+        notes: `${payment.notes || ''} [Rejected by Bursary: ${reason || 'Unverified payment'}]`.trim(),
+      },
+    });
+
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'BURSARY_PAYMENT_REJECTED',
+      targetType: 'PAYMENT',
+      targetId: payment.id,
+      afterValue: { reason } as Record<string, unknown>,
+    });
+
+    return {
+      success: true,
+      message: 'Payment rejected by Bursary',
+      payment: updated,
+    };
+  }
+
+  async getPendingPayments(schoolId: string) {
+    return this.prisma.payment.findMany({
+      where: {
+        schoolId,
+        status: PaymentStatus.PENDING,
+      },
+      include: {
+        invoice: {
+          include: {
+            student: { select: { id: true, firstName: true, lastName: true, admissionNumber: true } },
+            term: { select: { id: true, name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   // ── Initiate Paystack Payment ─────────────────────────────────────────────

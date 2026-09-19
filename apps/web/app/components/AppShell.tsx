@@ -248,7 +248,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     ? `${(currentUser.firstName?.[0] || "").toUpperCase()}${(currentUser.lastName?.[0] || currentUser.email?.[0] || "U").toUpperCase()}`
     : "SA";
   const userEmail = currentUser?.email || "admin@school.local";
-  const schoolName = currentUser?.school?.name || "Modern School";
+  const schoolName = currentUser?.school?.name || "Bright Future Academy";
 
   let userRoleBadge = "Super Administrator";
   if (userRole === "TEACHER") userRoleBadge = "Teacher / Staff";

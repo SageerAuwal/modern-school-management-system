@@ -141,6 +141,7 @@ export default function TimetablePage() {
   const [activeView, setActiveView] = useState<"class" | "master" | "teacher">("class");
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
+  const [studentClassId, setStudentClassId] = useState<string>("");
 
   // Filters Checklist State
   const [filters, setFilters] = useState({
@@ -202,9 +203,13 @@ export default function TimetablePage() {
             fetch(`${API}/api/v1/students/my-profile`, { credentials: "include" })
               .then((r) => (r.ok ? r.json() : null))
               .then((prof) => {
-                const cId = prof?.enrollments?.[0]?.classSection?.id;
-                if (cId) setSelectedClassId(cId);
-                else if (data.length > 0) setSelectedClassId((prev) => prev || data[0].id);
+                const cId = prof?.enrollments?.[0]?.classSection?.id || prof?.enrollments?.[0]?.classSectionId;
+                if (cId) {
+                  setStudentClassId(cId);
+                  setSelectedClassId(cId);
+                } else if (data.length > 0) {
+                  setSelectedClassId((prev) => prev || data[0].id);
+                }
               })
               .catch(() => {
                 if (data.length > 0) setSelectedClassId((prev) => prev || data[0].id);
@@ -294,6 +299,22 @@ export default function TimetablePage() {
     loadData();
   }, []);
 
+  // Sync student's class profile if user role loaded after initial loadData
+  useEffect(() => {
+    if (isStudent && !studentClassId) {
+      fetch(`${API}/api/v1/students/my-profile`, { credentials: "include" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((prof) => {
+          const cId = prof?.enrollments?.[0]?.classSection?.id || prof?.enrollments?.[0]?.classSectionId;
+          if (cId) {
+            setStudentClassId(cId);
+            setSelectedClassId((prev) => prev || cId);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isStudent, studentClassId]);
+
   /* ── Computed Period Slots Grid ──────────────────────────────────────────── */
   const periodSlots = useMemo(() => {
     const periodsCount = timetable?.periodsPerDay || 8;
@@ -369,6 +390,72 @@ export default function TimetablePage() {
     return map;
   };
 
+  /* ── Teachers Scoped by User Role ─────────────────────────────────────────── */
+  // 1. Teacher: strictly only sees their own teaching roster
+  // 2. Student: strictly only sees teachers related to them (class form teacher & subject teachers in timetable)
+  // 3. Admin / Staff / Parent: sees all teachers
+  const displayTeachers = useMemo(() => {
+    if (isTeacher && user?.id) {
+      const me = teachers.find((t) => t.id === user.id) || {
+        id: user.id,
+        firstName: user.firstName || "Teacher",
+        lastName: user.lastName || "",
+        email: user.email,
+      };
+      return [me];
+    }
+
+    if (isStudent) {
+      const activeClassId = studentClassId || selectedClassId;
+      const relatedMap = new Map<string, Teacher>();
+
+      // A. Class form teacher assigned to student's class
+      if (activeClassId) {
+        const cls = classes.find((c) => c.id === activeClassId);
+        const clsTeacher = (cls as any)?.teacher;
+        if (clsTeacher && clsTeacher.id) {
+          relatedMap.set(clsTeacher.id, {
+            id: clsTeacher.id,
+            firstName: clsTeacher.firstName,
+            lastName: clsTeacher.lastName,
+            email: clsTeacher.email,
+          });
+        }
+      }
+
+      // B. All teachers who teach lessons in student's class in the active timetable
+      if (timetable?.lessons && activeClassId) {
+        for (const l of timetable.lessons) {
+          if (l.classSectionId === activeClassId && l.teacher && l.teacher.id) {
+            relatedMap.set(l.teacher.id, {
+              id: l.teacher.id,
+              firstName: l.teacher.firstName,
+              lastName: l.teacher.lastName,
+              email: l.teacher.email,
+            });
+          }
+        }
+      }
+
+      const list = Array.from(relatedMap.values());
+      return list.length > 0 ? list : teachers;
+    }
+
+    return teachers;
+  }, [isTeacher, isStudent, user, teachers, studentClassId, selectedClassId, classes, timetable]);
+
+  // Keep selectedTeacherId strictly valid for the current user's scope
+  useEffect(() => {
+    if (isTeacher && user?.id) {
+      setSelectedTeacherId(user.id);
+    } else if (displayTeachers.length > 0) {
+      const exists = displayTeachers.some((t) => t.id === selectedTeacherId);
+      if (!exists) {
+        setSelectedTeacherId(displayTeachers[0].id);
+      }
+    }
+  }, [displayTeachers, isTeacher, user, selectedTeacherId]);
+
   /* ── Filtered Lessons for Teacher View ───────────────────────────────────── */
   const teacherLessonsMap = useMemo(() => {
     if (!timetable?.lessons || !selectedTeacherId) return new Map<string, Lesson>();
@@ -382,8 +469,8 @@ export default function TimetablePage() {
   }, [timetable, selectedTeacherId]);
 
   const selectedTeacherObj = useMemo(
-    () => teachers.find((t) => t.id === selectedTeacherId) || teachers[0],
-    [teachers, selectedTeacherId]
+    () => displayTeachers.find((t) => t.id === selectedTeacherId) || displayTeachers[0] || teachers[0],
+    [displayTeachers, selectedTeacherId, teachers]
   );
 
   /* ── Upcoming Highlight Lesson (for the Deep Teal Card) ─────────────────── */
@@ -429,8 +516,6 @@ export default function TimetablePage() {
       }
 
       setGenSuccessMsg(`Timetable generated: ${data.stats?.lessonsCreated || 0} conflict-free lessons scheduled across all ${data.stats?.classesCount || 0} classes!`);
-      // Immediately set selectedClassId to "all" so user sees weekly routine for all classes!
-      setSelectedClassId("all");
       setTimeout(() => {
         setIsGenModalOpen(false);
         loadData();
@@ -774,6 +859,10 @@ export default function TimetablePage() {
                   ? `${selectedClass?.name || "Class"} Weekly Timetable`
                   : activeView === "master"
                   ? "General Master Timetable (All Classes & 5 Days)"
+                  : isTeacher
+                  ? `My Teaching Roster — ${user?.firstName || ""} ${user?.lastName || ""}`
+                  : isStudent
+                  ? `${selectedTeacherObj ? `${selectedTeacherObj.firstName} ${selectedTeacherObj.lastName}` : "Teacher"} Roster (Your Teacher)`
                   : `${selectedTeacherObj ? `${selectedTeacherObj.firstName} ${selectedTeacherObj.lastName}` : "Teacher"} Weekly Roster`}
               </h2>
               <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>
@@ -867,18 +956,39 @@ export default function TimetablePage() {
               )}
 
               {activeView === "teacher" && (
-                <select
-                  className="input"
-                  style={{ width: "auto", minWidth: 160, height: 38, padding: "6px 14px", borderRadius: 9999 }}
-                  value={selectedTeacherId}
-                  onChange={(e) => setSelectedTeacherId(e.target.value)}
-                >
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.firstName} {t.lastName}
-                    </option>
-                  ))}
-                </select>
+                isTeacher ? (
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "6px 16px",
+                      borderRadius: 9999,
+                      backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                      border: "1px solid var(--color-border, #E8ECE9)",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      color: "var(--color-ink, #182220)",
+                    }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: "var(--color-brand-teal, #0E7D75)" }} />
+                    <span>My Teaching Roster</span>
+                  </div>
+                ) : (
+                  <select
+                    className="input"
+                    style={{ width: "auto", minWidth: 190, height: 38, padding: "6px 14px", borderRadius: 9999 }}
+                    value={selectedTeacherId}
+                    onChange={(e) => setSelectedTeacherId(e.target.value)}
+                    title={isStudent ? "Teachers assigned to your class" : "Select teacher"}
+                  >
+                    {displayTeachers.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.firstName} {t.lastName} {isStudent ? "(Your Teacher)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                )
               )}
 
               {/* Auto-Generate Button (Admin Only) */}
@@ -997,13 +1107,23 @@ export default function TimetablePage() {
                     }}
                   >
                     {/* School Letterhead */}
-                    <div className="master-print-header">
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--color-ink)" }}>
-                          Modern School Management System
-                        </div>
-                        <div style={{ fontSize: 9.5, color: "var(--color-text-secondary)", fontWeight: 700 }}>
-                          Official Master Weekly Academic Routine · {timetable.academicYear} Academic Session · All Classes
+                    <div className="master-print-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <img
+                          src="/school-logo.png"
+                          alt="Bright Future Academy"
+                          style={{ width: 42, height: 42, objectFit: "contain" }}
+                        />
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--color-ink)" }}>
+                            BRIGHT FUTURE ACADEMY
+                          </div>
+                          <div style={{ fontSize: 9.5, color: "var(--color-text-secondary)", fontWeight: 700 }}>
+                            Official Master Weekly Academic Routine · {timetable.academicYear} Academic Session · All Classes
+                          </div>
+                          <div style={{ fontSize: 8.5, fontStyle: "italic", color: "var(--color-text-secondary)" }}>
+                            &quot;Guided By Principles, Driven By Purpose&quot; · Behind L.E.A Primary School Tumburu Kashere, Akko LGA, Gombe State
+                          </div>
                         </div>
                       </div>
                       <div style={{ textAlign: "right" }}>
@@ -1234,12 +1354,22 @@ export default function TimetablePage() {
                             justifyContent: "space-between",
                           }}
                         >
-                          <div>
-                            <div style={{ fontSize: 16, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--color-ink)" }}>
-                              Modern School Management System
-                            </div>
-                            <div style={{ fontSize: 11, color: "var(--color-text-secondary, #70817B)", fontWeight: 600 }}>
-                              Official Weekly Academic Routine · {timetable.academicYear} Academic Session
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <img
+                              src="/school-logo.png"
+                              alt="Bright Future Academy"
+                              style={{ width: 44, height: 44, objectFit: "contain" }}
+                            />
+                            <div>
+                              <div style={{ fontSize: 16, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--color-ink)" }}>
+                                BRIGHT FUTURE ACADEMY
+                              </div>
+                              <div style={{ fontSize: 10, color: "var(--color-text-secondary, #70817B)", fontWeight: 600 }}>
+                                Official Weekly Academic Routine · {timetable.academicYear} Academic Session
+                              </div>
+                              <div style={{ fontSize: 9, fontStyle: "italic", color: "var(--color-text-secondary, #70817B)" }}>
+                                &quot;Guided By Principles, Driven By Purpose&quot; · Behind L.E.A Primary School Tumburu Kashere, Akko LGA, Gombe State
+                              </div>
                             </div>
                           </div>
                           <div style={{ textAlign: "right" }}>
@@ -1406,102 +1536,216 @@ export default function TimetablePage() {
 
           {/* ── TEACHER ROSTER VIEW ─────────────────────────────────────────── */}
           {timetable && activeView === "teacher" && (
-            <div className="card" style={{ padding: "16px 20px", borderRadius: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                <div>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
-                    {selectedTeacherObj ? `${selectedTeacherObj.firstName} ${selectedTeacherObj.lastName}` : "Teacher"} Weekly Roster
-                  </h3>
-                  <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
-                    Constraint satisfaction verified · No double-booked teaching slots
-                  </p>
+            <div className="print-a4-sheet card" style={{ padding: "18px 22px", borderRadius: 24, backgroundColor: "#FFFFFF" }}>
+              {/* ── Official School Letterhead (For Screen & Print) ── */}
+              <div
+                className="print-header"
+                style={{
+                  paddingBottom: 10,
+                  borderBottom: "2px solid #182220",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 12,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <img
+                    src="/school-logo.png"
+                    alt="Bright Future Academy"
+                    style={{ width: 44, height: 44, objectFit: "contain" }}
+                  />
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--color-ink)" }}>
+                      BRIGHT FUTURE ACADEMY
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontWeight: 600 }}>
+                      Official Weekly Teacher Teaching Roster · {timetable.academicYear} Academic Session
+                    </div>
+                    <div style={{ fontSize: 9, fontStyle: "italic", color: "var(--color-text-secondary)" }}>
+                      &quot;Guided By Principles, Driven By Purpose&quot; · Behind L.E.A Primary School Tumburu Kashere, Akko LGA, Gombe State
+                    </div>
+                  </div>
                 </div>
-                <span className="pill-success">Conflict-Free</span>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)" }}>
+                    {selectedTeacherObj ? `${selectedTeacherObj.firstName} ${selectedTeacherObj.lastName}` : "Faculty Roster"}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)" }}>
+                    {selectedTeacherObj?.email || "Academic Staff Member"}
+                  </div>
+                  <div style={{ fontSize: 9, color: "var(--color-text-secondary)", marginTop: 2 }}>
+                    Constraint Satisfaction · Conflict-Free Verified · 08029839848
+                  </div>
+                </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {periodSlots.map((slot, pIdx) => {
-                  if (slot.isBreak) {
-                    return (
-                      <div
-                        key={pIdx}
-                        style={{
-                          backgroundColor: "var(--color-warning-bg)",
-                          color: "var(--color-warning-text)",
-                          padding: "8px 16px",
-                          borderRadius: 9999,
-                          textAlign: "center",
-                          fontSize: 12,
-                          fontWeight: 700,
-                        }}
-                      >
-                        RECESS BREAK
-                      </div>
-                    );
-                  }
+              {/* Screen subheader banner with conflict-free pill */}
+              <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: "var(--color-ink)" }}>
+                    {isTeacher
+                      ? "My Teaching Schedule"
+                      : isStudent
+                      ? `Teacher Schedule: ${selectedTeacherObj ? `${selectedTeacherObj.firstName} ${selectedTeacherObj.lastName}` : ""}`
+                      : `${selectedTeacherObj ? `${selectedTeacherObj.firstName} ${selectedTeacherObj.lastName}` : "Teacher"} Weekly Roster`}
+                  </h3>
+                  <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
+                    {isStudent
+                      ? "Showing full weekly periods and classes taught by this instructor"
+                      : "Official assigned periods across all enrolled class streams"}
+                  </p>
+                </div>
+                <span className="pill-success" style={{ fontWeight: 700, fontSize: 11 }}>
+                  Zero Overlaps · Conflict-Free
+                </span>
+              </div>
 
-                  return (
-                    <div
-                      key={pIdx}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "80px repeat(5, 1fr)",
-                        gap: 10,
-                      }}
-                    >
-                      <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textAlign: "center", paddingTop: 8 }}>
-                        {slot.startTime}
-                      </div>
+              {/* ── Standard 5-Day Weekly Timetable Grid ── */}
+              <div style={{ overflowX: "auto" }}>
+                <table
+                  className="print-table"
+                  style={{
+                    width: "100%",
+                    borderCollapse: "collapse",
+                    border: "1px solid var(--color-border, #E8ECE9)",
+                  }}
+                >
+                  <thead>
+                    <tr style={{ backgroundColor: "var(--color-surface-subtle, #F4F7F5)" }}>
+                      <th style={{ width: 110, padding: "8px 6px", textAlign: "center", borderRight: "1px solid var(--color-border)" }}>
+                        Day / Time
+                      </th>
+                      {periodSlots.map((slot, sIdx) => (
+                        <th
+                          key={sIdx}
+                          style={{
+                            textAlign: "center",
+                            padding: "8px 4px",
+                            borderRight: sIdx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
+                            backgroundColor: slot.isBreak ? "var(--color-warning-bg, #FEF3C7)" : "inherit",
+                            width: slot.isBreak ? 75 : 120,
+                          }}
+                        >
+                          <div style={{ fontSize: 11, fontWeight: 800, color: slot.isBreak ? "var(--color-warning-text, #92400E)" : "var(--color-ink)" }}>
+                            {slot.label}
+                          </div>
+                          <div style={{ fontSize: 9, fontWeight: 500, color: slot.isBreak ? "var(--color-warning-text)" : "var(--color-text-secondary)", marginTop: 2 }}>
+                            {slot.startTime} - {slot.endTime}
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {DAYS_OF_WEEK.map((day) => (
+                      <tr key={day.key} style={{ borderTop: "1px solid var(--color-border)" }}>
+                        {/* Day Label */}
+                        <td
+                          style={{
+                            textAlign: "center",
+                            padding: "10px 6px",
+                            backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                            borderRight: "1px solid var(--color-border)",
+                            fontWeight: 800,
+                            fontSize: 12,
+                            color: "var(--color-ink)",
+                          }}
+                        >
+                          <div>{day.label}</div>
+                        </td>
 
-                      {DAYS_OF_WEEK.map((day) => {
-                        const lesson = teacherLessonsMap.get(`${day.key}_${slot.periodNumber}`);
-                        const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
+                        {/* Periods */}
+                        {periodSlots.map((slot, pIdx) => {
+                          if (slot.isBreak) {
+                            return (
+                              <td
+                                key={pIdx}
+                                style={{
+                                  backgroundColor: "var(--color-warning-bg, #FEF3C7)",
+                                  textAlign: "center",
+                                  borderRight: pIdx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
+                                  verticalAlign: "middle",
+                                  padding: 2,
+                                }}
+                              >
+                                <div style={{ fontSize: 9, fontWeight: 800, color: "var(--color-warning-text, #92400E)", letterSpacing: "0.08em" }}>
+                                  RECESS
+                                </div>
+                              </td>
+                            );
+                          }
 
-                        if (!lesson) {
+                          const lesson = teacherLessonsMap.get(`${day.key}_${slot.periodNumber}`);
+                          const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
+
                           return (
-                            <div
-                              key={day.key}
+                            <td
+                              key={pIdx}
+                              onClick={() => lesson && openEditModal(lesson)}
                               style={{
-                                borderRadius: 14,
-                                border: "1px dashed var(--color-border)",
-                                padding: "8px 10px",
-                                textAlign: "center",
-                                fontSize: 11,
-                                color: "var(--color-text-secondary)",
-                                opacity: 0.5,
+                                padding: 5,
+                                verticalAlign: "top",
+                                borderRight: pIdx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
+                                backgroundColor: theme ? theme.bg : "transparent",
+                                cursor: lesson && isAdmin ? "pointer" : "default",
                               }}
                             >
-                              Free Period
-                            </div>
+                              {lesson ? (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 2, minHeight: 48 }}>
+                                  <div style={{ fontSize: 11, fontWeight: 800, color: theme?.text, lineHeight: 1.2 }}>
+                                    {lesson.subject.name}
+                                  </div>
+                                  <div style={{ fontSize: 9.5, fontWeight: 700, color: "var(--color-ink)", marginTop: "auto" }}>
+                                    Class: {lesson.classSection.name}
+                                  </div>
+                                  {lesson.room && (
+                                    <div style={{ fontSize: 8, color: "var(--color-text-secondary)" }}>
+                                      Venue: {lesson.room}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div style={{ textAlign: "center", padding: "12px 0", color: "var(--color-border)", fontSize: 11 }}>
+                                  —
+                                </div>
+                              )}
+                            </td>
                           );
-                        }
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-                        return (
-                          <div
-                            key={day.key}
-                            onClick={() => openEditModal(lesson)}
-                            style={{
-                              backgroundColor: theme?.bg,
-                              border: `1px solid ${theme?.border}`,
-                              color: theme?.text,
-                              borderRadius: 14,
-                              padding: "10px 12px",
-                              cursor: isAdmin ? "pointer" : "default",
-                            }}
-                          >
-                            <div style={{ fontSize: 12, fontWeight: 700 }}>{lesson.subject.name}</div>
-                            <div style={{ fontSize: 11, fontWeight: 600, marginTop: 4 }}>
-                              Class: {lesson.classSection.name}
-                            </div>
-                            {lesson.room && (
-                              <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2 }}>Venue: {lesson.room}</div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
+              {/* ── Official A4 Signatures Block ── */}
+              <div
+                className="print-signatures"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-end",
+                  paddingTop: 12,
+                  marginTop: 8,
+                }}
+              >
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ width: 180, borderBottom: "1px solid #182220", marginBottom: 4 }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Teacher's Endorsement</div>
+                </div>
+
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ width: 100, height: 36, border: "1px dashed #70817B", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "#70817B", margin: "0 auto 4px" }}>
+                    School Stamp
+                  </div>
+                  <div style={{ fontSize: 9, color: "var(--color-text-secondary)" }}>Official Seal</div>
+                </div>
+
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ width: 180, borderBottom: "1px solid #182220", marginBottom: 4, marginLeft: "auto" }} />
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" }}>Principal / Academic Director</div>
+                </div>
               </div>
             </div>
           )}

@@ -44,9 +44,9 @@ interface PosReceiptSlipProps {
 
 export default function PosReceiptSlip({
   invoice,
-  schoolName = "MODERN ACADEMY",
-  schoolAddress = "12 Ahmadu Bello Way, Kano State",
-  schoolPhone = "+234 800 123 4567",
+  schoolName = "BRIGHT FUTURE ACADEMY",
+  schoolAddress = "Behind L.E.A Primary School Tumburu Kashere, Akko LGA, Gombe State",
+  schoolPhone = "08029839848",
   onClose,
 }: PosReceiptSlipProps) {
   const shortId = invoice.id ? invoice.id.slice(0, 8).toUpperCase() : "";
@@ -122,7 +122,7 @@ export default function PosReceiptSlip({
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
               <rect x="6" y="14" width="12" height="8" />
             </svg>
-            <span>Print Receipt</span>
+            Print Slip
           </button>
           {onClose && (
             <button
@@ -136,7 +136,7 @@ export default function PosReceiptSlip({
           )}
         </div>
 
-        {/* The Physical POS / ATM Receipt Slip */}
+        {/* The Printable 80mm Thermal Receipt Slip */}
         <div
           id="pos-receipt-slip"
           style={{
@@ -157,19 +157,29 @@ export default function PosReceiptSlip({
         >
           {/* Header */}
           <div style={{ textAlign: "center", marginBottom: 10 }}>
-            <div style={{ fontSize: "15px", fontWeight: "900", letterSpacing: "0.05em", textTransform: "uppercase" }}>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>
+              <img
+                src="/school-logo.png"
+                alt="Bright Future Academy"
+                style={{ width: "48px", height: "48px", objectFit: "contain" }}
+              />
+            </div>
+            <div style={{ fontSize: "14px", fontWeight: "900", letterSpacing: "0.04em", textTransform: "uppercase" }}>
               {schoolName}
             </div>
-            <div style={{ fontSize: "10px", marginTop: 2 }}>{schoolAddress}</div>
-            <div style={{ fontSize: "10px" }}>Tel: {schoolPhone}</div>
+            <div style={{ fontSize: "9px", fontStyle: "italic", margin: "2px 0" }}>
+              &quot;Guided By Principles, Driven By Purpose&quot;
+            </div>
+            <div style={{ fontSize: "9px", marginTop: 2 }}>{schoolAddress}</div>
+            <div style={{ fontSize: "9px" }}>Tel: {schoolPhone} | Email: brightfutureacademykashere@gmail.com</div>
             <div style={{ margin: "6px 0", fontWeight: "700", fontSize: "11px", letterSpacing: "0.04em" }}>
               ================================
             </div>
             <div style={{ fontSize: "12px", fontWeight: "800", textTransform: "uppercase" }}>
-              OFFICIAL PAYMENT SLIP
+              OFFICIAL BURSARY RECEIPT
             </div>
             <div style={{ fontSize: "10px", textTransform: "uppercase" }}>
-              STUDENT FEE RECEIPT
+              STUDENT FEE PAYMENT SLIP
             </div>
             <div style={{ margin: "6px 0", fontWeight: "700", fontSize: "11px" }}>
               ================================

@@ -12,6 +12,7 @@ interface Payment {
   amount: number;
   method: "CASH" | "PAYSTACK" | "BANK_DEPOSIT" | string;
   reference: string;
+  status?: "PENDING" | "SUCCESS" | "FAILED" | string;
   createdAt: string;
   paidAt?: string | null;
   notes?: string | null;
@@ -308,6 +309,54 @@ function InvoiceDetailContent() {
       setPayError("Network error. Please try again.");
     } finally {
       setSubmittingPaystack(false);
+    }
+  };
+
+  const [verifyingPaymentId, setVerifyingPaymentId] = useState<string | null>(null);
+
+  const handleConfirmPayment = async (paymentId: string) => {
+    setVerifyingPaymentId(paymentId);
+    setPayError("");
+    try {
+      const res = await fetch(`${API}/api/v1/fees/invoices/payments/${paymentId}/confirm`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPayError(data.message || "Failed to confirm payment");
+        return;
+      }
+      await loadInvoice();
+    } catch {
+      setPayError("Network error while confirming payment");
+    } finally {
+      setVerifyingPaymentId(null);
+    }
+  };
+
+  const handleRejectPayment = async (paymentId: string) => {
+    const reason = window.prompt("Enter reason for rejecting this payment submission (e.g. Unverified bank teller):");
+    if (reason === null) return;
+    setVerifyingPaymentId(paymentId);
+    setPayError("");
+    try {
+      const res = await fetch(`${API}/api/v1/fees/invoices/payments/${paymentId}/reject`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: reason.trim() || "Unverified by Bursary" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPayError(data.message || "Failed to reject payment");
+        return;
+      }
+      await loadInvoice();
+    } catch {
+      setPayError("Network error while rejecting payment");
+    } finally {
+      setVerifyingPaymentId(null);
     }
   };
 
@@ -636,31 +685,84 @@ function InvoiceDetailContent() {
                   <th>Amount</th>
                   <th>Method</th>
                   <th>Reference</th>
+                  <th>Status</th>
+                  {isAdmin && <th>Bursary Verification</th>}
                 </tr>
               </thead>
               <tbody>
-                {invoice.payments.map((payment) => (
-                  <tr key={payment.id}>
-                    <td style={{ color: "var(--color-text-secondary)" }}>
-                      {formatDate(payment.paidAt || payment.createdAt)}
-                    </td>
-                    <td style={{ fontWeight: 600, color: "var(--color-ink)" }}>
-                      {formatNaira(payment.amount)}
-                    </td>
-                    <td>
-                      <span className="pill-neutral">{payment.method}</span>
-                    </td>
-                    <td
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 12,
-                        color: "var(--color-text-secondary)",
-                      }}
-                    >
-                      {payment.reference}
-                    </td>
-                  </tr>
-                ))}
+                {invoice.payments.map((payment) => {
+                  const isPending = (payment.status || "").toUpperCase() === "PENDING";
+                  const isSuccess = (payment.status || "").toUpperCase() === "SUCCESS";
+                  const isFailed = (payment.status || "").toUpperCase() === "FAILED";
+
+                  return (
+                    <tr key={payment.id}>
+                      <td style={{ color: "var(--color-text-secondary)" }}>
+                        {formatDate(payment.paidAt || payment.createdAt)}
+                      </td>
+                      <td style={{ fontWeight: 600, color: "var(--color-ink)" }}>
+                        {formatNaira(payment.amount)}
+                      </td>
+                      <td>
+                        <span className="pill-neutral">{payment.method}</span>
+                      </td>
+                      <td
+                        style={{
+                          fontFamily: "monospace",
+                          fontSize: 12,
+                          color: "var(--color-text-secondary)",
+                        }}
+                      >
+                        {payment.reference}
+                      </td>
+                      <td>
+                        {isPending ? (
+                          <span className="pill pill-warning" style={{ fontSize: 11, fontWeight: 700 }}>
+                            Awaiting Bursary Verification
+                          </span>
+                        ) : isSuccess ? (
+                          <span className="pill pill-success" style={{ fontSize: 11, fontWeight: 700 }}>
+                            Verified &amp; Cleared
+                          </span>
+                        ) : (
+                          <span className="pill pill-danger" style={{ fontSize: 11, fontWeight: 700 }}>
+                            Rejected
+                          </span>
+                        )}
+                      </td>
+                      {isAdmin && (
+                        <td>
+                          {isPending ? (
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              <button
+                                type="button"
+                                className="btn btn-primary"
+                                style={{ padding: "4px 10px", fontSize: 11, backgroundColor: "#059669", color: "#ffffff" }}
+                                disabled={verifyingPaymentId === payment.id}
+                                onClick={() => handleConfirmPayment(payment.id)}
+                              >
+                                {verifyingPaymentId === payment.id ? "Confirming..." : "Confirm & Clear"}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                style={{ padding: "4px 10px", fontSize: 11, color: "var(--color-danger-text)" }}
+                                disabled={verifyingPaymentId === payment.id}
+                                onClick={() => handleRejectPayment(payment.id)}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                              {isSuccess ? "Cleared into school revenue" : "Rejected submission"}
+                            </span>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

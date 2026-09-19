@@ -89,6 +89,34 @@ export class InvoicesController {
     return this.invoicesService.getOutstandingReport(actor.schoolId, year);
   }
 
+  /** GET /api/v1/fees/invoices/payments/pending — list pending payments awaiting bursary confirmation */
+  @Get('payments/pending')
+  @Roles(UserRole.ADMIN)
+  getPendingPayments(@CurrentUser() actor: { schoolId: string }) {
+    return this.invoicesService.getPendingPayments(actor.schoolId);
+  }
+
+  /** POST /api/v1/fees/invoices/payments/:paymentId/confirm — bursar confirms payment */
+  @Post('payments/:paymentId/confirm')
+  @Roles(UserRole.ADMIN)
+  confirmPayment(
+    @Param('paymentId') paymentId: string,
+    @CurrentUser() actor: { id: string; email: string; schoolId: string },
+  ) {
+    return this.invoicesService.confirmPayment(paymentId, actor.schoolId, actor.id, actor.email);
+  }
+
+  /** POST /api/v1/fees/invoices/payments/:paymentId/reject — bursar rejects payment */
+  @Post('payments/:paymentId/reject')
+  @Roles(UserRole.ADMIN)
+  rejectPayment(
+    @Param('paymentId') paymentId: string,
+    @Body('reason') reason: string,
+    @CurrentUser() actor: { id: string; email: string; schoolId: string },
+  ) {
+    return this.invoicesService.rejectPayment(paymentId, reason, actor.schoolId, actor.id, actor.email);
+  }
+
   /** GET /api/v1/fees/invoices/:id — invoice detail with payments */
   @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.PARENT, UserRole.STUDENT)

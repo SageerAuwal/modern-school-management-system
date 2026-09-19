@@ -633,7 +633,19 @@ export default function LibraryPage() {
             <div style={{ padding: "20px 24px" }}>
               {borrowReceipt ? (
                 /* Loan Confirmation View */
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {/* Letterhead */}
+                  <div style={{ textAlign: "center", borderBottom: "1px solid var(--color-border, #E8ECE9)", paddingBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+                      <img src="/school-logo.png" alt="Bright Future Academy" style={{ width: 40, height: 40, objectFit: "contain" }} />
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.02em" }}>
+                      BRIGHT FUTURE ACADEMY
+                    </div>
+                    <div style={{ fontSize: 9.5, fontStyle: "italic", color: "var(--color-text-secondary)" }}>
+                      &quot;Guided By Principles, Driven By Purpose&quot; · Kashere
+                    </div>
+                  </div>
                   <div
                     style={{
                       padding: 16,
@@ -867,7 +879,19 @@ export default function LibraryPage() {
             <div style={{ padding: "20px 24px" }}>
               {buyReceipt ? (
                 /* Digital Purchase Receipt */
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {/* Letterhead */}
+                  <div style={{ textAlign: "center", borderBottom: "1px solid var(--color-border, #E8ECE9)", paddingBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 4 }}>
+                      <img src="/school-logo.png" alt="Bright Future Academy" style={{ width: 40, height: 40, objectFit: "contain" }} />
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.02em" }}>
+                      BRIGHT FUTURE ACADEMY
+                    </div>
+                    <div style={{ fontSize: 9.5, fontStyle: "italic", color: "var(--color-text-secondary)" }}>
+                      &quot;Guided By Principles, Driven By Purpose&quot; · Kashere
+                    </div>
+                  </div>
                   <div
                     style={{
                       padding: 16,
