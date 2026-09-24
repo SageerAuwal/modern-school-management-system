@@ -688,12 +688,13 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
                   style={{
                     fontSize: 13,
                     fontWeight: 800,
-                    color: "var(--color-ink, #182220)",
+                    color: "var(--color-brand-navy, #0B2545)",
                     lineHeight: 1.2,
                     margin: 0,
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
+                    letterSpacing: "-0.01em",
                   }}
                   title="Bright Future Academy"
                 >
@@ -702,8 +703,8 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
                 <p
                   style={{
                     fontSize: 10,
-                    color: "var(--color-text-secondary, #70817B)",
-                    margin: "2px 0 0",
+                    color: "var(--color-text-secondary, #5C6E82)",
+                    margin: "3px 0 0",
                     fontWeight: 600,
                     whiteSpace: "nowrap",
                     overflow: "hidden",

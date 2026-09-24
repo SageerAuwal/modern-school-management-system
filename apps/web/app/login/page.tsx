@@ -146,22 +146,30 @@ export default function LoginPage() {
         }}
       >
         <div style={{ width: "100%", maxWidth: 440 }}>
-          {/* Brand header */}
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 32 }}>
+          {/* Brand Header: Centered Prestigious Institutional Seal */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
+              marginBottom: 28,
+            }}
+          >
             <div
               style={{
-                width: 50,
-                height: 50,
+                width: 68,
+                height: 68,
                 borderRadius: "50%",
                 backgroundColor: "#FFFFFF",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                border: "1px solid var(--color-border)",
-                boxShadow: "0 2px 8px rgba(11, 37, 69, 0.08)",
+                border: "1.5px solid var(--color-border, #E1E8F0)",
+                boxShadow: "0 4px 16px rgba(11, 37, 69, 0.08), 0 0 0 3px rgba(11, 37, 69, 0.03)",
                 overflow: "hidden",
-                padding: 3,
-                flexShrink: 0,
+                padding: 4,
+                marginBottom: 12,
               }}
             >
               <img
@@ -170,14 +178,29 @@ export default function LoginPage() {
                 style={{ width: "100%", height: "100%", objectFit: "contain" }}
               />
             </div>
-            <div>
-              <p style={{ fontSize: 18, fontWeight: 800, color: "var(--color-brand-navy, #0B2545)", lineHeight: 1.2, margin: 0, letterSpacing: "-0.01em" }}>
-                Bright Future Academy
-              </p>
-              <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "3px 0 0", fontWeight: 500 }}>
-                Guided By Principles, Driven By Purpose
-              </p>
-            </div>
+            <h1
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                color: "var(--color-brand-navy, #0B2545)",
+                lineHeight: 1.2,
+                margin: "0 0 4px",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Bright Future Academy
+            </h1>
+            <p
+              style={{
+                fontSize: 12.5,
+                color: "var(--color-text-secondary, #5C6E82)",
+                margin: 0,
+                fontWeight: 500,
+                letterSpacing: "0.01em",
+              }}
+            >
+              Guided By Principles, Driven By Purpose
+            </p>
           </div>
 
           {/* Form Card */}
