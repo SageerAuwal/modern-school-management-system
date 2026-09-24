@@ -732,14 +732,14 @@ export default function ResultsPage() {
           id="official-academic-report-card"
           style={{
             position: "relative",
-            maxWidth: 860,
+            maxWidth: 840,
             margin: "0 auto",
-            padding: "26px 28px",
+            padding: "20px 24px",
             backgroundColor: "#ffffff",
             color: "#0B192C",
             border: "3.5px double #0B2545",
             outline: "1.5px solid #C5A059",
-            outlineOffset: "-6px",
+            outlineOffset: "-5px",
             borderRadius: 4,
             boxShadow: "0 10px 30px rgba(0, 0, 0, 0.12)",
             fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
@@ -753,9 +753,9 @@ export default function ResultsPage() {
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              width: 380,
-              height: 380,
-              opacity: 0.042,
+              width: 340,
+              height: 340,
+              opacity: 0.04,
               pointerEvents: "none",
               zIndex: 0,
             }}
@@ -770,45 +770,46 @@ export default function ResultsPage() {
           <div style={{ position: "relative", zIndex: 1 }}>
             {/* Header: Crest, School Information & Student Passport */}
             <div
+              className="report-section-avoid-break"
               style={{
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                borderBottom: "2.5px solid #0B2545",
-                paddingBottom: 14,
-                marginBottom: 16,
+                borderBottom: "2px solid #0B2545",
+                paddingBottom: 10,
+                marginBottom: 10,
               }}
             >
               {/* Institutional Crest */}
-              <div style={{ width: 85, height: 85, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 70, height: 70, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <img
                   src="/school-logo.png"
                   alt="Bright Future Academy Crest"
-                  style={{ width: 78, height: 78, objectFit: "contain" }}
+                  style={{ width: 64, height: 64, objectFit: "contain" }}
                 />
               </div>
 
               {/* School Institutional Heading */}
-              <div style={{ flex: 1, textAlign: "center", padding: "0 12px" }}>
+              <div style={{ flex: 1, textAlign: "center", padding: "0 10px" }}>
                 <h2
                   style={{
-                    fontSize: 23,
+                    fontSize: 20,
                     fontWeight: 900,
-                    margin: "0 0 3px",
+                    margin: "0 0 2px",
                     color: "#0B2545",
-                    letterSpacing: "0.06em",
+                    letterSpacing: "0.05em",
                     textTransform: "uppercase",
                   }}
                 >
                   BRIGHT FUTURE ACADEMY
                 </h2>
-                <p style={{ fontSize: 11, fontStyle: "italic", color: "#C5A059", margin: "0 0 3px", fontWeight: 700 }}>
+                <p style={{ fontSize: 10, fontStyle: "italic", color: "#C5A059", margin: "0 0 2px", fontWeight: 700 }}>
                   &quot;Guided By Principles, Driven By Purpose&quot;
                 </p>
-                <p style={{ fontSize: 10, color: "#475569", margin: "0 0 2px" }}>
+                <p style={{ fontSize: 9.5, color: "#475569", margin: "0 0 1px" }}>
                   Behind L.E.A Primary School Tumburu Kashere, Akko LGA, Gombe State
                 </p>
-                <p style={{ fontSize: 10, color: "#475569", margin: "0 0 6px" }}>
+                <p style={{ fontSize: 9.5, color: "#475569", margin: "0 0 4px" }}>
                   Tel: 08029839848 | Email: brightfutureacademykashere@gmail.com
                 </p>
 
@@ -816,13 +817,13 @@ export default function ResultsPage() {
                 <div
                   style={{
                     display: "inline-block",
-                    padding: "3px 14px",
+                    padding: "2px 12px",
                     backgroundColor: "#0B2545",
                     color: "#ffffff",
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: 800,
                     borderRadius: 3,
-                    letterSpacing: "0.06em",
+                    letterSpacing: "0.05em",
                     textTransform: "uppercase",
                   }}
                 >
@@ -833,8 +834,8 @@ export default function ResultsPage() {
               {/* Student Passport Photo Box */}
               <div
                 style={{
-                  width: 82,
-                  height: 98,
+                  width: 72,
+                  height: 86,
                   border: "1.5px solid #0B2545",
                   borderRadius: 4,
                   backgroundColor: "#F8FAFC",
@@ -854,10 +855,10 @@ export default function ResultsPage() {
                     style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   />
                 ) : (
-                  <div style={{ textAlign: "center", padding: 4 }}>
+                  <div style={{ textAlign: "center", padding: 2 }}>
                     <svg
-                      width="38"
-                      height="38"
+                      width="32"
+                      height="32"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="#0B2545"
@@ -866,7 +867,7 @@ export default function ResultsPage() {
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                       <circle cx="12" cy="7" r="4" />
                     </svg>
-                    <div style={{ fontSize: 8, fontWeight: 700, color: "#64748B", marginTop: 2, textTransform: "uppercase" }}>
+                    <div style={{ fontSize: 7, fontWeight: 700, color: "#64748B", marginTop: 2, textTransform: "uppercase" }}>
                       STUDENT PHOTO
                     </div>
                   </div>
@@ -879,11 +880,11 @@ export default function ResultsPage() {
                     right: 0,
                     backgroundColor: "rgba(11, 37, 69, 0.85)",
                     color: "#ffffff",
-                    fontSize: 7.5,
+                    fontSize: 7,
                     fontWeight: 700,
                     textAlign: "center",
                     padding: "1px 0",
-                    letterSpacing: "0.04em",
+                    letterSpacing: "0.03em",
                   }}
                 >
                   BFA ARCHIVE
@@ -893,48 +894,49 @@ export default function ResultsPage() {
 
             {/* Student Comprehensive Biodata Grid */}
             <div
+              className="report-section-avoid-break"
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 10,
-                padding: "12px 14px",
+                gap: 6,
+                padding: "8px 12px",
                 backgroundColor: "#F8FAFC",
                 border: "1px solid #CBD5E1",
                 borderRadius: 4,
-                marginBottom: 16,
-                fontSize: 11.5,
+                marginBottom: 10,
+                fontSize: 10.5,
               }}
             >
               <div>
-                <span style={{ color: "#64748B", display: "block", fontSize: 10, textTransform: "uppercase" }}>
+                <span style={{ color: "#64748B", display: "block", fontSize: 9, textTransform: "uppercase" }}>
                   Student Full Name:
                 </span>
-                <strong style={{ color: "#0B2545", fontSize: 12.5 }}>
+                <strong style={{ color: "#0B2545", fontSize: 11.5 }}>
                   {reportCard.student.lastName.toUpperCase()}, {reportCard.student.firstName}{" "}
                   {reportCard.student.otherNames ?? ""}
                 </strong>
               </div>
 
               <div>
-                <span style={{ color: "#64748B", display: "block", fontSize: 10, textTransform: "uppercase" }}>
+                <span style={{ color: "#64748B", display: "block", fontSize: 9, textTransform: "uppercase" }}>
                   Admission Number:
                 </span>
-                <strong style={{ color: "#0B2545", fontFamily: "monospace", fontSize: 12.5 }}>
+                <strong style={{ color: "#0B2545", fontFamily: "monospace", fontSize: 11.5 }}>
                   {reportCard.student.admissionNumber ?? "BFA-ADM-PENDING"}
                 </strong>
               </div>
 
               <div>
-                <span style={{ color: "#64748B", display: "block", fontSize: 10, textTransform: "uppercase" }}>
+                <span style={{ color: "#64748B", display: "block", fontSize: 9, textTransform: "uppercase" }}>
                   Class &amp; Stream:
                 </span>
-                <strong style={{ color: "#0B2545", fontSize: 12.5 }}>
+                <strong style={{ color: "#0B2545", fontSize: 11.5 }}>
                   {reportCard.classSection.name} ({reportCard.classSection.level})
                 </strong>
               </div>
 
               <div>
-                <span style={{ color: "#64748B", display: "block", fontSize: 10, textTransform: "uppercase" }}>
+                <span style={{ color: "#64748B", display: "block", fontSize: 9, textTransform: "uppercase" }}>
                   Academic Session / Term:
                 </span>
                 <strong>
@@ -943,7 +945,7 @@ export default function ResultsPage() {
               </div>
 
               <div>
-                <span style={{ color: "#64748B", display: "block", fontSize: 10, textTransform: "uppercase" }}>
+                <span style={{ color: "#64748B", display: "block", fontSize: 9, textTransform: "uppercase" }}>
                   Gender / Date of Birth:
                 </span>
                 <strong>
@@ -955,7 +957,7 @@ export default function ResultsPage() {
               </div>
 
               <div>
-                <span style={{ color: "#64748B", display: "block", fontSize: 10, textTransform: "uppercase" }}>
+                <span style={{ color: "#64748B", display: "block", fontSize: 9, textTransform: "uppercase" }}>
                   Terminal Attendance:
                 </span>
                 <strong>
@@ -966,7 +968,7 @@ export default function ResultsPage() {
               </div>
 
               <div>
-                <span style={{ color: "#64748B", display: "block", fontSize: 10, textTransform: "uppercase" }}>
+                <span style={{ color: "#64748B", display: "block", fontSize: 9, textTransform: "uppercase" }}>
                   Class Standing:
                 </span>
                 <strong style={{ color: "#0B2545" }}>
@@ -977,7 +979,7 @@ export default function ResultsPage() {
               </div>
 
               <div>
-                <span style={{ color: "#64748B", display: "block", fontSize: 10, textTransform: "uppercase" }}>
+                <span style={{ color: "#64748B", display: "block", fontSize: 9, textTransform: "uppercase" }}>
                   Aggregate &amp; Average:
                 </span>
                 <strong style={{ color: "#166E4E" }}>
@@ -988,7 +990,7 @@ export default function ResultsPage() {
             </div>
 
             {/* Cognitive Domain: Academic Performance Matrix */}
-            <div style={{ marginBottom: 16 }}>
+            <div className="report-section-avoid-break" style={{ marginBottom: 10 }}>
               <div
                 style={{
                   display: "flex",
@@ -996,9 +998,9 @@ export default function ResultsPage() {
                   alignItems: "center",
                   backgroundColor: "#0B2545",
                   color: "#ffffff",
-                  padding: "5px 10px",
+                  padding: "4px 8px",
                   borderRadius: "3px 3px 0 0",
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: 800,
                   textTransform: "uppercase",
                   letterSpacing: "0.04em",
@@ -1011,10 +1013,10 @@ export default function ResultsPage() {
               {reportCard.scores.length === 0 ? (
                 <div
                   style={{
-                    padding: 24,
+                    padding: 18,
                     textAlign: "center",
                     color: "#64748B",
-                    fontSize: 12,
+                    fontSize: 11,
                     backgroundColor: "#F8FAFC",
                     border: "1px solid #CBD5E1",
                   }}
@@ -1027,24 +1029,24 @@ export default function ResultsPage() {
                     width: "100%",
                     borderCollapse: "collapse",
                     border: "1px solid #CBD5E1",
-                    fontSize: 11,
+                    fontSize: 9.5,
                   }}
                 >
                   <thead>
                     <tr style={{ backgroundColor: "#F1F5F9", color: "#0B2545", borderBottom: "1.5px solid #CBD5E1" }}>
-                      <th style={{ padding: "6px 8px", textAlign: "left", width: "4%" }}>S/N</th>
-                      <th style={{ padding: "6px 8px", textAlign: "left" }}>Subject Title</th>
-                      <th style={{ padding: "6px 6px", textAlign: "center", width: "8%" }}>CA 1 (20)</th>
-                      <th style={{ padding: "6px 6px", textAlign: "center", width: "8%" }}>CA 2 (20)</th>
-                      <th style={{ padding: "6px 6px", textAlign: "center", width: "9%" }}>Exam (60)</th>
-                      <th style={{ padding: "6px 6px", textAlign: "center", width: "9%", fontWeight: 800 }}>
+                      <th style={{ padding: "4px 6px", textAlign: "left", width: "4%" }}>S/N</th>
+                      <th style={{ padding: "4px 6px", textAlign: "left" }}>Subject Title</th>
+                      <th style={{ padding: "4px 5px", textAlign: "center", width: "8%" }}>CA 1 (20)</th>
+                      <th style={{ padding: "4px 5px", textAlign: "center", width: "8%" }}>CA 2 (20)</th>
+                      <th style={{ padding: "4px 5px", textAlign: "center", width: "9%" }}>Exam (60)</th>
+                      <th style={{ padding: "4px 5px", textAlign: "center", width: "9%", fontWeight: 800 }}>
                         Total (100)
                       </th>
-                      <th style={{ padding: "6px 6px", textAlign: "center", width: "7%" }}>Grade</th>
-                      <th style={{ padding: "6px 6px", textAlign: "center", width: "7%" }}>Highest</th>
-                      <th style={{ padding: "6px 6px", textAlign: "center", width: "7%" }}>Lowest</th>
-                      <th style={{ padding: "6px 6px", textAlign: "center", width: "8%" }}>Class Avg</th>
-                      <th style={{ padding: "6px 8px", textAlign: "left", width: "22%" }}>Subject Teacher Remark</th>
+                      <th style={{ padding: "4px 5px", textAlign: "center", width: "7%" }}>Grade</th>
+                      <th style={{ padding: "4px 5px", textAlign: "center", width: "7%" }}>Highest</th>
+                      <th style={{ padding: "4px 5px", textAlign: "center", width: "7%" }}>Lowest</th>
+                      <th style={{ padding: "4px 5px", textAlign: "center", width: "8%" }}>Class Avg</th>
+                      <th style={{ padding: "4px 6px", textAlign: "left", width: "22%" }}>Subject Teacher Remark</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1062,22 +1064,22 @@ export default function ResultsPage() {
                             borderBottom: "1px solid #E2E8F0",
                           }}
                         >
-                          <td style={{ padding: "5px 8px", color: "#64748B", fontWeight: 600 }}>{idx + 1}</td>
-                          <td style={{ padding: "5px 8px", fontWeight: 700, color: "#0B2545" }}>{s.subject.name}</td>
-                          <td style={{ padding: "5px 6px", textAlign: "center" }}>{s.ca1 ?? "—"}</td>
-                          <td style={{ padding: "5px 6px", textAlign: "center" }}>{s.ca2 ?? "—"}</td>
-                          <td style={{ padding: "5px 6px", textAlign: "center" }}>{s.exam ?? "—"}</td>
-                          <td style={{ padding: "5px 6px", textAlign: "center", fontWeight: 800, color: "#0B2545" }}>
+                          <td style={{ padding: "3.5px 6px", color: "#64748B", fontWeight: 600 }}>{idx + 1}</td>
+                          <td style={{ padding: "3.5px 6px", fontWeight: 700, color: "#0B2545" }}>{s.subject.name}</td>
+                          <td style={{ padding: "3.5px 5px", textAlign: "center" }}>{s.ca1 ?? "—"}</td>
+                          <td style={{ padding: "3.5px 5px", textAlign: "center" }}>{s.ca2 ?? "—"}</td>
+                          <td style={{ padding: "3.5px 5px", textAlign: "center" }}>{s.exam ?? "—"}</td>
+                          <td style={{ padding: "3.5px 5px", textAlign: "center", fontWeight: 800, color: "#0B2545" }}>
                             {s.total !== null ? Math.round(s.total) : "—"}
                           </td>
-                          <td style={{ padding: "5px 6px", textAlign: "center" }}>
+                          <td style={{ padding: "3.5px 5px", textAlign: "center" }}>
                             <span
                               style={{
                                 display: "inline-block",
-                                padding: "1px 6px",
+                                padding: "1px 5px",
                                 borderRadius: 3,
                                 fontWeight: 800,
-                                fontSize: 10.5,
+                                fontSize: 9.5,
                                 backgroundColor: gradeInfo.bg,
                                 color: gradeInfo.color,
                               }}
@@ -1085,10 +1087,10 @@ export default function ResultsPage() {
                               {gradeInfo.grade}
                             </span>
                           </td>
-                          <td style={{ padding: "5px 6px", textAlign: "center", color: "#64748B" }}>{classHighest}</td>
-                          <td style={{ padding: "5px 6px", textAlign: "center", color: "#64748B" }}>{classLowest}</td>
-                          <td style={{ padding: "5px 6px", textAlign: "center", color: "#64748B" }}>{classAvg}</td>
-                          <td style={{ padding: "5px 8px", fontSize: 10, color: "#334155" }}>
+                          <td style={{ padding: "3.5px 5px", textAlign: "center", color: "#64748B" }}>{classHighest}</td>
+                          <td style={{ padding: "3.5px 5px", textAlign: "center", color: "#64748B" }}>{classLowest}</td>
+                          <td style={{ padding: "3.5px 5px", textAlign: "center", color: "#64748B" }}>{classAvg}</td>
+                          <td style={{ padding: "3.5px 6px", fontSize: 9, color: "#334155" }}>
                             {s.remark || getSubjectTeacherRemark(s.total)}
                           </td>
                         </tr>
@@ -1101,23 +1103,23 @@ export default function ResultsPage() {
                       style={{
                         backgroundColor: "#E2E8F0",
                         fontWeight: 800,
-                        borderTop: "2px solid #0B2545",
-                        fontSize: 11,
+                        borderTop: "1.5px solid #0B2545",
+                        fontSize: 10,
                       }}
                     >
-                      <td colSpan={2} style={{ padding: "7px 8px", textTransform: "uppercase" }}>
+                      <td colSpan={2} style={{ padding: "5px 6px", textTransform: "uppercase" }}>
                         Aggregate Total / Assessment
                       </td>
-                      <td colSpan={3} style={{ padding: "7px 6px", textAlign: "center", color: "#475569" }}>
+                      <td colSpan={3} style={{ padding: "5px 5px", textAlign: "center", color: "#475569" }}>
                         {reportCard.summary.subjectsScored} of {reportCard.summary.subjectsOffered} Subjects Assessed
                       </td>
-                      <td style={{ padding: "7px 6px", textAlign: "center", fontSize: 12, color: "#0B2545" }}>
+                      <td style={{ padding: "5px 5px", textAlign: "center", fontSize: 11, color: "#0B2545" }}>
                         {reportCard.summary.overallTotal}
                       </td>
-                      <td colSpan={3} style={{ padding: "7px 6px", textAlign: "center" }}>
+                      <td colSpan={3} style={{ padding: "5px 5px", textAlign: "center" }}>
                         Average: {reportCard.summary.overallAverage !== null ? `${reportCard.summary.overallAverage}%` : "—"}
                       </td>
-                      <td colSpan={2} style={{ padding: "7px 8px", textAlign: "right" }}>
+                      <td colSpan={2} style={{ padding: "5px 6px", textAlign: "right" }}>
                         Position:{" "}
                         {reportCard.summary.position
                           ? `${formatOrdinal(reportCard.summary.position)} of ${reportCard.summary.totalStudentsInClass}`
@@ -1131,11 +1133,12 @@ export default function ResultsPage() {
 
             {/* Dual Behavioral & Practical Domains Grid */}
             <div
+              className="report-section-avoid-break"
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-                marginBottom: 14,
+                gap: 10,
+                marginBottom: 8,
               }}
             >
               {/* Affective Domain */}
@@ -1144,24 +1147,24 @@ export default function ResultsPage() {
                   style={{
                     backgroundColor: "#0B2545",
                     color: "#ffffff",
-                    padding: "4px 8px",
-                    fontSize: 10.5,
+                    padding: "3px 6px",
+                    fontSize: 9.5,
                     fontWeight: 800,
                     textTransform: "uppercase",
-                    letterSpacing: "0.04em",
+                    letterSpacing: "0.03em",
                   }}
                 >
                   Part 2: Affective Domain (Character &amp; Conduct)
                 </div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9 }}>
                   <thead>
                     <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #CBD5E1", color: "#0B2545" }}>
-                      <th style={{ padding: "4px 6px", textAlign: "left" }}>Behavioural Attributes</th>
-                      <th style={{ padding: "4px 4px", textAlign: "center", width: 22 }}>5</th>
-                      <th style={{ padding: "4px 4px", textAlign: "center", width: 22 }}>4</th>
-                      <th style={{ padding: "4px 4px", textAlign: "center", width: 22 }}>3</th>
-                      <th style={{ padding: "4px 4px", textAlign: "center", width: 22 }}>2</th>
-                      <th style={{ padding: "4px 4px", textAlign: "center", width: 22 }}>1</th>
+                      <th style={{ padding: "3px 5px", textAlign: "left" }}>Behavioural Attributes</th>
+                      <th style={{ padding: "3px 3px", textAlign: "center", width: 20 }}>5</th>
+                      <th style={{ padding: "3px 3px", textAlign: "center", width: 20 }}>4</th>
+                      <th style={{ padding: "3px 3px", textAlign: "center", width: 20 }}>3</th>
+                      <th style={{ padding: "3px 3px", textAlign: "center", width: 20 }}>2</th>
+                      <th style={{ padding: "3px 3px", textAlign: "center", width: 20 }}>1</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1175,15 +1178,15 @@ export default function ResultsPage() {
                             backgroundColor: idx % 2 === 0 ? "#ffffff" : "#F8FAFC",
                           }}
                         >
-                          <td style={{ padding: "3.5px 6px", color: "#1E293B" }}>{trait}</td>
+                          <td style={{ padding: "2.5px 5px", color: "#1E293B" }}>{trait}</td>
                           {[5, 4, 3, 2, 1].map((lvl) => (
-                            <td key={lvl} style={{ textAlign: "center", padding: "3.5px 4px" }}>
+                            <td key={lvl} style={{ textAlign: "center", padding: "2.5px 3px" }}>
                               {score === lvl ? (
                                 <span
                                   style={{
                                     display: "inline-block",
-                                    width: 8,
-                                    height: 8,
+                                    width: 7,
+                                    height: 7,
                                     borderRadius: "50%",
                                     backgroundColor: "#0B2545",
                                   }}
@@ -1206,24 +1209,24 @@ export default function ResultsPage() {
                   style={{
                     backgroundColor: "#0B2545",
                     color: "#ffffff",
-                    padding: "4px 8px",
-                    fontSize: 10.5,
+                    padding: "3px 6px",
+                    fontSize: 9.5,
                     fontWeight: 800,
                     textTransform: "uppercase",
-                    letterSpacing: "0.04em",
+                    letterSpacing: "0.03em",
                   }}
                 >
                   Part 3: Psychomotor Domain (Skills &amp; Activities)
                 </div>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10.5 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9 }}>
                   <thead>
                     <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #CBD5E1", color: "#0B2545" }}>
-                      <th style={{ padding: "4px 6px", textAlign: "left" }}>Practical &amp; Physical Skills</th>
-                      <th style={{ padding: "4px 4px", textAlign: "center", width: 22 }}>5</th>
-                      <th style={{ padding: "4px 4px", textAlign: "center", width: 22 }}>4</th>
-                      <th style={{ padding: "4px 4px", textAlign: "center", width: 22 }}>3</th>
-                      <th style={{ padding: "4px 4px", textAlign: "center", width: 22 }}>2</th>
-                      <th style={{ padding: "4px 4px", textAlign: "center", width: 22 }}>1</th>
+                      <th style={{ padding: "3px 5px", textAlign: "left" }}>Practical &amp; Physical Skills</th>
+                      <th style={{ padding: "3px 3px", textAlign: "center", width: 20 }}>5</th>
+                      <th style={{ padding: "3px 3px", textAlign: "center", width: 20 }}>4</th>
+                      <th style={{ padding: "3px 3px", textAlign: "center", width: 20 }}>3</th>
+                      <th style={{ padding: "3px 3px", textAlign: "center", width: 20 }}>2</th>
+                      <th style={{ padding: "3px 3px", textAlign: "center", width: 20 }}>1</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1237,15 +1240,15 @@ export default function ResultsPage() {
                             backgroundColor: idx % 2 === 0 ? "#ffffff" : "#F8FAFC",
                           }}
                         >
-                          <td style={{ padding: "3.5px 6px", color: "#1E293B" }}>{skill}</td>
+                          <td style={{ padding: "2.5px 5px", color: "#1E293B" }}>{skill}</td>
                           {[5, 4, 3, 2, 1].map((lvl) => (
-                            <td key={lvl} style={{ textAlign: "center", padding: "3.5px 4px" }}>
+                            <td key={lvl} style={{ textAlign: "center", padding: "2.5px 3px" }}>
                               {score === lvl ? (
                                 <span
                                   style={{
                                     display: "inline-block",
-                                    width: 8,
-                                    height: 8,
+                                    width: 7,
+                                    height: 7,
                                     borderRadius: "50%",
                                     backgroundColor: "#0B2545",
                                   }}
@@ -1264,39 +1267,40 @@ export default function ResultsPage() {
                 {/* Rating Scale Legend Box */}
                 <div
                   style={{
-                    padding: "6px 8px",
+                    padding: "4px 6px",
                     backgroundColor: "#F1F5F9",
                     borderTop: "1px solid #CBD5E1",
-                    fontSize: 9.5,
+                    fontSize: 8.5,
                     color: "#475569",
-                    lineHeight: 1.3,
+                    lineHeight: 1.25,
                   }}
                 >
-                  <strong>Domain Rating Key: </strong>
-                  5: Distinction (Excellent) | 4: Commendable | 3: Satisfactory | 2: Fair | 1: Needs Improvement
+                  <strong>Rating Key: </strong>
+                  5: Distinction | 4: Commendable | 3: Satisfactory | 2: Fair | 1: Needs Improvement
                 </div>
               </div>
             </div>
 
             {/* Official Grading Scale Bar */}
             <div
+              className="report-section-avoid-break"
               style={{
                 backgroundColor: "#F8FAFC",
                 border: "1px solid #CBD5E1",
                 borderRadius: 4,
-                padding: "6px 12px",
-                marginBottom: 14,
-                fontSize: 9.5,
+                padding: "4px 10px",
+                marginBottom: 8,
+                fontSize: 8.5,
                 color: "#334155",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 flexWrap: "wrap",
-                gap: 6,
+                gap: 4,
               }}
             >
               <span style={{ fontWeight: 800, color: "#0B2545", textTransform: "uppercase" }}>
-                Grading Key:
+                Grading Scale:
               </span>
               <span>75-100% : A1 (Distinction)</span>
               <span>70-74% : B2 (Very Good)</span>
@@ -1311,24 +1315,25 @@ export default function ResultsPage() {
 
             {/* Endorsements, Remarks, Signatures & Stamp */}
             <div
+              className="report-section-avoid-break"
               style={{
                 display: "grid",
-                gridTemplateColumns: "1.4fr 120px 1.4fr",
-                gap: 14,
+                gridTemplateColumns: "1.4fr 110px 1.4fr",
+                gap: 10,
                 alignItems: "center",
-                padding: "12px 14px",
+                padding: "8px 10px",
                 backgroundColor: "#FFFFFF",
                 border: "1px solid #CBD5E1",
                 borderRadius: 4,
-                marginBottom: 12,
+                marginBottom: 8,
               }}
             >
               {/* Form Teacher Remark */}
               <div>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#0B2545", textTransform: "uppercase" }}>
-                  Form Master / Class Teacher Remarks:
+                <div style={{ fontSize: 9.5, fontWeight: 800, color: "#0B2545", textTransform: "uppercase" }}>
+                  Class Teacher Remarks:
                 </div>
-                <div style={{ fontSize: 11, fontStyle: "italic", margin: "4px 0 10px", color: "#1E293B", minHeight: 34 }}>
+                <div style={{ fontSize: 9.5, fontStyle: "italic", margin: "3px 0 6px", color: "#1E293B", minHeight: 24, lineHeight: 1.25 }}>
                   &quot;
                   {reportCard.summary.overallAverage && reportCard.summary.overallAverage >= 75
                     ? "An exemplary, diligent, and intellectually sharp student. Demonstrates high moral integrity, respectful deportment, and peer leadership throughout the academic term."
@@ -1339,7 +1344,7 @@ export default function ResultsPage() {
                     : "Below academic expectation this term. Close guidance and supervised evening prep sessions are strongly advised."}
                   &quot;
                 </div>
-                <div style={{ borderTop: "1px solid #0B2545", paddingTop: 3, width: "85%", fontSize: 10, color: "#64748B" }}>
+                <div style={{ borderTop: "1px solid #0B2545", paddingTop: 2, width: "85%", fontSize: 9, color: "#64748B" }}>
                   Class Teacher Signature &amp; Date
                 </div>
               </div>
@@ -1348,11 +1353,11 @@ export default function ResultsPage() {
               <div style={{ textAlign: "center" }}>
                 <div
                   style={{
-                    width: 105,
-                    height: 80,
+                    width: 96,
+                    height: 68,
                     border: "2px dashed #0B2545",
                     borderRadius: 6,
-                    padding: "4px 2px",
+                    padding: "3px 2px",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -1361,12 +1366,12 @@ export default function ResultsPage() {
                     backgroundColor: "rgba(11, 37, 69, 0.03)",
                   }}
                 >
-                  <div style={{ fontSize: 7, fontWeight: 900, textTransform: "uppercase" }}>BRIGHT FUTURE ACADEMY</div>
-                  <div style={{ fontSize: 8.5, fontWeight: 900, margin: "2px 0", letterSpacing: "0.05em" }}>
+                  <div style={{ fontSize: 6.5, fontWeight: 900, textTransform: "uppercase" }}>BRIGHT FUTURE ACADEMY</div>
+                  <div style={{ fontSize: 8, fontWeight: 900, margin: "1px 0", letterSpacing: "0.04em" }}>
                     OFFICIAL SEAL
                   </div>
-                  <div style={{ fontSize: 7, fontWeight: 700 }}>CERTIFIED RECORD</div>
-                  <div style={{ fontSize: 6.5, marginTop: 2, fontFamily: "monospace" }}>
+                  <div style={{ fontSize: 6.5, fontWeight: 700 }}>CERTIFIED RECORD</div>
+                  <div style={{ fontSize: 6, marginTop: 1, fontFamily: "monospace" }}>
                     {new Date().toLocaleDateString("en-GB")}
                   </div>
                 </div>
@@ -1374,10 +1379,10 @@ export default function ResultsPage() {
 
               {/* Principal Remark & Endorsement */}
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 10, fontWeight: 800, color: "#0B2545", textTransform: "uppercase" }}>
-                  Principal / Head of Institution Remarks:
+                <div style={{ fontSize: 9.5, fontWeight: 800, color: "#0B2545", textTransform: "uppercase" }}>
+                  Principal Remarks &amp; Verdict:
                 </div>
-                <div style={{ fontSize: 11, fontStyle: "italic", margin: "4px 0 10px", color: "#1E293B", minHeight: 34 }}>
+                <div style={{ fontSize: 9.5, fontStyle: "italic", margin: "3px 0 6px", color: "#1E293B", minHeight: 24, lineHeight: 1.25 }}>
                   &quot;
                   {reportCard.summary.overallAverage && reportCard.summary.overallAverage >= 75
                     ? "A distinguished academic performance worthy of institutional commendation. Commended for academic excellence."
@@ -1392,9 +1397,9 @@ export default function ResultsPage() {
                   style={{
                     display: "inline-block",
                     borderTop: "1px solid #0B2545",
-                    paddingTop: 3,
+                    paddingTop: 2,
                     width: "85%",
-                    fontSize: 10,
+                    fontSize: 9,
                     color: "#64748B",
                     textAlign: "center",
                   }}
@@ -1406,25 +1411,26 @@ export default function ResultsPage() {
 
             {/* Resumption Notice & Security Verification Footer */}
             <div
+              className="report-section-avoid-break"
               style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                padding: "8px 12px",
+                padding: "5px 10px",
                 backgroundColor: "#F1F5F9",
                 borderRadius: 4,
-                fontSize: 10,
+                fontSize: 9,
                 color: "#334155",
               }}
             >
               <div>
                 <strong>Next Term Resumption Date: </strong>
                 <span>Monday, 12th January 2026</span>
-                <span style={{ marginLeft: 10, color: "#64748B" }}>
+                <span style={{ marginLeft: 8, color: "#64748B" }}>
                   | Notice: All outstanding fees must be cleared before admission into class.
                 </span>
               </div>
-              <div style={{ fontFamily: "monospace", fontSize: 9.5, color: "#0B2545", fontWeight: 700 }}>
+              <div style={{ fontFamily: "monospace", fontSize: 8.5, color: "#0B2545", fontWeight: 700 }}>
                 DOC ID: BFA-REP-{reportCard.student.id.slice(0, 8).toUpperCase()}-{new Date().getFullYear()}
               </div>
             </div>
@@ -1432,20 +1438,52 @@ export default function ResultsPage() {
         </div>
       )}
 
-      {/* Embedded CSS for Exact A4 Portrait Output */}
+      {/* Embedded CSS for Exact A4 Portrait Output without clipping */}
       <style jsx global>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 6mm 8mm;
+            margin: 5mm 6mm;
           }
+          html,
           body {
             background: #ffffff !important;
             color: #000000 !important;
             margin: 0 !important;
             padding: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          #official-academic-report-card,
+          #official-academic-report-card * {
+            visibility: visible !important;
+          }
+          #official-academic-report-card {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 4mm 6mm !important;
+            box-shadow: none !important;
+            border: 2.5px double #0B2545 !important;
+            outline: 1px solid #C5A059 !important;
+            outline-offset: -3px !important;
+            page-break-inside: auto !important;
+            break-inside: auto !important;
+            display: block !important;
+          }
+          .report-section-avoid-break {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           nav,
           header,
@@ -1457,22 +1495,6 @@ export default function ResultsPage() {
           select,
           form {
             display: none !important;
-          }
-          .page {
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-          #official-academic-report-card {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 8mm 10mm !important;
-            box-shadow: none !important;
-            border: 2.5px double #0B2545 !important;
-            outline: 1px solid #C5A059 !important;
-            outline-offset: -4px !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
           }
         }
       `}</style>

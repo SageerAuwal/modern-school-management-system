@@ -310,7 +310,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       >
         <Sidebar role={currentUser?.role} />
 
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "calc(100vh - 32px)", overflow: "hidden" }}>
+        <div className="app-main-column" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "calc(100vh - 32px)", overflow: "hidden" }}>
           {/* Top Header Bar matching reference */}
           <header
             style={{
@@ -1090,7 +1090,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </header>
 
           {/* Scrollable Page Body */}
-          <div style={{ flex: 1, overflowY: "auto", backgroundColor: "var(--color-surface, #FFFFFF)" }}>
+          <div className="app-main-content-scroll" style={{ flex: 1, overflowY: "auto", backgroundColor: "var(--color-surface, #FFFFFF)" }}>
             {children}
           </div>
         </div>
@@ -1099,15 +1099,52 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Print override style */}
       <style jsx global>{`
         @media print {
+          html,
+          body {
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            background: #ffffff !important;
+          }
           .app-canvas {
             padding: 0 !important;
-            background: #fff !important;
+            margin: 0 !important;
+            background: #ffffff !important;
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            display: block !important;
           }
           .app-shell-card {
             border-radius: 0 !important;
             box-shadow: none !important;
             border: none !important;
-            min-height: auto !important;
+            min-height: 0 !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
+            display: block !important;
+            width: 100% !important;
+          }
+          .app-main-column,
+          .app-main-content-scroll {
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            display: block !important;
+            width: 100% !important;
+          }
+          header,
+          .app-sidebar,
+          .app-topbar,
+          .no-print,
+          button,
+          input,
+          select {
+            display: none !important;
           }
         }
       `}</style>
