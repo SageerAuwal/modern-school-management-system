@@ -13,121 +13,131 @@ const icons = {
     </svg>
   ),
   dashboard: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="7" height="9" x="3" y="3" rx="1.5" />
+      <rect width="7" height="5" x="14" y="3" rx="1.5" />
+      <rect width="7" height="9" x="14" y="12" rx="1.5" />
+      <rect width="7" height="5" x="3" y="16" rx="1.5" />
+    </svg>
+  ),
+  reports: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18" />
+      <rect x="7" y="12" width="3" height="5" rx="0.5" />
+      <rect x="12" y="7" width="3" height="10" rx="0.5" />
+      <rect x="17" y="4" width="3" height="13" rx="0.5" />
+      <path d="m6 10 5-4 5 3 4-4" />
     </svg>
   ),
   students: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-      <path d="M6 12v5c3 3 9 3 12 0v-5" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
+      <path d="M22 10v6" />
+      <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
     </svg>
   ),
   parents: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="8" cy="8" r="3" />
-      <path d="M3 20a5 5 0 0 1 10 0" />
-      <circle cx="17" cy="11" r="2.2" />
-      <path d="M14 20a3.5 3.5 0 0 1 7 0" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a3 3 0 0 0-2.4-2.9" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   ),
   staff: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="16" rx="2" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
       <circle cx="9" cy="10" r="2.5" />
-      <path d="M6 17a3 3 0 0 1 6 0" />
-      <line x1="15" y1="9" x2="18" y2="9" />
-      <line x1="15" y1="13" x2="18" y2="13" />
+      <path d="M5.5 17a3.5 3.5 0 0 1 7 0" />
+      <line x1="14.5" y1="9" x2="18.5" y2="9" />
+      <line x1="14.5" y1="12" x2="18.5" y2="12" />
+      <line x1="14.5" y1="15" x2="17.5" y2="15" />
     </svg>
   ),
   classes: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2" />
-      <line x1="8" y1="21" x2="16" y2="21" />
-      <line x1="12" y1="17" x2="12" y2="21" />
-      <line x1="7" y1="10" x2="13" y2="10" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h20" />
+      <path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3" />
+      <path d="m7 21 5-5 5 5" />
+      <line x1="7" y1="8" x2="13" y2="8" />
+      <line x1="7" y1="11.5" x2="11" y2="11.5" />
     </svg>
   ),
   timetable: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-      <path d="M8 14h.01" />
-      <path d="M12 14h.01" />
-      <path d="M16 14h.01" />
-      <path d="M8 18h.01" />
-      <path d="M12 18h.01" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5" />
+      <path d="M16 2v4" />
+      <path d="M8 2v4" />
+      <path d="M3 10h18" />
+      <circle cx="16" cy="16" r="5" />
+      <path d="M16 14v2l1.5 1" />
     </svg>
   ),
   attendance: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
       <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
       <path d="m9 14 2 2 4-4" />
     </svg>
   ),
   grades: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="9" y1="13" x2="15" y2="13" />
-      <line x1="9" y1="17" x2="13" y2="17" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+      <path d="M8 12h8" />
+      <path d="M8 16h8" />
+      <path d="M12 9v10" />
     </svg>
   ),
   exams: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="13" r="8" />
-      <path d="M12 9v4l2 2" />
-      <path d="M10 2h4" />
-      <path d="m19 5-1.5 1.5" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="10" x2="14" y1="2" y2="2" />
+      <circle cx="12" cy="14" r="8" />
+      <path d="M12 10v4l2.5 1.5" />
     </svg>
   ),
   results: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="6" />
       <path d="m15.4 12.5 1.6 7.5-5-3-5 3 1.6-7.5" />
     </svg>
   ),
   fees: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="5" width="20" height="14" rx="2" />
-      <line x1="2" y1="10" x2="22" y2="10" />
-      <circle cx="7" cy="15" r="1.5" />
-      <circle cx="17" cy="15" r="1.5" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+      <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+      <path d="M12 17.5v-11" />
     </svg>
   ),
   library: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-      <path d="M9 7v6" />
-      <path d="M13 7v6" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
     </svg>
   ),
   transport: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 16h16M4 16a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2M4 16l-1 3h1m16-3l1 3h-1" />
-      <circle cx="7.5" cy="16" r="1.5" />
-      <circle cx="16.5" cy="16" r="1.5" />
-      <line x1="2" y1="9" x2="22" y2="9" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 6v6" />
+      <path d="M15 6v6" />
+      <path d="M2 12h19.6" />
+      <path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3" />
+      <circle cx="7" cy="18" r="2" />
+      <path d="M9 18h5" />
+      <circle cx="16" cy="18" r="2" />
     </svg>
   ),
   portals: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="18" height="18" rx="2" />
       <circle cx="8.5" cy="8.5" r="1.5" />
       <polyline points="21 15 16 10 5 21" />
     </svg>
   ),
   clinic: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 6v12M6 12h12" />
-      <rect x="3" y="3" width="18" height="18" rx="4" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <path d="M12 7v10" />
+      <path d="M7 12h10" />
     </svg>
   ),
   chevronDown: (
@@ -153,7 +163,7 @@ const icons = {
     </svg>
   ),
   account: (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
     </svg>
@@ -189,7 +199,7 @@ const ADMIN_CATEGORIES: NavCategory[] = [
       },
       {
         href: "/reports",
-        icon: icons.results,
+        icon: icons.reports,
         label: "Reports & Analytics",
         category: "Overview",
         keywords: "reports analytics records statistics performance finance attendance enrollment",
@@ -378,7 +388,7 @@ const NURSE_CATEGORIES: NavCategory[] = [
       {
         href: "/clinic",
         icon: icons.clinic,
-        label: "School Clinic & Sick Bay",
+        label: "School Clinic",
         category: "Clinical Services",
         keywords: "clinic sick bay triage nurse dispensary inventory vitals cots emergency",
       },
@@ -576,10 +586,10 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
             display: "flex",
             alignItems: "center",
             justifyContent: isCollapsed ? "center" : "flex-start",
-            gap: 12,
-            height: 40,
-            padding: isCollapsed ? "0" : "0 14px",
-            width: isCollapsed ? 40 : "100%",
+            gap: 11,
+            height: 38,
+            padding: isCollapsed ? "0" : "0 12px",
+            width: isCollapsed ? 38 : "100%",
             margin: "1px auto",
             borderRadius: isCollapsed ? "50%" : 9999,
             backgroundColor: isActive ? "var(--color-accent-gold, #F7C844)" : "transparent",
@@ -621,8 +631,11 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
-                lineHeight: 1,
+                lineHeight: 1.2,
+                fontSize: 13,
+                letterSpacing: "-0.01em",
               }}
+              title={item.label}
             >
               {item.label}
             </span>
@@ -636,7 +649,7 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
     <>
       <nav
         style={{
-          width: isCollapsed ? 76 : 230,
+          width: isCollapsed ? 76 : 246,
           backgroundColor: "#FFFFFF",
           display: "flex",
           flexDirection: "column",
@@ -645,7 +658,7 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
           position: "sticky",
           top: 0,
           height: "calc(100vh - 32px)",
-          padding: "16px 10px 14px",
+          padding: "16px 8px 14px",
           transition: "width 0.22s cubic-bezier(0.4, 0, 0.2, 1)",
           zIndex: 90,
           boxSizing: "border-box",
