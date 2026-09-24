@@ -1190,7 +1190,10 @@ export default function StaffPage() {
                           }
                         >
                           <option value="TEACHER">Teacher (Teaching & Attendance)</option>
-                          <option value="STAFF">Staff (General Staff View)</option>
+                          <option value="NURSE">School Nurse (Clinic, Triage & Sick Bay)</option>
+                          <option value="LIBRARIAN">Librarian (Book Catalog & Loans)</option>
+                          <option value="TRANSPORT_COORDINATOR">Transport Coordinator (Fleet & Routes)</option>
+                          <option value="STAFF">General Staff (Staff View)</option>
                           <option value="ADMIN">Administrator (Full Access)</option>
                         </select>
                       </div>

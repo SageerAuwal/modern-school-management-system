@@ -247,7 +247,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   let userRoleBadge = "Super Administrator";
   let rolePrefix = "Admin";
-  if (userRole === "TEACHER" || userRole === "STAFF") {
+  if (userRole === "NURSE") {
+    userRoleBadge = "School Nurse / Clinic";
+    rolePrefix = "School Nurse";
+  } else if (userRole === "LIBRARIAN") {
+    userRoleBadge = "School Librarian";
+    rolePrefix = "Librarian";
+  } else if (userRole === "TRANSPORT_COORDINATOR") {
+    userRoleBadge = "Transport Coordinator";
+    rolePrefix = "Transport";
+  } else if (userRole === "TEACHER" || userRole === "STAFF") {
     userRoleBadge = "Teacher / Staff";
     rolePrefix = "Teacher";
   } else if (userRole === "PARENT") {

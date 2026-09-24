@@ -20,9 +20,9 @@ const ROLE_CONFIGS: Record<RoleType, RoleConfig> = {
     identifierPlaceholder: "admin@school.local",
   },
   teacher: {
-    label: "Teacher",
-    identifierLabel: "Teacher Email",
-    identifierPlaceholder: "teacher@school.local",
+    label: "Teacher / Staff",
+    identifierLabel: "Teacher, Nurse or Staff Email",
+    identifierPlaceholder: "teacher@school.local or nurse@school.local",
   },
   parent: {
     label: "Parent",
@@ -95,14 +95,21 @@ export default function LoginPage() {
       const returnedRole: string = (data.user?.role || "").toUpperCase();
 
       // Enforce strict role matching for each login tab
-      if (selectedRole === "admin" && returnedRole !== "ADMIN") {
+      if (selectedRole === "admin" && returnedRole !== "ADMIN" && returnedRole !== "BURSAR") {
         await fetch(`${API}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
-        setError("Access denied: This portal tab is restricted to Administrators only. Please select your role tab above.");
+        setError("Access denied: This portal tab is restricted to Administrators and Bursars only.");
         return;
       }
-      if (selectedRole === "teacher" && returnedRole !== "TEACHER" && returnedRole !== "STAFF") {
+      if (
+        selectedRole === "teacher" &&
+        returnedRole !== "TEACHER" &&
+        returnedRole !== "STAFF" &&
+        returnedRole !== "NURSE" &&
+        returnedRole !== "LIBRARIAN" &&
+        returnedRole !== "TRANSPORT_COORDINATOR"
+      ) {
         await fetch(`${API}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
-        setError("Access denied: This portal tab is restricted to Teachers only. Please select your role tab above.");
+        setError("Access denied: This portal tab is restricted to Teachers and Staff. Please select your role tab above.");
         return;
       }
       if (selectedRole === "parent" && returnedRole !== "PARENT") {
@@ -116,7 +123,13 @@ export default function LoginPage() {
         return;
       }
 
-      if (returnedRole === "TEACHER" || returnedRole === "STAFF") {
+      if (returnedRole === "NURSE") {
+        router.push("/clinic");
+      } else if (returnedRole === "LIBRARIAN") {
+        router.push("/library");
+      } else if (returnedRole === "TRANSPORT_COORDINATOR") {
+        router.push("/transport");
+      } else if (returnedRole === "TEACHER" || returnedRole === "STAFF") {
         router.push("/portal/teacher");
       } else if (returnedRole === "STUDENT") {
         router.push("/portal/student");

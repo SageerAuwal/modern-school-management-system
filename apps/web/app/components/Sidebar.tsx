@@ -370,6 +370,29 @@ const TEACHER_CATEGORIES: NavCategory[] = [
   },
 ];
 
+const NURSE_CATEGORIES: NavCategory[] = [
+  {
+    id: "clinical_services",
+    title: "Clinical Services",
+    items: [
+      {
+        href: "/clinic",
+        icon: icons.clinic,
+        label: "School Clinic & Sick Bay",
+        category: "Clinical Services",
+        keywords: "clinic sick bay triage nurse dispensary inventory vitals cots emergency",
+      },
+      {
+        href: "/students",
+        icon: icons.students,
+        label: "Student Health Records",
+        category: "Clinical Services",
+        keywords: "students genotype blood group allergies emergency contact",
+      },
+    ],
+  },
+];
+
 const PARENT_CATEGORIES: NavCategory[] = [
   {
     id: "family",
@@ -520,6 +543,7 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
   // Select navigation categories tailored to user role
   const activeCategories = useMemo(() => {
     const r = (role || "ADMIN").toUpperCase();
+    if (r === "NURSE") return NURSE_CATEGORIES;
     if (r === "TEACHER") return TEACHER_CATEGORIES;
     if (r === "PARENT") return PARENT_CATEGORIES;
     if (r === "STUDENT") return STUDENT_CATEGORIES;
@@ -642,7 +666,9 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
           onClick={() => {
             const r = (role || "ADMIN").toUpperCase();
             const home =
-              r === "TEACHER"
+              r === "NURSE"
+                ? "/clinic"
+                : r === "TEACHER"
                 ? "/portal/teacher"
                 : r === "PARENT"
                 ? "/portal/parent"
