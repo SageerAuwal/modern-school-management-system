@@ -29,6 +29,7 @@ const ROUTE_LABELS: Record<string, string> = {
   "/portal/parent": "Parent & Guardian Portal",
   "/account": "My Account & Settings",
   "/reports": "Reports & Analytics",
+  "/clinic": "School Clinic & Sick Bay",
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";

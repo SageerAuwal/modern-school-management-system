@@ -148,6 +148,17 @@ export class ParentsService {
                 subject: { select: { id: true, name: true, code: true } },
               },
             },
+            clinicVisits: {
+              take: 5,
+              orderBy: { visitDate: 'desc' },
+              include: {
+                dispenses: {
+                  include: {
+                    inventory: { select: { name: true, unit: true } },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -175,6 +186,10 @@ export class ParentsService {
         lastName: s.lastName,
         admissionNumber: s.admissionNumber,
         photoUrl: s.photoUrl,
+        bloodGroup: s.bloodGroup,
+        genotype: s.genotype,
+        allergies: s.allergies,
+        chronicConditions: s.chronicConditions,
         enrollmentStatus: s.enrollmentStatus ?? "ACTIVE",
         classSection: s.enrollments?.[0]?.classSection ?? null,
         enrollments: s.enrollments ?? [],
@@ -187,6 +202,7 @@ export class ParentsService {
         },
         invoices,
         recentScores: s.scores ?? [],
+        clinicVisits: s.clinicVisits ?? [],
       };
     });
 

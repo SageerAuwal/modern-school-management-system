@@ -124,6 +124,12 @@ const icons = {
       <polyline points="21 15 16 10 5 21" />
     </svg>
   ),
+  clinic: (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 6v12M6 12h12" />
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+    </svg>
+  ),
   chevronDown: (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="6 9 12 15 18 9" />
@@ -289,6 +295,13 @@ const ADMIN_CATEGORIES: NavCategory[] = [
         label: "Transport",
         category: "Operations & Finance",
         keywords: "buses routes fleet logistics drivers school bus",
+      },
+      {
+        href: "/clinic",
+        icon: icons.clinic,
+        label: "School Clinic",
+        category: "Operations & Finance",
+        keywords: "clinic sick bay health triage nurse medical doctor dispensary triage emergency vitals",
       },
     ],
   },

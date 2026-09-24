@@ -22,6 +22,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { TimetableModule } from './timetable/timetable.module';
 import { ParentsModule } from './parents/parents.module';
 import { ReportsModule } from './reports/reports.module';
+import { ClinicModule } from './clinic/clinic.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -49,6 +50,7 @@ import { AppService } from './app.service';
     TimetableModule,
     ParentsModule,
     ReportsModule,
+    ClinicModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

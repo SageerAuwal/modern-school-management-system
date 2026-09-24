@@ -14,6 +14,10 @@ interface Student {
   lastName: string;
   admissionNumber: string | null;
   photoUrl?: string | null;
+  bloodGroup?: string | null;
+  genotype?: string | null;
+  allergies?: string | null;
+  chronicConditions?: string | null;
   enrollmentStatus?: string;
   attendanceRate?: number;
   classSection?: { id: string; name: string; level: string } | null;
@@ -27,6 +31,15 @@ interface Student {
     totalPaid: number;
     outstandingBalance: number;
   };
+  clinicVisits?: Array<{
+    id: string;
+    visitDate: string;
+    complaint: string;
+    temperature: number | null;
+    diagnosis: string | null;
+    treatmentGiven: string | null;
+    disposition: string;
+  }>;
 }
 
 interface UserProfile {
@@ -385,6 +398,83 @@ export default function ParentDashboardPage() {
                       </tr>
                     );
                   })}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Health Profile & Clinic Visit Log */}
+          <div className="card" style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>
+                  Health Profile &amp; Sick Bay Record: {activeChild.firstName} {activeChild.lastName}
+                </h2>
+                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
+                  Blood group, genotype safety classification, and official school clinic treatment history.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, padding: 14, backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)", marginBottom: 16 }}>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Genotype</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: activeChild.genotype === "SS" ? "var(--color-brand-crimson, #8B1E1E)" : "var(--color-brand-navy, #0B2545)" }}>
+                  {activeChild.genotype || "Not Documented"}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Blood Group</div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>
+                  {activeChild.bloodGroup || "Not Documented"}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Known Allergies</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: activeChild.allergies && activeChild.allergies !== "None reported" ? "var(--color-brand-crimson, #8B1E1E)" : "var(--color-text-secondary)" }}>
+                  {activeChild.allergies || "None reported"}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Chronic Conditions</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: activeChild.chronicConditions && activeChild.chronicConditions !== "None" ? "var(--color-brand-crimson, #8B1E1E)" : "var(--color-text-secondary)" }}>
+                  {activeChild.chronicConditions || "None"}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Recent Sick Bay Visits:</div>
+            {(!activeChild.clinicVisits || activeChild.clinicVisits.length === 0) ? (
+              <div style={{ padding: 16, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, backgroundColor: "#F8FAFC", borderRadius: 8 }}>
+                No sick bay visits on record for this term. Your child is in good health!
+              </div>
+            ) : (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Date &amp; Time</th>
+                    <th>Complaint</th>
+                    <th>Temperature</th>
+                    <th>Treatment Given</th>
+                    <th>Disposition</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeChild.clinicVisits.map((v) => (
+                    <tr key={v.id}>
+                      <td style={{ fontSize: 12.5, color: "var(--color-text-secondary)" }}>
+                        {new Date(v.visitDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{v.complaint}</td>
+                      <td>{v.temperature ? `${v.temperature}°C` : "Normal"}</td>
+                      <td style={{ fontSize: 12.5 }}>{v.treatmentGiven || "Observation"}</td>
+                      <td>
+                        <span className={v.disposition === "RETURNED_TO_CLASS" ? "pill-success" : v.disposition === "RESTING_IN_BAY" ? "pill-warning" : "pill-danger"}>
+                          {v.disposition.replace(/_/g, " ")}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             )}

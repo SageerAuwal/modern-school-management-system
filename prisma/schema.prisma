@@ -56,6 +56,10 @@ model School {
   transportRoutes   TransportRoute[]
   studentTransports StudentTransport[]
   timetables        Timetable[]
+  clinicVisits      ClinicVisit[]
+  clinicInventory   ClinicInventory[]
+  medicationDispenses MedicationDispense[]
+  immunizations     ImmunizationRecord[]
 
   @@map("schools")
 }
@@ -127,6 +131,8 @@ model User {
   issuedLoans      BookLoan[]     @relation("LoanIssuedBy")
   returnedLoans    BookLoan[]     @relation("LoanReturnedBy")
   timetableLessons TimetableLesson[] @relation("TimetableTeacher")
+  clinicVisitsLogged ClinicVisit[]   @relation("ClinicVisitLoggedBy")
+  dispensationsGiven MedicationDispense[] @relation("MedicationDispensedBy")
 
   @@index([schoolId])
   @@index([email])
@@ -186,19 +192,27 @@ model Student {
   guardianPhone    String?          @map("guardian_phone")
   guardianRelationship String?      @map("guardian_relationship")
   guardianPhotoUrl String?          @map("guardian_photo_url")
-  bloodGroup       String?          @map("blood_group")
-  medicalNotes     String?          @map("medical_notes")
-  createdAt        DateTime         @default(now()) @map("created_at")
-  updatedAt        DateTime         @updatedAt @map("updated_at")
+  bloodGroup           String?          @map("blood_group")
+  genotype             String?          @map("genotype")
+  allergies            String?          @map("allergies")
+  chronicConditions    String?          @map("chronic_conditions")
+  emergencyContactName String?          @map("emergency_contact_name")
+  emergencyContactPhone String?         @map("emergency_contact_phone")
+  medicalNotes         String?          @map("medical_notes")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
 
-  school            School        @relation(fields: [schoolId], references: [id])
-  guardianLinks     GuardianLink[]
-  enrollments       Enrollment[]
-  attendanceRecords AttendanceRecord[]
-  scores            Score[]
-  invoices          Invoice[]
-  bookLoans         BookLoan[]
+  school               School           @relation(fields: [schoolId], references: [id])
+  guardianLinks        GuardianLink[]
+  enrollments          Enrollment[]
+  attendanceRecords    AttendanceRecord[]
+  scores               Score[]
+  invoices             Invoice[]
+  bookLoans            BookLoan[]
   transportAssignments StudentTransport[]
+  clinicVisits         ClinicVisit[]
+  immunizations        ImmunizationRecord[]
+  dispensedMedicines   MedicationDispense[]
 
   @@index([schoolId])
   @@index([enrollmentStatus])
@@ -781,5 +795,118 @@ model TimetableLesson {
   @@index([classSectionId])
   @@index([teacherId])
   @@map("timetable_lessons")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 11 — School Clinic & Sick Bay Operations
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum VisitDisposition {
+  RESTING_IN_BAY
+  RETURNED_TO_CLASS
+  SENT_HOME
+  REFERRED_TO_HOSPITAL
+}
+
+model ClinicVisit {
+  id                     String           @id @default(uuid())
+  schoolId               String           @map("school_id")
+  studentId              String           @map("student_id")
+  nurseId                String?          @map("nurse_id")
+  visitDate              DateTime         @default(now()) @map("visit_date")
+  complaint              String
+  symptoms               String?
+  temperature            Float?
+  bloodPressure          String?          @map("blood_pressure")
+  pulseRate              Int?             @map("pulse_rate")
+  weight                 Float?
+  diagnosis              String?
+  treatmentGiven         String?          @map("treatment_given")
+  disposition            VisitDisposition @default(RETURNED_TO_CLASS)
+  parentNotified         Boolean          @default(false) @map("parent_notified")
+  parentNotificationTime DateTime?        @map("parent_notification_time")
+  referralHospital       String?          @map("referral_hospital")
+  referralReason         String?          @map("referral_reason")
+  doctorNotes            String?          @map("doctor_notes")
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @updatedAt @map("updated_at")
+
+  school    School               @relation(fields: [schoolId], references: [id])
+  student   Student              @relation(fields: [studentId], references: [id])
+  nurse     User?                @relation("ClinicVisitLoggedBy", fields: [nurseId], references: [id])
+  dispenses MedicationDispense[]
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([visitDate])
+  @@map("clinic_visits")
+}
+
+model ClinicInventory {
+  id             String               @id @default(uuid())
+  schoolId       String               @map("school_id")
+  itemCode       String               @unique @map("item_code")
+  name           String
+  category       String               @default("MEDICATION")
+  dosageForm     String?              @map("dosage_form")
+  unit           String               @default("Tablets")
+  quantityOnHand Int                  @default(0) @map("quantity_on_hand")
+  reorderLevel   Int                  @default(10) @map("reorder_level")
+  expiryDate     DateTime?            @map("expiry_date")
+  batchNumber    String?              @map("batch_number")
+  locationRack   String?              @map("location_rack")
+  notes          String?
+  createdAt      DateTime             @default(now()) @map("created_at")
+  updatedAt      DateTime             @updatedAt @map("updated_at")
+
+  school    School             @relation(fields: [schoolId], references: [id])
+  dispenses MedicationDispense[]
+
+  @@index([schoolId])
+  @@map("clinic_inventory")
+}
+
+model MedicationDispense {
+  id          String           @id @default(uuid())
+  schoolId    String           @map("school_id")
+  visitId     String?          @map("visit_id")
+  studentId   String           @map("student_id")
+  inventoryId String           @map("inventory_id")
+  nurseId     String?          @map("nurse_id")
+  quantity    Int              @default(1)
+  dosage      String?
+  dispensedAt DateTime         @default(now()) @map("dispensed_at")
+
+  school    School          @relation(fields: [schoolId], references: [id])
+  visit     ClinicVisit?    @relation(fields: [visitId], references: [id])
+  student   Student         @relation(fields: [studentId], references: [id])
+  inventory ClinicInventory @relation(fields: [inventoryId], references: [id])
+  nurse     User?           @relation("MedicationDispensedBy", fields: [nurseId], references: [id])
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@map("medication_dispenses")
+}
+
+model ImmunizationRecord {
+  id             String    @id @default(uuid())
+  schoolId       String    @map("school_id")
+  studentId      String    @map("student_id")
+  vaccineName    String    @map("vaccine_name")
+  doseNumber     Int       @default(1) @map("dose_number")
+  administeredAt DateTime  @map("administered_at")
+  nextDueDate    DateTime? @map("next_due_date")
+  provider       String?
+  batchNumber    String?   @map("batch_number")
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  school  School  @relation(fields: [schoolId], references: [id])
+  student Student @relation(fields: [studentId], references: [id])
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@map("immunization_records")
 }
 
