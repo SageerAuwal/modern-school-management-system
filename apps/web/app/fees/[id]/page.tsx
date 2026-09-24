@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PosReceiptSlip from "../../components/PosReceiptSlip";
+import OfficialBursaryInvoiceModal from "../../components/OfficialBursaryInvoiceModal";
 import OnlinePaymentModal from "../../components/OnlinePaymentModal";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 
@@ -175,6 +176,7 @@ function InvoiceDetailContent() {
   const [error, setError] = useState("");
 
   // Payment actions state
+  const [showOfficialClearance, setShowOfficialClearance] = useState(false);
   const [showPosReceipt, setShowPosReceipt] = useState(false);
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
   const [cashAmount, setCashAmount] = useState("");
@@ -478,6 +480,36 @@ function InvoiceDetailContent() {
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setShowOfficialClearance(true)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              backgroundColor: "#0B2545",
+              borderColor: "#0B2545",
+            }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="6 9 6 2 18 2 18 9" />
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+              <rect x="6" y="14" width="12" height="8" />
+            </svg>
+            Print Official A4 Clearance
+          </button>
+
           <button
             type="button"
             className="btn btn-secondary"
@@ -1038,6 +1070,14 @@ function InvoiceDetailContent() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Official A4 Institutional Clearance Certificate Modal */}
+      {showOfficialClearance && invoice && (
+        <OfficialBursaryInvoiceModal
+          invoice={invoice}
+          onClose={() => setShowOfficialClearance(false)}
+        />
       )}
 
       {/* Thermal POS / ATM Receipt Slip Modal */}

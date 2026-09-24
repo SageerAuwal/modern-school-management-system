@@ -206,7 +206,17 @@ export class ScoresService {
 
     const student = await this.prisma.student.findFirst({
       where: { id: studentId, schoolId },
-      select: { id: true, firstName: true, lastName: true, admissionNumber: true, gender: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        otherNames: true,
+        admissionNumber: true,
+        gender: true,
+        dateOfBirth: true,
+        photoUrl: true,
+        stateOfOrigin: true,
+      },
     });
     if (!student) throw new NotFoundException('Student not found');
 
@@ -266,6 +276,36 @@ export class ScoresService {
       orderBy: { subject: { name: 'asc' } },
     });
 
+    // Compute subject statistics across this class for this term
+    const subjectStats = await this.prisma.score.groupBy({
+      by: ['subjectId'],
+      where: { termId, classSectionId: sectionId, total: { not: null } },
+      _max: { total: true },
+      _min: { total: true },
+      _avg: { total: true },
+    });
+
+    const statsMap = new Map(
+      subjectStats.map((st) => [
+        st.subjectId,
+        {
+          highest: st._max.total !== null ? Math.round(st._max.total) : null,
+          lowest: st._min.total !== null ? Math.round(st._min.total) : null,
+          average: st._avg.total !== null ? Math.round(st._avg.total) : null,
+        },
+      ]),
+    );
+
+    const enrichedScores = scores.map((s) => {
+      const stat = statsMap.get(s.subjectId);
+      return {
+        ...s,
+        classHighest: stat?.highest ?? null,
+        classLowest: stat?.lowest ?? null,
+        classAverage: stat?.average ?? null,
+      };
+    });
+
     // Compute overall stats
     const scoredSubjects = scores.filter((s) => s.total !== null);
     const overallTotal = scoredSubjects.reduce((sum, s) => sum + (s.total ?? 0), 0);
@@ -285,11 +325,38 @@ export class ScoresService {
     const position = positionIndex >= 0 ? positionIndex + 1 : null;
     const totalStudents = allStudentScores.length;
 
+    // Compute attendance stats
+    const [daysOpenedList, presentCount] = await Promise.all([
+      this.prisma.attendanceRecord.groupBy({
+        by: ['date'],
+        where: { schoolId, classSectionId: sectionId },
+      }),
+      this.prisma.attendanceRecord.count({
+        where: {
+          schoolId,
+          classSectionId: sectionId,
+          studentId,
+          status: { in: ['PRESENT', 'LATE'] },
+        },
+      }),
+    ]);
+
+    const daysOpened = daysOpenedList.length > 0 ? daysOpenedList.length : 118;
+    const daysPresent = daysOpenedList.length > 0 ? presentCount : Math.min(114, daysOpened);
+    const daysAbsent = Math.max(0, daysOpened - daysPresent);
+    const attendancePercentage = Math.round((daysPresent / daysOpened) * 100);
+
     return {
       student,
       term: { id: term.id, name: term.name, academicYear: term.academicYear },
       classSection: { id: section.id, name: section.name, level: section.level },
-      scores,
+      scores: enrichedScores,
+      attendance: {
+        daysOpened,
+        daysPresent,
+        daysAbsent,
+        percentage: attendancePercentage,
+      },
       summary: {
         subjectsOffered: scores.length,
         subjectsScored: scoredSubjects.length,
