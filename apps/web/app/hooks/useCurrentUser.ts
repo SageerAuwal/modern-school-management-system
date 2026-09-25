@@ -45,6 +45,7 @@ export function useCurrentUser() {
 
   const role = (user?.role || "").toUpperCase();
   const isAdmin = role === "ADMIN";
+  const isBursar = role === "BURSAR";
   const isTeacher = role === "TEACHER" || role === "STAFF";
   const isParent = role === "PARENT";
   const isStudent = role === "STUDENT";
@@ -53,6 +54,7 @@ export function useCurrentUser() {
     user,
     role,
     isAdmin,
+    isBursar,
     isTeacher,
     isParent,
     isStudent,

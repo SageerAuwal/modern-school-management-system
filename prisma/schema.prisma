@@ -61,6 +61,11 @@ model School {
   medicationDispenses MedicationDispense[]
   immunizations     ImmunizationRecord[]
   classResultReleases ClassResultRelease[]
+  dutyAssignments   TeacherDutyAssignment[]
+  substitutions     TeacherSubstitution[]
+  receiptSequence   ReceiptSequence?
+  cashDrawers       DailyCashDrawer[]
+  financialAuditLogs FinancialAuditLog[]
 
   @@map("schools")
 }
@@ -135,6 +140,11 @@ model User {
   timetableLessons TimetableLesson[] @relation("TimetableTeacher")
   clinicVisitsLogged ClinicVisit[]   @relation("ClinicVisitLoggedBy")
   dispensationsGiven MedicationDispense[] @relation("MedicationDispensedBy")
+  dutyAssignments    TeacherDutyAssignment[] @relation("TeacherDutyAssignments")
+  absentSubstitutions TeacherSubstitution[] @relation("AbsentTeacherSubstitutions")
+  substituteAssignments TeacherSubstitution[] @relation("SubstituteTeacherAssignments")
+  cashDrawers        DailyCashDrawer[]       @relation("BursarCashDrawers")
+  financialAuditLogs FinancialAuditLog[]     @relation("FinancialAuditLogs")
 
   @@index([schoolId])
   @@index([email])
@@ -526,6 +536,8 @@ enum PaymentMethod {
   PAYSTACK     // Online via Paystack (card, bank transfer, USSD)
   CASH         // Physical cash recorded by bursar
   BANK_DEPOSIT // Manual bank deposit (teller receipt)
+  POS_TERMINAL // Point of Sale card terminal
+  BANK_TRANSFER // Direct electronic bank transfer
 }
 
 enum PaymentStatus {
@@ -813,6 +825,7 @@ model Timetable {
   school  School            @relation(fields: [schoolId], references: [id])
   term    Term?             @relation(fields: [termId], references: [id])
   lessons TimetableLesson[]
+  dutyAssignments TeacherDutyAssignment[]
 
   @@index([schoolId])
   @@map("timetables")
@@ -837,6 +850,7 @@ model TimetableLesson {
   classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
   subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   teacher      User?        @relation("TimetableTeacher", fields: [teacherId], references: [id])
+  substitutions TeacherSubstitution[]
 
   @@unique([timetableId, classSectionId, day, periodNumber])
   @@index([timetableId])
@@ -956,5 +970,128 @@ model ImmunizationRecord {
   @@index([schoolId])
   @@index([studentId])
   @@map("immunization_records")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 12 — Faculty Duty Rosters & Substitutions
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum DutyCategory {
+  MORNING_ASSEMBLY
+  CAMPUS_CORRIDOR
+  DINING_HALL
+  PREP_SUPERVISION
+  EXAM_INVIGILATION
+  SPORTS_GAMES
+  GATE_DUTY
+}
+
+model TeacherDutyAssignment {
+  id           String       @id @default(uuid())
+  schoolId     String       @map("school_id")
+  timetableId  String?      @map("timetable_id")
+  teacherId    String       @map("teacher_id")
+  category     DutyCategory
+  day          String?      // MONDAY, TUESDAY, etc., or null for full-week duty
+  periodNumber Int?         @map("period_number")
+  weekNumber   Int          @default(1) @map("week_number") // 1..14
+  academicYear String       @map("academic_year")
+  termId       String?      @map("term_id")
+  venue        String?
+  instructions String?
+  isCompleted  Boolean      @default(false) @map("is_completed")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  school    School     @relation(fields: [schoolId], references: [id])
+  teacher   User       @relation("TeacherDutyAssignments", fields: [teacherId], references: [id])
+  timetable Timetable? @relation(fields: [timetableId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, academicYear, weekNumber])
+  @@index([teacherId])
+  @@map("teacher_duty_assignments")
+}
+
+model TeacherSubstitution {
+  id                  String   @id @default(uuid())
+  schoolId            String   @map("school_id")
+  lessonId            String   @map("lesson_id")
+  absentTeacherId     String   @map("absent_teacher_id")
+  substituteTeacherId String   @map("substitute_teacher_id")
+  date                DateTime @db.Date
+  reason              String?
+  status              String   @default("CONFIRMED") // CONFIRMED, COMPLETED, CANCELLED
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  school            School          @relation(fields: [schoolId], references: [id])
+  lesson            TimetableLesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  absentTeacher     User            @relation("AbsentTeacherSubstitutions", fields: [absentTeacherId], references: [id])
+  substituteTeacher User            @relation("SubstituteTeacherAssignments", fields: [substituteTeacherId], references: [id])
+
+  @@index([schoolId, date])
+  @@index([lessonId])
+  @@map("teacher_substitutions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODULE 13 — Bursary Financial Operations & Audit Logs
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ReceiptSequence {
+  id          String   @id @default(uuid())
+  schoolId    String   @unique @map("school_id")
+  prefix      String   @default("BFA-REC")
+  currentYear Int      @default(2026) @map("current_year")
+  lastNumber  Int      @default(0) @map("last_number")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@map("receipt_sequences")
+}
+
+model DailyCashDrawer {
+  id            String    @id @default(uuid())
+  schoolId      String    @map("school_id")
+  bursarId      String    @map("bursar_id")
+  date          DateTime  @db.Date
+  openingCash   Float     @default(0) @map("opening_cash")
+  cashCollected Float     @default(0) @map("cash_collected")
+  posCollected  Float     @default(0) @map("pos_collected")
+  transferTotal Float     @default(0) @map("transfer_total")
+  closingCash   Float?    @map("closing_cash")
+  difference    Float?
+  status        String    @default("OPEN") // OPEN, CLOSED, AUDITED
+  closureNotes  String?   @map("closure_notes")
+  closedAt      DateTime? @map("closed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  bursar User   @relation("BursarCashDrawers", fields: [bursarId], references: [id])
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@unique([schoolId, bursarId, date])
+  @@map("daily_cash_drawers")
+}
+
+model FinancialAuditLog {
+  id         String   @id @default(uuid())
+  schoolId   String   @map("school_id")
+  actorId    String   @map("actor_id")
+  actorName  String   @map("actor_name")
+  action     String   // RECEIPT_ISSUED, PAYMENT_RECORDED, DISCOUNT_GRANTED, DRAWER_CLOSED, PAYMENT_REVERSED
+  studentId  String?  @map("student_id")
+  invoiceId  String?  @map("invoice_id")
+  amount     Float?
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  school School @relation(fields: [schoolId], references: [id])
+  actor  User   @relation("FinancialAuditLogs", fields: [actorId], references: [id])
+
+  @@index([schoolId, createdAt])
+  @@map("financial_audit_logs")
 }
 

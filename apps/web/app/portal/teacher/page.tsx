@@ -170,6 +170,64 @@ export default function TeacherPortalPage() {
         )}
       </div>
 
+      {/* Supervisory Duties Section */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--color-brand-navy, #0B2545)" }}>
+              My Supervisory Duties &amp; Rotas
+            </h2>
+            <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
+              Official institutional duties assigned by the Vice Principal (Academic) across the 14-week term.
+            </p>
+          </div>
+          <Link href="/timetable/duty-roster" className="btn btn-secondary" style={{ fontSize: 12, fontWeight: 700 }}>
+            View Full Staff Notice Board Rota
+          </Link>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 14 }}>
+          <div className="card" style={{ borderLeft: "4px solid var(--color-brand-teal, #0E7D75)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "var(--color-brand-teal, #0E7D75)" }}>
+                Week 1 · Scheduled
+              </span>
+              <span className="pill-success" style={{ fontSize: 9 }}>Active</span>
+            </div>
+            <h4 style={{ margin: "6px 0 2px", fontSize: 14, fontWeight: 800 }}>Morning Assembly Leader</h4>
+            <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)" }}>
+              Assembly Quadrangle · Coordinate national anthem, pledge &amp; decorum.
+            </p>
+          </div>
+
+          <div className="card" style={{ borderLeft: "4px solid #1E40AF" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "#1E40AF" }}>
+                Week 2 · Upcoming
+              </span>
+              <span className="pill-neutral" style={{ fontSize: 9 }}>Scheduled</span>
+            </div>
+            <h4 style={{ margin: "6px 0 2px", fontSize: 14, fontWeight: 800 }}>Campus Corridor Patrol</h4>
+            <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)" }}>
+              Academic Blocks · Ensure prompt movement between lesson periods.
+            </p>
+          </div>
+
+          <div className="card" style={{ borderLeft: "4px solid #B45309" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", color: "#B45309" }}>
+                Week 3 · Upcoming
+              </span>
+              <span className="pill-neutral" style={{ fontSize: 9 }}>Scheduled</span>
+            </div>
+            <h4 style={{ margin: "6px 0 2px", fontSize: 14, fontWeight: 800 }}>Student Dining Hall</h4>
+            <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-secondary)" }}>
+              Student Cafeteria · Supervise lunch meal service and dining etiquette.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Classroom Quick Shortcuts */}
       <div className="card">
         <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Daily Workflow Shortcuts</h2>

@@ -252,6 +252,13 @@ const ADMIN_CATEGORIES: NavCategory[] = [
         keywords: "schedule routine period auto classes planner master routine booklet",
       },
       {
+        href: "/timetable/duty-roster",
+        icon: icons.staff,
+        label: "Faculty Duty Roster",
+        category: "Academics",
+        keywords: "supervisory duty roster staff room assembly gate corridor prep rotation substitution",
+      },
+      {
         href: "/attendance",
         icon: icons.attendance,
         label: "Attendance",
@@ -286,9 +293,16 @@ const ADMIN_CATEGORIES: NavCategory[] = [
     title: "Operations & Finance",
     items: [
       {
+        href: "/fees/bursar",
+        icon: icons.account,
+        label: "Bursar Cashier Desk",
+        category: "Operations & Finance",
+        keywords: "bursar cashier desk receipt cash drawer reconciliation debtors statement payment counter",
+      },
+      {
         href: "/fees",
         icon: icons.fees,
-        label: "Fees",
+        label: "Fees & Invoices",
         category: "Operations & Finance",
         keywords: "invoices tuition payment pos billing receipts naira accounting",
       },
@@ -356,6 +370,13 @@ const TEACHER_CATEGORIES: NavCategory[] = [
         category: "Classroom & Teaching",
         keywords: "schedule routine teaching classes periods",
       },
+      {
+        href: "/timetable/duty-roster",
+        icon: icons.staff,
+        label: "Faculty Duty Roster",
+        category: "Classroom & Teaching",
+        keywords: "supervisory duty roster assembly gate corridor prep relief substitution",
+      },
     ],
   },
   {
@@ -408,6 +429,13 @@ const BURSAR_CATEGORIES: NavCategory[] = [
     id: "finance",
     title: "Bursary & Payments",
     items: [
+      {
+        href: "/fees/bursar",
+        icon: icons.account,
+        label: "Cashier Counter & Desk",
+        category: "Bursary & Payments",
+        keywords: "bursar cashier desk receipt cash drawer reconciliation debtors statement payment counter",
+      },
       {
         href: "/fees",
         icon: icons.fees,
