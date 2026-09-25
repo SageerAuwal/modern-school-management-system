@@ -92,6 +92,61 @@ export default function GradesPage() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
+  const [releaseStatus, setReleaseStatus] = useState<string>("DRAFT");
+  const [revisionNotes, setRevisionNotes] = useState<string | null>(null);
+  const [submittingResults, setSubmittingResults] = useState(false);
+
+  const fetchClassReleaseStatus = useCallback(async (classId: string, termId?: string) => {
+    if (!classId) {
+      setReleaseStatus("DRAFT");
+      setRevisionNotes(null);
+      return;
+    }
+    try {
+      const url = termId
+        ? `${API}/api/v1/scores/class-results/audit?termId=${termId}`
+        : `${API}/api/v1/scores/class-results/audit`;
+      const res = await fetch(url, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        const found = data?.classes?.find((c: any) => c.classSection.id === classId);
+        if (found) {
+          setReleaseStatus(found.status);
+          setRevisionNotes(found.revisionNotes || null);
+        }
+      }
+    } catch {
+      // Non-critical
+    }
+  }, []);
+
+  const handleSubmitResults = async () => {
+    if (!selectedClassId) return;
+    setSubmittingResults(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const res = await fetch(`${API}/api/v1/scores/class-results/${selectedClassId}/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ termId: termInfo?.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to submit class results");
+      }
+      setReleaseStatus("SUBMITTED");
+      setSuccessMessage("Class results submitted to administration for review & approval.");
+      setTimeout(() => setSuccessMessage(""), 5000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Error submitting class results";
+      setError(msg);
+    } finally {
+      setSubmittingResults(false);
+    }
+  };
+
   // 1. Fetch class list on mount
   useEffect(() => {
     let ignore = false;
@@ -267,6 +322,15 @@ export default function GradesPage() {
     fetchScoreSheet();
   }, [fetchScoreSheet]);
 
+  useEffect(() => {
+    if (selectedClassId) {
+      fetchClassReleaseStatus(selectedClassId, termInfo?.id);
+    } else {
+      setReleaseStatus("DRAFT");
+      setRevisionNotes(null);
+    }
+  }, [selectedClassId, termInfo?.id, fetchClassReleaseStatus]);
+
   const handleScoreChange = (studentId: string, field: keyof ScoreRow, value: string) => {
     setRows((prev) => ({
       ...prev,
@@ -347,16 +411,82 @@ export default function GradesPage() {
           <p className="page-subtitle">Record continuous assessments and exam scores</p>
         </div>
         {isConfigured && students.length > 0 && (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? "Saving scores…" : "Save scores"}
-          </button>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? "Saving scores…" : "Save scores"}
+            </button>
+            {(releaseStatus === "DRAFT" || releaseStatus === "REVISION_REQUESTED") && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleSubmitResults}
+                disabled={submittingResults || saving}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+              >
+                {submittingResults ? "Submitting..." : "Submit to Administration"}
+              </button>
+            )}
+          </div>
         )}
       </div>
+
+      {/* Revision Notice if returned by Admin */}
+      {revisionNotes && (
+        <div
+          style={{
+            padding: "12px 16px",
+            borderRadius: "var(--radius-control)",
+            backgroundColor: "var(--color-danger-bg, #FEE2E2)",
+            color: "var(--color-danger-text, #991B1B)",
+            marginBottom: 20,
+            fontSize: 13,
+            border: "1px solid #FCA5A5",
+          }}
+        >
+          <strong>Administrative Revision Requested:</strong> {revisionNotes}
+        </div>
+      )}
+
+      {/* Class Release Status Banner */}
+      {selectedClassId && (
+        <div
+          className="card"
+          style={{
+            padding: "12px 18px",
+            marginBottom: 20,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 10,
+          }}
+        >
+          <div style={{ fontSize: 13 }}>
+            <span style={{ color: "var(--color-text-secondary)" }}>Academic Release Status:</span>{" "}
+            <strong>
+              {classes.find((c) => c.id === selectedClassId)?.name || "Selected Class"}
+            </strong>
+          </div>
+          <div>
+            {releaseStatus === "PUBLISHED" ? (
+              <span className="pill-success" style={{ fontWeight: 700 }}>Published &amp; Live to Parents</span>
+            ) : releaseStatus === "APPROVED" ? (
+              <span className="pill-info" style={{ fontWeight: 700 }}>Approved by Principal (Awaiting Release)</span>
+            ) : releaseStatus === "SUBMITTED" ? (
+              <span className="pill-warning" style={{ fontWeight: 700 }}>Submitted for Administrative Review</span>
+            ) : releaseStatus === "REVISION_REQUESTED" ? (
+              <span className="pill-danger" style={{ fontWeight: 700 }}>Revision Requested by Principal</span>
+            ) : (
+              <span className="pill-neutral" style={{ fontWeight: 600 }}>Draft (Scores Not Yet Submitted)</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Class and Subject Selectors */}
       <div className="card" style={{ marginBottom: 20 }}>

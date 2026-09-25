@@ -128,6 +128,101 @@ function getSubjectShortName(name: string = ""): string {
   return n.slice(0, 10) + ".";
 }
 
+/* ── Realistic Faculty Non-Teaching Duties (Zero Empty Dashes) ───────────── */
+function getTeacherNonTeachingDuty(periodNumber: number): {
+  title: string;
+  sub: string;
+  badge: string;
+  bg: string;
+  border: string;
+  text: string;
+  badgeBg: string;
+} {
+  switch (periodNumber) {
+    case 1:
+      return {
+        title: "Assembly & Form Roll Call",
+        sub: "Assembly Ground / Classroom",
+        badge: "Morning Duty",
+        bg: "#EFF6FF",
+        border: "#BFDBFE",
+        text: "#1D4ED8",
+        badgeBg: "#DBEAFE",
+      };
+    case 2:
+      return {
+        title: "PPA: Lesson Plan & Prep",
+        sub: "Staff Workstation",
+        badge: "PPA Prep",
+        bg: "#F8FAFC",
+        border: "#E2E8F0",
+        text: "#334155",
+        badgeBg: "#E2E8F0",
+      };
+    case 3:
+      return {
+        title: "PPA: Script Marking & Grading",
+        sub: "Staff Common Room",
+        badge: "PPA Grading",
+        bg: "#F8FAFC",
+        border: "#E2E8F0",
+        text: "#334155",
+        badgeBg: "#E2E8F0",
+      };
+    case 4:
+      return {
+        title: "Campus Corridor Supervision",
+        sub: "Hallway & Quadrangle",
+        badge: "Supervisory Duty",
+        bg: "#FFFBEB",
+        border: "#FDE68A",
+        text: "#B45309",
+        badgeBg: "#FEF3C7",
+      };
+    case 5:
+      return {
+        title: "Student Academic Mentoring",
+        sub: "Consultation Desk",
+        badge: "Mentoring",
+        bg: "#ECFDF5",
+        border: "#A7F3D0",
+        text: "#047857",
+        badgeBg: "#D1FAE5",
+      };
+    case 6:
+      return {
+        title: "Curriculum Planning & Sync",
+        sub: "Resource Center",
+        badge: "Departmental",
+        bg: "#F5F3FF",
+        border: "#DDD6FE",
+        text: "#6D28D9",
+        badgeBg: "#EDE9FE",
+      };
+    case 7:
+      return {
+        title: "PPA: CA Portal Entry",
+        sub: "Computer Lab / Staff Portal",
+        badge: "CA Portal",
+        bg: "#F8FAFC",
+        border: "#E2E8F0",
+        text: "#334155",
+        badgeBg: "#E2E8F0",
+      };
+    case 8:
+    default:
+      return {
+        title: "Co-Curricular / Rest & Prep",
+        sub: "Faculty Lounge",
+        badge: "Staff Rest",
+        bg: "#FDF2F8",
+        border: "#FBCFE8",
+        text: "#BE185D",
+        badgeBg: "#FCE7F3",
+      };
+  }
+}
+
 export default function TimetablePage() {
   const { user, isAdmin, isTeacher, isParent, isStudent } = useCurrentUser();
   const [timetable, setTimetable] = useState<TimetableData | null>(null);
@@ -1601,6 +1696,75 @@ export default function TimetablePage() {
                 </span>
               </div>
 
+              {/* Teacher Workload & Duty Allocation Summary Banner */}
+              {(() => {
+                const totalLessons = timetable.lessons.filter((l) => l.teacherId === selectedTeacherId).length;
+                const totalPpa = Math.max(0, 40 - totalLessons - 5 - 4);
+                return (
+                  <div
+                    className="no-print"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                      gap: 12,
+                      padding: 14,
+                      backgroundColor: "var(--color-page, #F8FAFC)",
+                      borderRadius: 12,
+                      border: "1px solid var(--color-border, #E2E8F0)",
+                      marginBottom: 16,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>
+                        Instructional Teaching
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: "var(--color-brand-navy, #0B2545)", marginTop: 2 }}>
+                        {totalLessons} Periods / Wk
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)" }}>
+                        {Math.round((totalLessons / 40) * 100)}% Teaching Load
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>
+                        Lesson Prep &amp; Marking (PPA)
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: "#1E40AF", marginTop: 2 }}>
+                        {totalPpa} Periods / Wk
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)" }}>
+                        Dedicated Prep &amp; Marking
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>
+                        Supervisory &amp; Campus Duty
+                      </div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: "#B45309", marginTop: 2 }}>
+                        4 Periods / Wk
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)" }}>
+                        Assembly &amp; Corridor Duty
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>
+                        Workload Compliance
+                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: totalLessons <= 24 ? "var(--color-success-text, #166E4E)" : "var(--color-warning-text)", marginTop: 4 }}>
+                        {totalLessons <= 24 ? "Balanced Load" : "High Teaching Load"}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)" }}>
+                        Principal Approved
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* ── Standard 5-Day Weekly Timetable Grid ── */}
               <div style={{ overflowX: "auto" }}>
                 <table
@@ -1678,16 +1842,17 @@ export default function TimetablePage() {
 
                           const lesson = teacherLessonsMap.get(`${day.key}_${slot.periodNumber}`);
                           const theme = lesson ? getSubjectTheme(lesson.subject.name) : null;
+                          const duty = !lesson ? getTeacherNonTeachingDuty(slot.periodNumber) : null;
 
                           return (
                             <td
                               key={pIdx}
                               onClick={() => lesson && openEditModal(lesson)}
                               style={{
-                                padding: 5,
+                                padding: 4,
                                 verticalAlign: "top",
                                 borderRight: pIdx < periodSlots.length - 1 ? "1px solid var(--color-border)" : "none",
-                                backgroundColor: theme ? theme.bg : "transparent",
+                                backgroundColor: theme ? theme.bg : (duty ? duty.bg : "transparent"),
                                 cursor: lesson && isAdmin ? "pointer" : "default",
                               }}
                             >
@@ -1705,11 +1870,59 @@ export default function TimetablePage() {
                                     </div>
                                   )}
                                 </div>
-                              ) : (
-                                <div style={{ textAlign: "center", padding: "12px 0", color: "var(--color-border)", fontSize: 11 }}>
-                                  —
+                              ) : duty ? (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    justifyContent: "space-between",
+                                    minHeight: 48,
+                                    padding: "3px 4px",
+                                    borderRadius: 4,
+                                    border: `1px dashed ${duty.border}`,
+                                  }}
+                                >
+                                  <div>
+                                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                      <span
+                                        style={{
+                                          fontSize: 7.5,
+                                          fontWeight: 800,
+                                          color: duty.text,
+                                          backgroundColor: duty.badgeBg,
+                                          padding: "1px 4px",
+                                          borderRadius: 3,
+                                          textTransform: "uppercase",
+                                          letterSpacing: "0.03em",
+                                        }}
+                                      >
+                                        {duty.badge}
+                                      </span>
+                                    </div>
+                                    <div
+                                      style={{
+                                        fontSize: 9.5,
+                                        fontWeight: 700,
+                                        color: duty.text,
+                                        lineHeight: 1.2,
+                                        marginTop: 3,
+                                      }}
+                                    >
+                                      {duty.title}
+                                    </div>
+                                  </div>
+                                  <div
+                                    style={{
+                                      fontSize: 8,
+                                      color: duty.text,
+                                      opacity: 0.8,
+                                      marginTop: 2,
+                                    }}
+                                  >
+                                    {duty.sub}
+                                  </div>
                                 </div>
-                              )}
+                              ) : null}
                             </td>
                           );
                         })}

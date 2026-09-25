@@ -1190,6 +1190,7 @@ export default function StaffPage() {
                           }
                         >
                           <option value="TEACHER">Teacher (Teaching & Attendance)</option>
+                          <option value="BURSAR">School Bursar (Tuition, Billing & Payments)</option>
                           <option value="NURSE">School Nurse (Clinic, Triage & Sick Bay)</option>
                           <option value="LIBRARIAN">Librarian (Book Catalog & Loans)</option>
                           <option value="TRANSPORT_COORDINATOR">Transport Coordinator (Fleet & Routes)</option>

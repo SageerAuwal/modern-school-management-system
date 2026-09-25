@@ -63,3 +63,35 @@ export class ReportCardQueryDto {
   @IsOptional()
   classSectionId?: string;
 }
+
+export class SubmitClassResultDto {
+  @IsString()
+  @IsOptional()
+  termId?: string;
+}
+
+export class ApproveClassResultDto {
+  @IsString()
+  @IsOptional()
+  termId?: string;
+
+  @IsString()
+  @IsOptional()
+  principalRemark?: string;
+}
+
+export class ReleaseClassResultDto {
+  @IsString()
+  @IsOptional()
+  termId?: string;
+}
+
+export class RequestRevisionDto {
+  @IsString()
+  @IsOptional()
+  termId?: string;
+
+  @IsString()
+  notes: string;
+}
+

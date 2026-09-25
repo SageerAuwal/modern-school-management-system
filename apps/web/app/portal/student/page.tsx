@@ -141,6 +141,7 @@ function formatOrdinal(n: number | null): string {
 export default function StudentPortalPage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [reportCardSummary, setReportCardSummary] = useState<ReportCardSummary | null>(null);
+  const [reportCardRelease, setReportCardRelease] = useState<{ isReleased: boolean; status?: string; message?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
@@ -161,6 +162,11 @@ export default function StudentPortalPage() {
         const rcRes = await fetch(`${API}/api/v1/scores/report-card/${data.id}`, { credentials: "include" });
         if (rcRes.ok) {
           const rcData = await rcRes.json();
+          setReportCardRelease({
+            isReleased: rcData?.isReleased !== false,
+            status: rcData?.releaseStatus,
+            message: rcData?.message,
+          });
           if (rcData?.summary) {
             setReportCardSummary(rcData.summary);
           }
@@ -356,36 +362,78 @@ export default function StudentPortalPage() {
                 </p>
               </div>
               <Link href="/results" className="btn btn-primary" style={{ fontSize: 13 }}>
-                Check Official Report Card
+                {reportCardRelease?.isReleased ? "Check Official Report Card" : "Check Results Status"}
               </Link>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, padding: 14, backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)" }}>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Class Rank</div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>
-                  {reportCardSummary?.position
-                    ? `${formatOrdinal(reportCardSummary.position)} of ${reportCardSummary.totalStudentsInClass} Students`
-                    : "Published"}
+            {reportCardRelease?.isReleased === false ? (
+              <div
+                style={{
+                  padding: 16,
+                  borderRadius: "var(--radius-control, 8px)",
+                  backgroundColor: "var(--color-warning-bg, #FEF3C7)",
+                  border: "1px solid #FCD34D",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", backgroundColor: "#FDE68A", display: "flex", alignItems: "center", justifyContent: "center", color: "#D97706", flexShrink: 0 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--color-warning-text, #92400E)" }}>
+                      Terminal Results In Compilation &amp; Administrative Review
+                    </div>
+                    <div style={{ fontSize: 12, color: "#78350F", marginTop: 2 }}>
+                      Your class examination results are currently undergoing academic board verification. Your official report card will appear here immediately upon administrative release.
+                    </div>
+                  </div>
+                </div>
+                <span className="pill pill-warning" style={{ fontSize: 11, fontWeight: 700 }}>
+                  Status: {reportCardRelease.status || "In Review"}
+                </span>
+              </div>
+            ) : reportCardSummary ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, padding: 14, backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)" }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Class Rank</div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>
+                    {reportCardSummary.position
+                      ? `${formatOrdinal(reportCardSummary.position)} of ${reportCardSummary.totalStudentsInClass} Students`
+                      : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Average Score</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-success-text)" }}>
+                    {reportCardSummary.overallAverage !== null ? `${reportCardSummary.overallAverage}%` : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Subjects Scored</div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>
+                    {reportCardSummary.subjectsScored} of {reportCardSummary.subjectsOffered} Subjects
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Release Status</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-brand-teal, #0E7D75)" }}>
+                    Officially Released
+                  </div>
                 </div>
               </div>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Average Score</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-success-text)" }}>
-                  {reportCardSummary?.overallAverage ? `${reportCardSummary.overallAverage}%` : "Top Performer"}
-                </div>
+            ) : (
+              <div style={{ padding: 16, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)" }}>
+                Continuous assessment and terminal exam records are currently in preparation.
               </div>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Subjects Scored</div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>
-                  {reportCardSummary ? `${reportCardSummary.subjectsScored} of ${reportCardSummary.subjectsOffered} Subjects` : "7 Subjects"}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Current Session</div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>2025/2026 Academic Year</div>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Two-Column Grid: Transport & Library */}

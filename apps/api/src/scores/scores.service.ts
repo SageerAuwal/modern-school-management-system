@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
-import { BulkEnterScoresDto, ReportCardQueryDto } from './dto/score.dto';
-import { EnrollmentStatus, UserRole } from '@prisma/client';
+import { BulkEnterScoresDto, ReportCardQueryDto, ApproveClassResultDto, RequestRevisionDto } from './dto/score.dto';
+import { EnrollmentStatus, UserRole, ResultReleaseStatus } from '@prisma/client';
 
 // Nigerian standard grading scale (out of 100)
 function computeGrade(total: number): { grade: string; remark: string } {
@@ -346,7 +346,49 @@ export class ScoresService {
     const daysAbsent = Math.max(0, daysOpened - daysPresent);
     const attendancePercentage = Math.round((daysPresent / daysOpened) * 100);
 
+    // Check Result Release status
+    const release = await this.prisma.classResultRelease.findUnique({
+      where: {
+        classSectionId_termId: {
+          classSectionId: sectionId,
+          termId,
+        },
+      },
+    });
+
+    const isReleased = release?.status === ResultReleaseStatus.PUBLISHED;
+
+    // Strict Gatekeeper for Parents and Students:
+    // Results must NOT be visible until Admin officially reviews, approves, and releases them!
+    if (actor?.role === UserRole.PARENT || actor?.role === UserRole.STUDENT) {
+      if (!isReleased) {
+        return {
+          isReleased: false,
+          status: release?.status ?? ResultReleaseStatus.DRAFT,
+          term: { id: term.id, name: term.name, academicYear: term.academicYear },
+          student: {
+            id: student.id,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            admissionNumber: student.admissionNumber,
+            photoUrl: student.photoUrl,
+          },
+          classSection: {
+            id: section.id,
+            name: section.name,
+            level: section.level,
+          },
+          message:
+            'Terminal results for this class are currently undergoing academic board verification and compilation. Official report cards will be accessible here immediately following administrative release.',
+        };
+      }
+    }
+
     return {
+      isReleased,
+      releaseStatus: release?.status ?? ResultReleaseStatus.DRAFT,
+      principalRemark: release?.principalRemark ?? null,
+      publishedAt: release?.publishedAt ?? null,
       student,
       term: { id: term.id, name: term.name, academicYear: term.academicYear },
       classSection: { id: section.id, name: section.name, level: section.level },
@@ -404,11 +446,335 @@ export class ScoresService {
       ...computeGrade(r._avg.total ?? 0),
     }));
 
+    // Check release status for this class
+    const release = await this.prisma.classResultRelease.findUnique({
+      where: {
+        classSectionId_termId: {
+          classSectionId,
+          termId,
+        },
+      },
+    });
+
     return {
       classSection: { id: section.id, name: section.name, level: section.level },
       term: { id: term.id, name: term.name, academicYear: term.academicYear },
       totalStudents: results.length,
+      releaseStatus: release?.status ?? ResultReleaseStatus.DRAFT,
+      isReleased: release?.status === ResultReleaseStatus.PUBLISHED,
       results,
+    };
+  }
+
+  // ── Result Release & Approval Workflow ────────────────────────────────────
+
+  /**
+   * Admin Audit: List all classes with grading completion and release status for a term
+   */
+  async auditClassResults(termId: string | undefined, schoolId: string) {
+    let term;
+    if (termId) {
+      term = await this.prisma.term.findFirst({ where: { id: termId, schoolId } });
+    } else {
+      term =
+        (await this.prisma.term.findFirst({ where: { schoolId, isCurrent: true } })) ??
+        (await this.prisma.term.findFirst({ where: { schoolId }, orderBy: { createdAt: 'desc' } }));
+    }
+    if (!term) throw new NotFoundException('Academic term not found');
+
+    const classes = await this.prisma.classSection.findMany({
+      where: { schoolId, isActive: true },
+      include: {
+        teacher: { select: { id: true, firstName: true, lastName: true } },
+        _count: {
+          select: {
+            enrollments: { where: { status: EnrollmentStatus.ACTIVE } },
+            classSubjects: true,
+          },
+        },
+        resultReleases: {
+          where: { termId: term.id },
+          take: 1,
+        },
+      },
+      orderBy: [{ level: 'asc' }, { name: 'asc' }],
+    });
+
+    const audits = await Promise.all(
+      classes.map(async (cls) => {
+        const studentCount = cls._count.enrollments;
+        const subjectCount = cls._count.classSubjects;
+        const totalExpectedScores = studentCount * subjectCount;
+
+        const scoresCount = await this.prisma.score.count({
+          where: {
+            classSectionId: cls.id,
+            termId: term!.id,
+            total: { not: null },
+          },
+        });
+
+        const release = cls.resultReleases[0] ?? null;
+
+        return {
+          classSection: {
+            id: cls.id,
+            name: cls.name,
+            level: cls.level,
+            stream: cls.stream,
+            teacher: cls.teacher ? `${cls.teacher.firstName} ${cls.teacher.lastName}` : null,
+          },
+          studentCount,
+          subjectCount,
+          totalExpectedScores,
+          scoresCount,
+          completionPercent:
+            totalExpectedScores > 0 ? Math.min(100, Math.round((scoresCount / totalExpectedScores) * 100)) : 0,
+          status: release?.status ?? ResultReleaseStatus.DRAFT,
+          submittedAt: release?.submittedAt ?? null,
+          approvedAt: release?.approvedAt ?? null,
+          publishedAt: release?.publishedAt ?? null,
+          principalRemark: release?.principalRemark ?? null,
+          revisionNotes: release?.revisionNotes ?? null,
+        };
+      }),
+    );
+
+    return {
+      term: { id: term.id, name: term.name, academicYear: term.academicYear },
+      classes: audits,
+    };
+  }
+
+  /**
+   * Teacher submits class results for administrative review
+   */
+  async submitClassResults(classSectionId: string, termId: string | undefined, schoolId: string, actorId: string, actorEmail: string) {
+    const section = await this.prisma.classSection.findFirst({ where: { id: classSectionId, schoolId } });
+    if (!section) throw new NotFoundException('Class section not found');
+
+    const targetTerm = termId
+      ? await this.prisma.term.findFirst({ where: { id: termId, schoolId } })
+      : (await this.prisma.term.findFirst({ where: { schoolId, isCurrent: true } })) ??
+        (await this.prisma.term.findFirst({ where: { schoolId }, orderBy: { createdAt: 'desc' } }));
+
+    if (!targetTerm) throw new NotFoundException('Term not found');
+
+    const release = await this.prisma.classResultRelease.upsert({
+      where: {
+        classSectionId_termId: {
+          classSectionId: section.id,
+          termId: targetTerm.id,
+        },
+      },
+      create: {
+        schoolId,
+        classSectionId: section.id,
+        termId: targetTerm.id,
+        academicYear: targetTerm.academicYear,
+        status: ResultReleaseStatus.SUBMITTED,
+        submittedById: actorId,
+        submittedAt: new Date(),
+      },
+      update: {
+        status: ResultReleaseStatus.SUBMITTED,
+        submittedById: actorId,
+        submittedAt: new Date(),
+        revisionNotes: null,
+      },
+    });
+
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'CLASS_RESULTS_SUBMITTED',
+      targetType: 'CLASS_SECTION',
+      targetId: section.id,
+      afterValue: { termId: targetTerm.id, status: ResultReleaseStatus.SUBMITTED } as Record<string, unknown>,
+    });
+
+    return {
+      message: `Results for ${section.name} submitted for administrative review.`,
+      release,
+    };
+  }
+
+  /**
+   * Admin approves class results with Principal's terminal remark
+   */
+  async approveClassResults(
+    classSectionId: string,
+    dto: ApproveClassResultDto,
+    schoolId: string,
+    actorId: string,
+    actorEmail: string,
+  ) {
+    const section = await this.prisma.classSection.findFirst({ where: { id: classSectionId, schoolId } });
+    if (!section) throw new NotFoundException('Class section not found');
+
+    const targetTerm = dto.termId
+      ? await this.prisma.term.findFirst({ where: { id: dto.termId, schoolId } })
+      : (await this.prisma.term.findFirst({ where: { schoolId, isCurrent: true } })) ??
+        (await this.prisma.term.findFirst({ where: { schoolId }, orderBy: { createdAt: 'desc' } }));
+
+    if (!targetTerm) throw new NotFoundException('Term not found');
+
+    const defaultRemark = 'A commendable academic performance. Keep up the disciplined effort.';
+    const remark = dto.principalRemark && dto.principalRemark.trim() ? dto.principalRemark.trim() : defaultRemark;
+
+    const release = await this.prisma.classResultRelease.upsert({
+      where: {
+        classSectionId_termId: {
+          classSectionId: section.id,
+          termId: targetTerm.id,
+        },
+      },
+      create: {
+        schoolId,
+        classSectionId: section.id,
+        termId: targetTerm.id,
+        academicYear: targetTerm.academicYear,
+        status: ResultReleaseStatus.APPROVED,
+        approvedById: actorId,
+        approvedAt: new Date(),
+        principalRemark: remark,
+      },
+      update: {
+        status: ResultReleaseStatus.APPROVED,
+        approvedById: actorId,
+        approvedAt: new Date(),
+        principalRemark: remark,
+        revisionNotes: null,
+      },
+    });
+
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'CLASS_RESULTS_APPROVED',
+      targetType: 'CLASS_SECTION',
+      targetId: section.id,
+      afterValue: { termId: targetTerm.id, status: ResultReleaseStatus.APPROVED, principalRemark: remark } as Record<string, unknown>,
+    });
+
+    return {
+      message: `Results for ${section.name} approved by Administration.`,
+      release,
+    };
+  }
+
+  /**
+   * Admin publishes and releases class results to parents and students
+   */
+  async releaseClassResults(
+    classSectionId: string,
+    termId: string | undefined,
+    schoolId: string,
+    actorId: string,
+    actorEmail: string,
+  ) {
+    const section = await this.prisma.classSection.findFirst({ where: { id: classSectionId, schoolId } });
+    if (!section) throw new NotFoundException('Class section not found');
+
+    const targetTerm = termId
+      ? await this.prisma.term.findFirst({ where: { id: termId, schoolId } })
+      : (await this.prisma.term.findFirst({ where: { schoolId, isCurrent: true } })) ??
+        (await this.prisma.term.findFirst({ where: { schoolId }, orderBy: { createdAt: 'desc' } }));
+
+    if (!targetTerm) throw new NotFoundException('Term not found');
+
+    const release = await this.prisma.classResultRelease.upsert({
+      where: {
+        classSectionId_termId: {
+          classSectionId: section.id,
+          termId: targetTerm.id,
+        },
+      },
+      create: {
+        schoolId,
+        classSectionId: section.id,
+        termId: targetTerm.id,
+        academicYear: targetTerm.academicYear,
+        status: ResultReleaseStatus.PUBLISHED,
+        publishedById: actorId,
+        publishedAt: new Date(),
+        principalRemark: 'Official results released by School Administration.',
+      },
+      update: {
+        status: ResultReleaseStatus.PUBLISHED,
+        publishedById: actorId,
+        publishedAt: new Date(),
+      },
+    });
+
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'CLASS_RESULTS_PUBLISHED',
+      targetType: 'CLASS_SECTION',
+      targetId: section.id,
+      afterValue: { termId: targetTerm.id, status: ResultReleaseStatus.PUBLISHED } as Record<string, unknown>,
+    });
+
+    return {
+      message: `Results for ${section.name} are now officially released to parents and students.`,
+      release,
+    };
+  }
+
+  /**
+   * Admin requests revision / returns class results to teachers
+   */
+  async requestClassResultRevision(
+    classSectionId: string,
+    dto: RequestRevisionDto,
+    schoolId: string,
+    actorId: string,
+    actorEmail: string,
+  ) {
+    const section = await this.prisma.classSection.findFirst({ where: { id: classSectionId, schoolId } });
+    if (!section) throw new NotFoundException('Class section not found');
+
+    const targetTerm = dto.termId
+      ? await this.prisma.term.findFirst({ where: { id: dto.termId, schoolId } })
+      : (await this.prisma.term.findFirst({ where: { schoolId, isCurrent: true } })) ??
+        (await this.prisma.term.findFirst({ where: { schoolId }, orderBy: { createdAt: 'desc' } }));
+
+    if (!targetTerm) throw new NotFoundException('Term not found');
+
+    const release = await this.prisma.classResultRelease.upsert({
+      where: {
+        classSectionId_termId: {
+          classSectionId: section.id,
+          termId: targetTerm.id,
+        },
+      },
+      create: {
+        schoolId,
+        classSectionId: section.id,
+        termId: targetTerm.id,
+        academicYear: targetTerm.academicYear,
+        status: ResultReleaseStatus.REVISION_REQUESTED,
+        revisionNotes: dto.notes,
+      },
+      update: {
+        status: ResultReleaseStatus.REVISION_REQUESTED,
+        revisionNotes: dto.notes,
+      },
+    });
+
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'CLASS_RESULTS_REVISION_REQUESTED',
+      targetType: 'CLASS_SECTION',
+      targetId: section.id,
+      afterValue: { notes: dto.notes } as Record<string, unknown>,
+    });
+
+    return {
+      message: `Revision request sent for ${section.name}.`,
+      release,
     };
   }
 }

@@ -31,6 +31,8 @@ export class StaffService {
         assignedRole = dto.portalRole as UserRole;
       } else if (dto.role.toLowerCase().includes('admin') || dto.role.toLowerCase().includes('principal')) {
         assignedRole = UserRole.ADMIN;
+      } else if (dto.role.toLowerCase().includes('bursar') || dto.role.toLowerCase().includes('accountant')) {
+        assignedRole = UserRole.BURSAR;
       } else if (dto.role.toLowerCase().includes('librarian')) {
         assignedRole = UserRole.LIBRARIAN;
       } else if (dto.role.toLowerCase().includes('nurse')) {

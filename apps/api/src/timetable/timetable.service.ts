@@ -127,7 +127,8 @@ export class TimetableService {
     const timeSlots = this.calculateTimeSlots(startTime, periodDuration, periodsPerDay, breakAfter, breakDuration);
 
     // 5. Build Class-Subject Allocations with Teacher Assignments
-    // For each class, ensure it has classSubjects with assigned teachers
+    // Distribute all active teachers across subjects fairly so every teacher has assigned classes
+    let teacherRotIdx = 0;
     for (let cIdx = 0; cIdx < classes.length; cIdx++) {
       const cls = classes[cIdx];
       const existingCS = await this.prisma.classSubject.findMany({
@@ -138,7 +139,8 @@ export class TimetableService {
         // Link subjects to this class if not already linked
         for (let sIdx = 0; sIdx < schoolSubjects.length; sIdx++) {
           const sub = schoolSubjects[sIdx];
-          const assignedTeacher = teachers.length > 0 ? teachers[(cIdx + sIdx) % teachers.length] : null;
+          const assignedTeacher = teachers.length > 0 ? teachers[teacherRotIdx % teachers.length] : null;
+          teacherRotIdx++;
 
           await this.prisma.classSubject.upsert({
             where: { classSectionId_subjectId: { classSectionId: cls.id, subjectId: sub.id } },
@@ -152,6 +154,18 @@ export class TimetableService {
             },
           });
         }
+      } else if (teachers.length > 0) {
+        // Ensure any unassigned classSubject gets an active teacher
+        for (const cs of existingCS) {
+          if (!cs.teacherId) {
+            const assignedTeacher = teachers[teacherRotIdx % teachers.length];
+            teacherRotIdx++;
+            await this.prisma.classSubject.update({
+              where: { id: cs.id },
+              data: { teacherId: assignedTeacher.id },
+            });
+          }
+        }
       }
     }
 
@@ -164,6 +178,10 @@ export class TimetableService {
     // 7. CONSTRAINT SATISFACTION ENGINE
     // teacherBusy: Map<teacherId, Set<"DAY_PERIOD">>
     const teacherBusy = new Map<string, Set<string>>();
+    // teacherWeeklyCount: Map<teacherId, number>
+    const teacherWeeklyCount = new Map<string, number>();
+    // teacherDailyCount: Map<"teacherId_day", number>
+    const teacherDailyCount = new Map<string, number>();
     // classBusy: Map<classId, Set<"DAY_PERIOD">>
     const classBusy = new Map<string, Set<string>>();
     // classDayCount: Map<"classId_day", number> tracks daily periods to balance Monday–Friday
@@ -171,6 +189,10 @@ export class TimetableService {
 
     for (const t of teachers) {
       teacherBusy.set(t.id, new Set<string>());
+      teacherWeeklyCount.set(t.id, 0);
+      for (const d of WEEKDAYS) {
+        teacherDailyCount.set(`${t.id}_${d}`, 0);
+      }
     }
     for (const c of classes) {
       classBusy.set(c.id, new Set<string>());
@@ -283,13 +305,26 @@ export class TimetableService {
             // Check 1: Is this class section free at this slot?
             if (classBusy.get(cls.id)?.has(slotKey)) continue;
 
-            // Check 2: If teacher assigned, is the teacher free?
-            if (item.teacherId && teacherBusy.get(item.teacherId)?.has(slotKey)) continue;
+            // Check 2: If teacher assigned, check collision and workload caps
+            if (item.teacherId) {
+              // A. Collision check
+              if (teacherBusy.get(item.teacherId)?.has(slotKey)) continue;
 
-            // Slot is conflict-free! Allocate:
+              // B. Daily limit: Max 5 teaching periods per day (guarantees >= 3 periods of PPA / Rest / Duty)
+              const tDayCount = teacherDailyCount.get(`${item.teacherId}_${day}`) || 0;
+              if (tDayCount >= 5) continue;
+
+              // C. Weekly limit: Max 22 teaching periods per week
+              const tWeekCount = teacherWeeklyCount.get(item.teacherId) || 0;
+              if (tWeekCount >= 22) continue;
+            }
+
+            // Slot is conflict-free and balanced! Allocate:
             classBusy.get(cls.id)?.add(slotKey);
             if (item.teacherId) {
               teacherBusy.get(item.teacherId)?.add(slotKey);
+              teacherDailyCount.set(`${item.teacherId}_${day}`, (teacherDailyCount.get(`${item.teacherId}_${day}`) || 0) + 1);
+              teacherWeeklyCount.set(item.teacherId, (teacherWeeklyCount.get(item.teacherId) || 0) + 1);
             }
 
             const timeSlot = timeSlots.find((t) => t.periodNumber === period)!;

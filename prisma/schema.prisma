@@ -60,6 +60,7 @@ model School {
   clinicInventory   ClinicInventory[]
   medicationDispenses MedicationDispense[]
   immunizations     ImmunizationRecord[]
+  classResultReleases ClassResultRelease[]
 
   @@map("schools")
 }
@@ -90,6 +91,7 @@ model AuditLog {
 
 enum UserRole {
   ADMIN
+  BURSAR
   TEACHER
   NURSE
   LIBRARIAN
@@ -257,6 +259,7 @@ model ClassSection {
   classSubjects     ClassSubject[]
   scores            Score[]
   timetableLessons  TimetableLesson[]
+  resultReleases    ClassResultRelease[]
 
   @@unique([schoolId, name, academicYear])
   @@index([schoolId])
@@ -394,6 +397,7 @@ model Term {
   feeStructures FeeStructure[]
   invoices      Invoice[]
   timetables    Timetable[]
+  resultReleases ClassResultRelease[]
 
   @@unique([schoolId, name, academicYear])
   @@index([schoolId])
@@ -460,6 +464,50 @@ model Score {
   @@index([studentId, termId])
   @@index([classSectionId, subjectId, termId])
   @@map("scores")
+}
+
+enum ResultReleaseStatus {
+  DRAFT
+  SUBMITTED
+  REVISION_REQUESTED
+  APPROVED
+  PUBLISHED
+}
+
+model ClassResultRelease {
+  id              String              @id @default(uuid())
+  schoolId        String              @map("school_id")
+  classSectionId  String              @map("class_section_id")
+  termId          String              @map("term_id")
+  academicYear    String              @map("academic_year")
+  status          ResultReleaseStatus @default(DRAFT)
+
+  // Teacher Submission
+  submittedById   String?             @map("submitted_by_id")
+  submittedAt     DateTime?           @map("submitted_at")
+
+  // Admin Audit, Approval & Principal Sign-Off
+  approvedById    String?             @map("approved_by_id")
+  approvedAt      DateTime?           @map("approved_at")
+  principalRemark String?             @map("principal_remark")
+
+  // Release / Publication Gate
+  publishedById   String?             @map("published_by_id")
+  publishedAt     DateTime?           @map("published_at")
+
+  // Admin Revision Notes (if returned for corrections)
+  revisionNotes   String?             @map("revision_notes")
+
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  school       School       @relation(fields: [schoolId], references: [id])
+  classSection ClassSection @relation(fields: [classSectionId], references: [id])
+  term         Term         @relation(fields: [termId], references: [id])
+
+  @@unique([classSectionId, termId])
+  @@index([schoolId, termId])
+  @@map("class_result_releases")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

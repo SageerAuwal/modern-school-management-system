@@ -100,11 +100,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     // Prevent non-admin users from landing on /dashboard
     if (pathname === "/dashboard") {
-      if (r === "TEACHER") router.replace("/portal/teacher");
+      if (r === "BURSAR") router.replace("/fees");
+      else if (r === "TEACHER") router.replace("/portal/teacher");
       else if (r === "PARENT") router.replace("/portal/parent");
       else if (r === "STUDENT") router.replace("/portal/student");
     } else if (pathname === "/staff" && r !== "ADMIN") {
-      if (r === "TEACHER") router.replace("/portal/teacher");
+      if (r === "BURSAR") router.replace("/fees");
+      else if (r === "TEACHER") router.replace("/portal/teacher");
       else if (r === "PARENT") router.replace("/portal/parent");
       else if (r === "STUDENT") router.replace("/portal/student");
     }

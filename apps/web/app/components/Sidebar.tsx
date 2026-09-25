@@ -403,6 +403,49 @@ const NURSE_CATEGORIES: NavCategory[] = [
   },
 ];
 
+const BURSAR_CATEGORIES: NavCategory[] = [
+  {
+    id: "finance",
+    title: "Bursary & Payments",
+    items: [
+      {
+        href: "/fees",
+        icon: icons.fees,
+        label: "Fees & Invoices",
+        category: "Bursary & Payments",
+        keywords: "fees tuition invoice billing pos payment receipts bursary",
+      },
+      {
+        href: "/reports",
+        icon: icons.reports,
+        label: "Financial Analytics",
+        category: "Bursary & Payments",
+        keywords: "reports revenue debtors collection analytics",
+      },
+    ],
+  },
+  {
+    id: "students_roster",
+    title: "Student Registry",
+    items: [
+      {
+        href: "/students",
+        icon: icons.students,
+        label: "Student Accounts",
+        category: "Student Registry",
+        keywords: "students billing clearance debtors",
+      },
+      {
+        href: "/parents",
+        icon: icons.parents,
+        label: "Guardians & Payers",
+        category: "Student Registry",
+        keywords: "parents billing invoices contacts",
+      },
+    ],
+  },
+];
+
 const PARENT_CATEGORIES: NavCategory[] = [
   {
     id: "family",
@@ -553,6 +596,7 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
   // Select navigation categories tailored to user role
   const activeCategories = useMemo(() => {
     const r = (role || "ADMIN").toUpperCase();
+    if (r === "BURSAR") return BURSAR_CATEGORIES;
     if (r === "NURSE") return NURSE_CATEGORIES;
     if (r === "TEACHER") return TEACHER_CATEGORIES;
     if (r === "PARENT") return PARENT_CATEGORIES;
@@ -679,7 +723,9 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
           onClick={() => {
             const r = (role || "ADMIN").toUpperCase();
             const home =
-              r === "NURSE"
+              r === "BURSAR"
+                ? "/fees"
+                : r === "NURSE"
                 ? "/clinic"
                 : r === "TEACHER"
                 ? "/portal/teacher"

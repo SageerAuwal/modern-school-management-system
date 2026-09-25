@@ -65,6 +65,13 @@ function formatNaira(amount: number): string {
   return `₦${Number(amount || 0).toLocaleString("en-NG", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
+function formatOrdinal(n: number | null): string {
+  if (!n) return "—";
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 export default function ParentDashboardPage() {
   const [parentProfile, setParentProfile] = useState<UserProfile | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -76,6 +83,21 @@ export default function ParentDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [reportCardData, setReportCardData] = useState<any>(null);
+  const [loadingReportCard, setLoadingReportCard] = useState(false);
+
+  useEffect(() => {
+    if (!selectedChildId) {
+      setReportCardData(null);
+      return;
+    }
+    setLoadingReportCard(true);
+    fetch(`${API}/api/v1/scores/report-card/${selectedChildId}`, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setReportCardData(data))
+      .catch(() => setReportCardData(null))
+      .finally(() => setLoadingReportCard(false));
+  }, [selectedChildId]);
 
   const loadParentData = useCallback(async () => {
     try {
@@ -286,8 +308,12 @@ export default function ParentDashboardPage() {
             </div>
             <div className="card">
               <div className="stat-label">Academic Report</div>
-              <div className="stat-value" style={{ fontSize: 18 }}>Published</div>
-              <div className="stat-sub">First Term 2025/2026</div>
+              <div className="stat-value" style={{ fontSize: 18, color: reportCardData?.isReleased ? "var(--color-success-text)" : "var(--color-warning-text, #D97706)" }}>
+                {loadingReportCard ? "Checking..." : reportCardData?.isReleased ? "Released" : "In Review"}
+              </div>
+              <div className="stat-sub">
+                {reportCardData?.term ? `${reportCardData.term.name}` : "First Term 2025/2026"}
+              </div>
             </div>
           </div>
 
@@ -299,32 +325,86 @@ export default function ParentDashboardPage() {
                   Academic Report Card: {activeChild.firstName} {activeChild.lastName}
                 </h2>
                 <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
-                  Review continuous assessment breakdown and authorized terminal examination positions.
+                  Official terminal continuous assessment breakdown, exam scores, and class ranking.
                 </p>
               </div>
               <Link href="/results" className="btn btn-primary">
-                View &amp; Print Full Report Card
+                {reportCardData?.isReleased ? "View & Print Full Report Card" : "Check Results Status"}
               </Link>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, padding: 14, backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)" }}>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Class Position</div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>2nd of 32 Students</div>
+            {loadingReportCard ? (
+              <div style={{ padding: 20, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
+                Checking academic release status...
               </div>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Average Grade</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-success-text)" }}>A (82.4%)</div>
+            ) : reportCardData?.isReleased === false ? (
+              <div
+                style={{
+                  padding: 16,
+                  borderRadius: "var(--radius-control, 8px)",
+                  backgroundColor: "var(--color-warning-bg, #FEF3C7)",
+                  border: "1px solid #FCD34D",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", backgroundColor: "#FDE68A", display: "flex", alignItems: "center", justifyContent: "center", color: "#D97706", flexShrink: 0 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--color-warning-text, #92400E)" }}>
+                      Terminal Results Awaiting Administrative Release
+                    </div>
+                    <div style={{ fontSize: 12, color: "#78350F", marginTop: 2 }}>
+                      Terminal results for this class are undergoing academic board verification and will be accessible immediately once officially approved and released by administration.
+                    </div>
+                  </div>
+                </div>
+                <span className="pill pill-warning" style={{ fontSize: 11, fontWeight: 700 }}>
+                  Status: {reportCardData.releaseStatus || "In Review"}
+                </span>
               </div>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Conduct &amp; Behavior</div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>Exemplary</div>
+            ) : reportCardData?.summary ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, padding: 14, backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)" }}>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Class Position</div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>
+                    {reportCardData.summary.position
+                      ? `${formatOrdinal(reportCardData.summary.position)} of ${reportCardData.summary.totalStudentsInClass} Students`
+                      : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Average Grade</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-success-text)" }}>
+                    {reportCardData.summary.overallAverage !== null ? `${reportCardData.summary.overallAverage}%` : "—"}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Subjects Scored</div>
+                  <div style={{ fontSize: 16, fontWeight: 700 }}>
+                    {reportCardData.summary.subjectsScored} of {reportCardData.summary.subjectsOffered} Subjects
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Release Status</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-brand-teal, #0E7D75)" }}>
+                    Officially Released
+                  </div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>Next Term Resumes</div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>Jan 12, 2026</div>
+            ) : (
+              <div style={{ padding: 16, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13, backgroundColor: "var(--color-page)", borderRadius: "var(--radius-control)" }}>
+                Terminal examination records are not yet compiled for this student.
               </div>
-            </div>
+            )}
           </div>
 
           {/* Fee Invoices & Payment Schedule */}
