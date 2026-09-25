@@ -1114,13 +1114,13 @@ export default function TimetablePage() {
                 className="btn btn-secondary"
                 style={{ padding: "9px 18px", fontWeight: 700 }}
                 onClick={() => window.print()}
-                title="Print clean official A4 timetable"
+                title="Print official academic timetable"
               >
                 {activeView === "master"
-                  ? "Print Master Sheet (1 A4 Page)"
+                  ? "Print Master Schedule (Standard A4 Landscape)"
                   : activeView === "teacher"
-                  ? "Print Teacher Roster (A4)"
-                  : `Print ${selectedClass?.name || "Class"} (1 Page)`}
+                  ? "Print Teacher Workload Roster (Standard A4 Format)"
+                  : `Print ${selectedClass?.name || "Class"} Schedule (Standard A4 Format)`}
               </button>
             </div>
           </div>
@@ -1186,7 +1186,7 @@ export default function TimetablePage() {
                     onClick={() => window.print()}
                     style={{ fontSize: 12, padding: "6px 16px", fontWeight: 700, backgroundColor: "var(--color-brand-teal, #0E7D75)" }}
                   >
-                    Print Master Sheet (1 A4)
+                    Print Master Schedule (Standard A4 Landscape)
                   </button>
                 </div>
               </div>

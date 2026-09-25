@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import ActionConfirmationModal from "../components/ActionConfirmationModal";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -583,7 +584,7 @@ export default function ResultsPage() {
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
               <rect x="6" y="14" width="12" height="8" />
             </svg>
-            Print Official Report Card
+            Print Official Continuous Assessment &amp; Terminal Report Sheet (Standard A4 Format)
           </button>
         )}
       </div>
@@ -2183,54 +2184,25 @@ export default function ResultsPage() {
         </div>
       )}
 
-      {/* ── RELEASE RESULTS MODAL ── */}
+      {/* ── RELEASE RESULTS CONFIRMATION MODAL ── */}
       {releasingClass && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: 20,
-          }}
-        >
-          <div className="card" style={{ maxWidth: 500, width: "100%", padding: 24, borderRadius: 12, backgroundColor: "#FFFFFF" }}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 8px", color: "var(--color-ink)" }}>
-              Publish Results to Parents &amp; Students?
-            </h3>
-            <p style={{ fontSize: 13.5, color: "var(--color-text-secondary)", margin: "0 0 16px", lineHeight: 1.5 }}>
-              You are about to release terminal academic reports for <strong>{releasingClass.classSection.name}</strong>.
-              Once released, all <strong>{releasingClass.studentCount} students</strong> and their registered guardians will immediately gain online access to view and print their certified report cards.
-            </p>
-
-            <div style={{ padding: 12, backgroundColor: "var(--color-warning-bg, #FEF3C7)", borderRadius: 6, fontSize: 12, color: "var(--color-warning-text, #92400E)", marginBottom: 20 }}>
-              <strong>Notice:</strong> Please verify that all subjects have been scored and audited before proceeding.
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setReleasingClass(null)}
-                disabled={releasingActionLoading}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleReleaseResults}
-                disabled={releasingActionLoading}
-                style={{ backgroundColor: "var(--color-brand-teal, #0E7D75)", borderColor: "var(--color-brand-teal, #0E7D75)" }}
-              >
-                {releasingActionLoading ? "Releasing..." : "Confirm & Publish to Parents"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ActionConfirmationModal
+          isOpen={Boolean(releasingClass)}
+          title="Confirm Official Release of Terminal Results"
+          message={`Are you sure you want to release the final audited terminal results for ${releasingClass.classSection.name}?`}
+          confirmText="Confirm & Release Results"
+          confirmVariant="success"
+          isProcessing={releasingActionLoading}
+          onConfirm={handleReleaseResults}
+          onCancel={() => setReleasingClass(null)}
+          details={[
+            { label: "Class Section", value: releasingClass.classSection.name, highlight: true },
+            { label: "Class Arm / Level", value: `${releasingClass.classSection.level}${releasingClass.classSection.stream ? ` · ${releasingClass.classSection.stream}` : ""}` },
+            { label: "Total Students", value: `${releasingClass.studentCount} Students` },
+            { label: "Scoring Audit Status", value: `${releasingClass.scoresCount} / ${releasingClass.totalExpectedScores} scores (${releasingClass.completionPercent}%)`, highlight: true },
+          ]}
+          warningNote="Once officially released, continuous assessment grades and report cards will be visible immediately to all parents and students online and available for printing."
+        />
       )}
 
       {/* ── REQUEST REVISION MODAL ── */}

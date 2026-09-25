@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ActionConfirmationModal from "../components/ActionConfirmationModal";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -325,15 +326,19 @@ export default function ExamsPage() {
     try {
       localStorage.setItem("sms_exam_timetable", JSON.stringify(sessionList));
     } catch {}
-    setSuccess(` Conflict-free exam timetable generated: ${sessionList.length} papers scheduled across ${dates.length} exam days.`);
+    setSuccess(`Examination timetable generated successfully: ${sessionList.length} papers scheduled across ${dates.length} exam days.`);
   }
 
-  function handleDeleteExam(id: string) {
-    const updated = examList.filter((ex) => ex.id !== id);
+  const [deletingExam, setDeletingExam] = useState<ExamSession | null>(null);
+
+  function handleConfirmDeleteExam() {
+    if (!deletingExam) return;
+    const updated = examList.filter((ex) => ex.id !== deletingExam.id);
     setExamList(updated);
     try {
       localStorage.setItem("sms_exam_timetable", JSON.stringify(updated));
     } catch {}
+    setDeletingExam(null);
   }
 
   /* ── Filtered Exam Timetable ─────────────────────────────────────────────── */
@@ -428,7 +433,7 @@ export default function ExamsPage() {
                 onClick={() => window.print()}
                 title="Print Official Examination Docket"
               >
-                Print Exam Docket
+                Print Official Examination Docket (Standard A4 Format)
               </button>
               {isAdmin && (
                 <button
@@ -1069,7 +1074,7 @@ export default function ExamsPage() {
                 onClick={() => window.print()}
                 style={{ padding: "5px 12px", fontSize: 12 }}
               >
-                Print Docket
+                Print Official Examination Docket (Standard A4 Format)
               </button>
             </div>
 
@@ -1146,7 +1151,7 @@ export default function ExamsPage() {
                           <td className="no-print" style={{ textAlign: "right" }}>
                             <button
                               type="button"
-                              onClick={() => handleDeleteExam(ex.id)}
+                              onClick={() => setDeletingExam(ex)}
                               className="btn btn-danger"
                               style={{ padding: "4px 10px", fontSize: 11 }}
                               title="Remove paper from schedule"
@@ -1531,6 +1536,28 @@ export default function ExamsPage() {
           }
         }
       `}</style>
+
+      {/* 2-Step Confirmation: Remove Exam Paper */}
+      {deletingExam && (
+        <ActionConfirmationModal
+          isOpen={Boolean(deletingExam)}
+          title="Confirm Removal of Examination Paper"
+          message="Are you sure you want to permanently remove this examination paper from the active timetable?"
+          confirmText="Remove Paper"
+          confirmVariant="danger"
+          isProcessing={false}
+          onConfirm={handleConfirmDeleteExam}
+          onCancel={() => setDeletingExam(null)}
+          details={[
+            { label: "Subject", value: deletingExam.subject, highlight: true },
+            { label: "Class Level", value: deletingExam.classLevel },
+            { label: "Date & Time", value: `${deletingExam.date} (${deletingExam.time})`, highlight: true },
+            { label: "Venue & Hall", value: deletingExam.hall },
+            { label: "Assigned Invigilator", value: deletingExam.invigilator },
+          ]}
+          warningNote="Removing this examination paper will delete it from the published timetable and candidate dockets."
+        />
+      )}
     </div>
   );
 }

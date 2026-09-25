@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import ActionConfirmationModal from "../../components/ActionConfirmationModal";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 interface ChildData {
@@ -237,13 +238,15 @@ export default function ParentDetailPage({ params }: { params: Promise<{ id: str
     }
   };
 
-  const handleUnlinkStudent = async (studentId: string, studentName: string) => {
-    if (!isAdmin) return;
-    const confirmed = window.confirm(`Are you sure you want to unlink ${studentName} from this parent?`);
-    if (!confirmed) return;
+  const [unlinkingStudent, setUnlinkingStudent] = useState<{ id: string; name: string } | null>(null);
+  const [isUnlinking, setIsUnlinking] = useState(false);
+
+  const handleConfirmUnlink = async () => {
+    if (!isAdmin || !unlinkingStudent) return;
+    setIsUnlinking(true);
 
     try {
-      const res = await fetch(`${API}/api/v1/parents/${parentId}/unlink-student/${studentId}`, {
+      const res = await fetch(`${API}/api/v1/parents/${parentId}/unlink-student/${unlinkingStudent.id}`, {
         method: "DELETE",
         credentials: "include",
       });
@@ -251,10 +254,13 @@ export default function ParentDetailPage({ params }: { params: Promise<{ id: str
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message ?? "Failed to unlink student.");
 
-      setActionSuccess(`Unlinked ${studentName} from parent.`);
+      setActionSuccess(`Unlinked ${unlinkingStudent.name} from parent.`);
+      setUnlinkingStudent(null);
       await fetchParent();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to unlink student.");
+    } finally {
+      setIsUnlinking(false);
     }
   };
 
@@ -577,7 +583,7 @@ export default function ParentDetailPage({ params }: { params: Promise<{ id: str
                         cursor: "pointer",
                         padding: 4,
                       }}
-                      onClick={() => handleUnlinkStudent(c.studentId, `${c.firstName} ${c.lastName}`)}
+                      onClick={() => setUnlinkingStudent({ id: c.studentId, name: `${c.firstName} ${c.lastName}` })}
                     >
                       Unlink
                     </button>
@@ -752,6 +758,25 @@ export default function ParentDetailPage({ params }: { params: Promise<{ id: str
             </form>
           </div>
         </div>
+      )}
+
+      {/* 2-Step Confirmation: Unlink Student */}
+      {unlinkingStudent && (
+        <ActionConfirmationModal
+          isOpen={Boolean(unlinkingStudent)}
+          title="Confirm Unlinking Student from Guardian"
+          message="Are you sure you want to unlink this student from their guardian profile?"
+          confirmText="Unlink Student"
+          confirmVariant="danger"
+          isProcessing={isUnlinking}
+          onConfirm={handleConfirmUnlink}
+          onCancel={() => setUnlinkingStudent(null)}
+          details={[
+            { label: "Student Name", value: unlinkingStudent.name, highlight: true },
+            { label: "Parent / Guardian", value: parent ? `${parent.firstName} ${parent.lastName}` : "Current Guardian" },
+          ]}
+          warningNote="Unlinking will remove this student from the parent's portal view and billing invoices. The student's academic profile and class enrollments will remain completely intact."
+        />
       )}
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import ActionConfirmationModal from "../../components/ActionConfirmationModal";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -142,17 +143,21 @@ export default function FeeStructuresPage() {
     }
   };
 
-  const handleDeactivate = async (id: string, name: string) => {
-    if (!isAdmin) return;
-    if (!window.confirm(`Are you sure you want to deactivate "${name}"?`)) return;
+  const [deactivatingStructure, setDeactivatingStructure] = useState<{ id: string; name: string } | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+
+  const handleConfirmDeactivate = async () => {
+    if (!isAdmin || !deactivatingStructure) return;
+    setIsDeactivating(true);
 
     try {
-      const res = await fetch(`${API}/api/v1/fees/structures/${id}/deactivate`, {
+      const res = await fetch(`${API}/api/v1/fees/structures/${deactivatingStructure.id}/deactivate`, {
         method: "PATCH",
         credentials: "include",
       });
       if (res.ok) {
-        setSuccess(`Deactivated fee structure "${name}".`);
+        setSuccess(`Deactivated fee structure "${deactivatingStructure.name}".`);
+        setDeactivatingStructure(null);
         loadData();
       } else {
         const data = await res.json();
@@ -160,6 +165,8 @@ export default function FeeStructuresPage() {
       }
     } catch {
       setError("Network error while trying to deactivate.");
+    } finally {
+      setIsDeactivating(false);
     }
   };
 
@@ -302,7 +309,7 @@ export default function FeeStructuresPage() {
                     {isAdmin && s.isActive && (
                       <button
                         type="button"
-                        onClick={() => handleDeactivate(s.id, s.name)}
+                        onClick={() => setDeactivatingStructure({ id: s.id, name: s.name })}
                         style={{
                           border: "none",
                           background: "none",
@@ -490,6 +497,24 @@ export default function FeeStructuresPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* 2-Step Confirmation: Deactivate Structure */}
+      {deactivatingStructure && (
+        <ActionConfirmationModal
+          isOpen={Boolean(deactivatingStructure)}
+          title="Confirm Fee Structure Deactivation"
+          message="Are you sure you want to deactivate this fee structure?"
+          confirmText="Deactivate Structure"
+          confirmVariant="danger"
+          isProcessing={isDeactivating}
+          onConfirm={handleConfirmDeactivate}
+          onCancel={() => setDeactivatingStructure(null)}
+          details={[
+            { label: "Fee Structure", value: deactivatingStructure.name, highlight: true },
+          ]}
+          warningNote="Deactivating this structure disables it from future billing invoices. Existing generated invoices and transaction records will remain intact."
+        />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import ActionConfirmationModal from "../../components/ActionConfirmationModal";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 interface Teacher {
@@ -96,6 +97,10 @@ export default function DutyRosterPage() {
   const [selectedSubTeacherId, setSelectedSubTeacherId] = useState<string>("");
   const [submittingSub, setSubmittingSub] = useState(false);
   const [substitutionsList, setSubstitutionsList] = useState<any[]>([]);
+
+  // 2-Step Confirmation States
+  const [confirmGenModal, setConfirmGenModal] = useState(false);
+  const [confirmSubCandidate, setConfirmSubCandidate] = useState<SubstituteCandidate | null>(null);
 
   const fetchMatrix = async () => {
     try {
@@ -280,7 +285,7 @@ export default function DutyRosterPage() {
             className="btn btn-secondary"
             style={{ fontWeight: 700, fontSize: 12, padding: "8px 14px" }}
           >
-            Print Notice Board Rota
+            Print Master Duty Roster (Standard A4 Landscape)
           </button>
 
           {isAdmin && (
@@ -758,12 +763,12 @@ export default function DutyRosterPage() {
                 Cancel
               </button>
               <button
-                onClick={handleGenerate}
+                onClick={() => setConfirmGenModal(true)}
                 className="btn btn-primary"
                 disabled={isGenerating}
                 style={{ fontSize: 12, fontWeight: 700 }}
               >
-                {isGenerating ? "Generating Rota..." : "Generate Roster"}
+                Proceed to Confirm
               </button>
             </div>
           </div>
@@ -933,16 +938,79 @@ export default function DutyRosterPage() {
                 Close
               </button>
               <button
-                onClick={handleConfirmSubstitution}
+                onClick={() => {
+                  const cand = candidates.find((c) => c.id === selectedSubTeacherId);
+                  if (cand) setConfirmSubCandidate(cand);
+                }}
                 disabled={submittingSub || !selectedSubTeacherId}
                 className="btn btn-primary"
                 style={{ fontSize: 12, fontWeight: 700 }}
               >
-                {submittingSub ? "Assigning..." : "Confirm Relief Coverage"}
+                Proceed to Assign Relief
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* 2-Step Confirmation: Auto-Generate Roster */}
+      {confirmGenModal && (
+        <ActionConfirmationModal
+          isOpen={confirmGenModal}
+          title="Confirm Faculty Roster Generation"
+          message="Are you sure you want to generate a new term supervisory duty roster?"
+          confirmText="Confirm & Generate Roster"
+          confirmVariant="primary"
+          isProcessing={isGenerating}
+          onConfirm={async () => {
+            setConfirmGenModal(false);
+            await handleGenerate();
+          }}
+          onCancel={() => setConfirmGenModal(false)}
+          details={[
+            { label: "Academic Session", value: "2025/2026" },
+            { label: "Term Duration", value: `${weeksCount} Academic Weeks`, highlight: true },
+            { label: "Rotational Categories", value: "6 Institutional Supervisory Posts" },
+          ]}
+          warningNote="Generating a new rota will recalculate rotational assignments for all teaching faculty across the selected weeks."
+        />
+      )}
+
+      {/* 2-Step Confirmation: Assign Relief Teacher */}
+      {confirmSubCandidate && (
+        <ActionConfirmationModal
+          isOpen={Boolean(confirmSubCandidate)}
+          title="Confirm Relief Teacher Assignment"
+          message="Are you sure you want to assign this relief teacher to cover the scheduled class?"
+          confirmText="Confirm Relief Assignment"
+          confirmVariant="primary"
+          isProcessing={submittingSub}
+          onConfirm={async () => {
+            await handleConfirmSubstitution();
+            setConfirmSubCandidate(null);
+          }}
+          onCancel={() => setConfirmSubCandidate(null)}
+          details={[
+            { label: "Relief Teacher", value: `${confirmSubCandidate.firstName} ${confirmSubCandidate.lastName}`, highlight: true },
+            {
+              label: "Class & Subject",
+              value: (() => {
+                const l = timetableLessons.find((item) => item.id === selectedLessonId);
+                return l ? `${l.classSection.name} (${l.subject.name || l.subject.code})` : "Selected Lesson";
+              })(),
+            },
+            {
+              label: "Scheduled Period",
+              value: (() => {
+                const l = timetableLessons.find((item) => item.id === selectedLessonId);
+                return l ? `${l.day} Period ${l.periodNumber}` : "Selected Period";
+              })(),
+            },
+            { label: "Coverage Date", value: subDate, highlight: true },
+            { label: "Reason for Relief", value: subReason },
+          ]}
+          warningNote="This relief substitution will immediately be logged into the duty ledger and the relief teacher will be scheduled for class coverage."
+        />
       )}
     </div>
   );

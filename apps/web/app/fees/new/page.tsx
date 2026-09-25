@@ -685,7 +685,7 @@ export default function NewInvoicePage() {
                             }}
                             title="Remove item"
                           >
-                            ✕
+                            &times;
                           </button>
                         </td>
                       </tr>

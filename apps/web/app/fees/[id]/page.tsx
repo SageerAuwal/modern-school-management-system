@@ -6,6 +6,8 @@ import Link from "next/link";
 import PosReceiptSlip from "../../components/PosReceiptSlip";
 import OfficialBursaryInvoiceModal from "../../components/OfficialBursaryInvoiceModal";
 import OnlinePaymentModal from "../../components/OnlinePaymentModal";
+import ActionConfirmationModal from "../../components/ActionConfirmationModal";
+import RejectPaymentModal from "../../components/RejectPaymentModal";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 interface Payment {
@@ -169,7 +171,9 @@ function InvoiceDetailContent() {
   const searchParams = useSearchParams();
   const idParam = params?.id;
   const invoiceId = Array.isArray(idParam) ? idParam[0] : idParam;
-  const { isAdmin } = useCurrentUser();
+  const { role, isAdmin } = useCurrentUser();
+  const isBursar = role === "BURSAR";
+  const canManage = isAdmin || isBursar;
 
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -183,9 +187,19 @@ function InvoiceDetailContent() {
   const [cashMethod, setCashMethod] = useState<"CASH" | "BANK_DEPOSIT">("CASH");
   const [cashNotes, setCashNotes] = useState("");
   const [savingCash, setSavingCash] = useState(false);
-  const [submittingPaystack, setSubmittingPaystack] = useState(false);
   const [payError, setPayError] = useState("");
   const [isOnlineModalOpen, setIsOnlineModalOpen] = useState(false);
+
+  // 2-Step Confirmation States
+  const [confirmTargetPayment, setConfirmTargetPayment] = useState<Payment | null>(null);
+  const [rejectTargetPayment, setRejectTargetPayment] = useState<Payment | null>(null);
+  const [confirmCashPayment, setConfirmCashPayment] = useState<{ amount: number; method: string; notes?: string } | null>(null);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [isWaiveModalOpen, setIsWaiveModalOpen] = useState(false);
+  const [waiveReason, setWaiveReason] = useState("");
+  const [submittingWaive, setSubmittingWaive] = useState(false);
+  const [verifyingPaymentId, setVerifyingPaymentId] = useState<string | null>(null);
 
   const loadInvoice = useCallback(async () => {
     if (!invoiceId) return;
@@ -228,7 +242,7 @@ function InvoiceDetailContent() {
     : "";
 
   const openCashModal = () => {
-    if (!isAdmin) return;
+    if (!canManage) return;
     setPayError("");
     setCashAmount(balance > 0 ? String(balance) : "");
     setCashMethod("CASH");
@@ -236,9 +250,9 @@ function InvoiceDetailContent() {
     setIsCashModalOpen(true);
   };
 
-  const handleRecordCashPayment = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!isAdmin) return;
+  const handleCashFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canManage) return;
     const numericAmount = parseFloat(cashAmount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
       setPayError("Enter a valid payment amount greater than zero.");
@@ -249,6 +263,16 @@ function InvoiceDetailContent() {
       return;
     }
 
+    setIsCashModalOpen(false);
+    setConfirmCashPayment({
+      amount: numericAmount,
+      method: cashMethod,
+      notes: cashNotes.trim() || undefined,
+    });
+  };
+
+  const handleConfirmCashExecution = async () => {
+    if (!confirmCashPayment || !canManage) return;
     setSavingCash(true);
     setPayError("");
 
@@ -257,11 +281,7 @@ function InvoiceDetailContent() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: numericAmount,
-          method: cashMethod,
-          notes: cashNotes.trim() || undefined,
-        }),
+        body: JSON.stringify(confirmCashPayment),
       });
 
       const data = await res.json();
@@ -270,7 +290,7 @@ function InvoiceDetailContent() {
         return;
       }
 
-      setIsCashModalOpen(false);
+      setConfirmCashPayment(null);
       setCashAmount("");
       setCashNotes("");
       await loadInvoice();
@@ -282,41 +302,9 @@ function InvoiceDetailContent() {
     }
   };
 
-  const handlePaystack = async () => {
-    if (!invoiceId) return;
-    setSubmittingPaystack(true);
-    setPayError("");
-
-    try {
-      const callbackUrl = `${window.location.origin}/fees/${invoiceId}?paid=1`;
-      const res = await fetch(`${API}/api/v1/fees/invoices/${invoiceId}/pay/paystack`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ callbackUrl }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setPayError(data.message ?? "Could not initiate Paystack payment.");
-        return;
-      }
-
-      if (data.authorizationUrl) {
-        window.location.href = data.authorizationUrl;
-      } else {
-        setPayError("Paystack payment link not received.");
-      }
-    } catch {
-      setPayError("Network error. Please try again.");
-    } finally {
-      setSubmittingPaystack(false);
-    }
-  };
-
-  const [verifyingPaymentId, setVerifyingPaymentId] = useState<string | null>(null);
-
-  const handleConfirmPayment = async (paymentId: string) => {
+  const handleConfirmPaymentExecution = async () => {
+    if (!confirmTargetPayment) return;
+    const paymentId = confirmTargetPayment.id;
     setVerifyingPaymentId(paymentId);
     setPayError("");
     try {
@@ -329,6 +317,7 @@ function InvoiceDetailContent() {
         setPayError(data.message || "Failed to confirm payment");
         return;
       }
+      setConfirmTargetPayment(null);
       await loadInvoice();
     } catch {
       setPayError("Network error while confirming payment");
@@ -337,9 +326,9 @@ function InvoiceDetailContent() {
     }
   };
 
-  const handleRejectPayment = async (paymentId: string) => {
-    const reason = window.prompt("Enter reason for rejecting this payment submission (e.g. Unverified bank teller):");
-    if (reason === null) return;
+  const handleRejectPaymentExecution = async (reason: string) => {
+    if (!rejectTargetPayment) return;
+    const paymentId = rejectTargetPayment.id;
     setVerifyingPaymentId(paymentId);
     setPayError("");
     try {
@@ -354,11 +343,61 @@ function InvoiceDetailContent() {
         setPayError(data.message || "Failed to reject payment");
         return;
       }
+      setRejectTargetPayment(null);
       await loadInvoice();
     } catch {
       setPayError("Network error while rejecting payment");
     } finally {
       setVerifyingPaymentId(null);
+    }
+  };
+
+  const handleCancelInvoiceExecution = async () => {
+    if (!canManage || !invoiceId) return;
+    setSubmittingCancel(true);
+    setPayError("");
+    try {
+      const res = await fetch(`${API}/api/v1/fees/invoices/${invoiceId}/cancel`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPayError(data.message || "Failed to cancel invoice");
+        return;
+      }
+      setIsCancelModalOpen(false);
+      await loadInvoice();
+    } catch {
+      setPayError("Network error while cancelling invoice");
+    } finally {
+      setSubmittingCancel(false);
+    }
+  };
+
+  const handleWaiveInvoiceExecution = async () => {
+    if (!isAdmin || !invoiceId) return;
+    setSubmittingWaive(true);
+    setPayError("");
+    try {
+      const res = await fetch(`${API}/api/v1/fees/invoices/${invoiceId}/waive`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: waiveReason.trim() || "Administrative Board Fee Waiver" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPayError(data.message || "Failed to waive fee");
+        return;
+      }
+      setIsWaiveModalOpen(false);
+      setWaiveReason("");
+      await loadInvoice();
+    } catch {
+      setPayError("Network error while waiving fee");
+    } finally {
+      setSubmittingWaive(false);
     }
   };
 
@@ -507,7 +546,7 @@ function InvoiceDetailContent() {
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
               <rect x="6" y="14" width="12" height="8" />
             </svg>
-            Print Official A4 Clearance
+            Print Official Clearance Certificate (Standard A4 Format)
           </button>
 
           <button
@@ -531,7 +570,7 @@ function InvoiceDetailContent() {
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
               <rect x="6" y="14" width="12" height="8" />
             </svg>
-            Print POS Slip
+            Print Treasury Receipt Slip (Standard POS Format)
           </button>
 
           {isNotPaid && (
@@ -542,26 +581,37 @@ function InvoiceDetailContent() {
                 onClick={() => setIsOnlineModalOpen(true)}
                 style={{ backgroundColor: "var(--color-brand-teal, #0E7D75)", fontWeight: 700 }}
               >
-                Pay Online (Card / Transfer)
+                Submit Payment (Manual Transfer / Paystack)
               </button>
 
-              {isAdmin && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={openCashModal}
-                >
-                  Record cash payment
-                </button>
+              {canManage && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={openCashModal}
+                  >
+                    Record counter payment
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setIsCancelModalOpen(true)}
+                    style={{ color: "var(--color-danger-text)" }}
+                  >
+                    Cancel Invoice
+                  </button>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setIsWaiveModalOpen(true)}
+                    >
+                      Waive Fee
+                    </button>
+                  )}
+                </>
               )}
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handlePaystack}
-                disabled={submittingPaystack}
-              >
-                {submittingPaystack ? "Connecting..." : "Pay via Paystack"}
-              </button>
             </>
           )}
         </div>
@@ -718,7 +768,7 @@ function InvoiceDetailContent() {
                   <th>Method</th>
                   <th>Reference</th>
                   <th>Status</th>
-                  {isAdmin && <th>Bursary Verification</th>}
+                  {canManage && <th>Bursary Verification</th>}
                 </tr>
               </thead>
               <tbody>
@@ -762,7 +812,7 @@ function InvoiceDetailContent() {
                           </span>
                         )}
                       </td>
-                      {isAdmin && (
+                      {canManage && (
                         <td>
                           {isPending ? (
                             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -771,7 +821,7 @@ function InvoiceDetailContent() {
                                 className="btn btn-primary"
                                 style={{ padding: "4px 10px", fontSize: 11, backgroundColor: "#059669", color: "#ffffff" }}
                                 disabled={verifyingPaymentId === payment.id}
-                                onClick={() => handleConfirmPayment(payment.id)}
+                                onClick={() => setConfirmTargetPayment(payment)}
                               >
                                 {verifyingPaymentId === payment.id ? "Confirming..." : "Confirm & Clear"}
                               </button>
@@ -780,7 +830,7 @@ function InvoiceDetailContent() {
                                 className="btn btn-secondary"
                                 style={{ padding: "4px 10px", fontSize: 11, color: "var(--color-danger-text)" }}
                                 disabled={verifyingPaymentId === payment.id}
-                                onClick={() => handleRejectPayment(payment.id)}
+                                onClick={() => setRejectTargetPayment(payment)}
                               >
                                 Reject
                               </button>
@@ -816,32 +866,32 @@ function InvoiceDetailContent() {
                 aria-hidden="true"
               >
                 <rect x="2" y="5" width="20" height="14" rx="2" />
-                <line x1="2" y1="10" x2="22" y2="10" />
+                <line x1="10" y1="10" x2="22" y2="10" />
               </svg>
             </div>
             <h3 className="empty-state-title">No payments recorded yet</h3>
             <p className="empty-state-text">
-              Record a cash payment or initiate an online transaction to clear this invoice balance.
+              Record a counter payment or submit a bank transfer to clear this invoice balance.
             </p>
             {isNotPaid && (
               <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
-                {isAdmin && (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={openCashModal}
-                  >
-                    Record cash payment
-                  </button>
-                )}
                 <button
                   type="button"
-                  className="btn btn-secondary"
-                  onClick={handlePaystack}
-                  disabled={submittingPaystack}
+                  className="btn btn-primary"
+                  onClick={() => setIsOnlineModalOpen(true)}
+                  style={{ backgroundColor: "var(--color-brand-teal, #0E7D75)" }}
                 >
-                  {submittingPaystack ? "Connecting..." : "Pay via Paystack"}
+                  Submit Payment (Bank Transfer / Paystack)
                 </button>
+                {canManage && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={openCashModal}
+                  >
+                    Record counter payment
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -859,28 +909,28 @@ function InvoiceDetailContent() {
             paddingTop: 4,
           }}
         >
-          {isAdmin && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={openCashModal}
-            >
-              Record cash payment
-            </button>
-          )}
           <button
             type="button"
-            className="btn btn-secondary"
-            onClick={handlePaystack}
-            disabled={submittingPaystack}
+            className="btn btn-primary"
+            onClick={() => setIsOnlineModalOpen(true)}
+            style={{ backgroundColor: "var(--color-brand-teal, #0E7D75)" }}
           >
-            {submittingPaystack ? "Connecting..." : "Pay via Paystack"}
+            Submit Payment (Bank Transfer / Paystack)
           </button>
+          {canManage && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={openCashModal}
+            >
+              Record counter payment
+            </button>
+          )}
         </div>
       )}
 
       {/* Cash Payment Dialog */}
-      {isCashModalOpen && isAdmin && (
+      {isCashModalOpen && canManage && (
         <div
           style={{
             position: "fixed",
@@ -926,7 +976,7 @@ function InvoiceDetailContent() {
                     margin: 0,
                   }}
                 >
-                  Record cash payment
+                  Record counter payment
                 </h3>
                 <p
                   style={{
@@ -988,7 +1038,7 @@ function InvoiceDetailContent() {
               </div>
             )}
 
-            <form onSubmit={handleRecordCashPayment}>
+            <form onSubmit={handleCashFormSubmit}>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
                   <label className="label" htmlFor="cash-amount">
@@ -1063,7 +1113,7 @@ function InvoiceDetailContent() {
                     className="btn btn-primary"
                     disabled={savingCash}
                   >
-                    {savingCash ? "Recording payment..." : "Record payment"}
+                    Proceed to Confirm
                   </button>
                 </div>
               </div>
@@ -1105,6 +1155,150 @@ function InvoiceDetailContent() {
             loadInvoice();
           }}
         />
+      )}
+
+      {/* 2-Step Confirmation: Confirm Pending Payment */}
+      {confirmTargetPayment && (
+        <ActionConfirmationModal
+          isOpen={Boolean(confirmTargetPayment)}
+          title="Confirm & Clear Payment Submission"
+          message="Verify the bank transfer details below against the school bank statement before confirming this payment."
+          confirmText="Confirm & Clear Funds"
+          confirmVariant="success"
+          isProcessing={verifyingPaymentId === confirmTargetPayment.id}
+          onConfirm={handleConfirmPaymentExecution}
+          onCancel={() => setConfirmTargetPayment(null)}
+          details={[
+            { label: "Invoice ID", value: `#${shortId}` },
+            { label: "Student Name", value: studentName },
+            { label: "Payment Reference", value: confirmTargetPayment.reference, highlight: true },
+            { label: "Payment Method", value: confirmTargetPayment.method },
+            { label: "Amount to Clear", value: formatNaira(confirmTargetPayment.amount), highlight: true },
+          ]}
+          warningNote="Confirming will officially clear these funds into the school treasury, credit the student invoice balance, and authorize official A4 clearance printing."
+        />
+      )}
+
+      {/* Rejection Modal for Pending Payment */}
+      {rejectTargetPayment && (
+        <RejectPaymentModal
+          isOpen={Boolean(rejectTargetPayment)}
+          onClose={() => setRejectTargetPayment(null)}
+          onConfirm={handleRejectPaymentExecution}
+          isProcessing={verifyingPaymentId === rejectTargetPayment.id}
+          paymentDetails={{
+            studentName,
+            amount: rejectTargetPayment.amount,
+            reference: rejectTargetPayment.reference,
+            method: rejectTargetPayment.method,
+          }}
+        />
+      )}
+
+      {/* 2-Step Confirmation: Counter Payment */}
+      {confirmCashPayment && (
+        <ActionConfirmationModal
+          isOpen={Boolean(confirmCashPayment)}
+          title="Confirm Counter Payment Posting"
+          message="Verify the counter collection receipt details below before posting."
+          confirmText="Confirm & Post Payment"
+          confirmVariant="primary"
+          isProcessing={savingCash}
+          onConfirm={handleConfirmCashExecution}
+          onCancel={() => setConfirmCashPayment(null)}
+          details={[
+            { label: "Student Name", value: studentName },
+            { label: "Invoice ID", value: `#${shortId}` },
+            { label: "Payment Method", value: confirmCashPayment.method },
+            { label: "Amount Received", value: formatNaira(confirmCashPayment.amount), highlight: true },
+            { label: "Remarks / Reference", value: confirmCashPayment.notes || "Direct counter payment" },
+          ]}
+          warningNote="This transaction will immediately credit the invoice balance and update the active cashier drawer audit trail."
+        />
+      )}
+
+      {/* 2-Step Confirmation: Invoice Cancellation */}
+      {isCancelModalOpen && (
+        <ActionConfirmationModal
+          isOpen={isCancelModalOpen}
+          title="Confirm Invoice Cancellation"
+          message="Are you sure you want to cancel this student fee invoice?"
+          confirmText="Confirm & Cancel Invoice"
+          confirmVariant="danger"
+          isProcessing={submittingCancel}
+          onConfirm={handleCancelInvoiceExecution}
+          onCancel={() => setIsCancelModalOpen(false)}
+          details={[
+            { label: "Invoice ID", value: `#${shortId}` },
+            { label: "Student Name", value: studentName },
+            { label: "Outstanding Balance", value: formatNaira(balance), highlight: true },
+          ]}
+          warningNote="Cancelling this invoice will permanently mark it as CANCELLED in the billing records and prevent any further payments against it."
+        />
+      )}
+
+      {/* Fee Waiver Modal with 2-Step Confirmation */}
+      {isWaiveModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 50,
+            padding: 16,
+          }}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="card"
+            style={{ width: "100%", maxWidth: 440, backgroundColor: "var(--color-surface)" }}
+          >
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 8px", color: "var(--color-ink)" }}>
+              Waive Student Fee Balance
+            </h3>
+            <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: "0 0 14px" }}>
+              Provide the official administrative board resolution or reason for waiving this fee invoice.
+            </p>
+            <div style={{ marginBottom: 14 }}>
+              <label className="label" htmlFor="waive-reason">
+                Official Waiver Justification
+              </label>
+              <textarea
+                id="waive-reason"
+                rows={3}
+                className="input"
+                style={{ width: "100%", resize: "vertical" }}
+                value={waiveReason}
+                onChange={(e) => setWaiveReason(e.target.value)}
+                placeholder="e.g. Full Academic Scholarship Award / Executive Council Discretion"
+                required
+              />
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsWaiveModalOpen(false)}
+                disabled={submittingWaive}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ backgroundColor: "#D97706", borderColor: "#D97706" }}
+                disabled={submittingWaive || !waiveReason.trim()}
+                onClick={handleWaiveInvoiceExecution}
+              >
+                {submittingWaive ? "Processing..." : "Confirm Fee Waiver"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
