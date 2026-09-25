@@ -1056,7 +1056,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "var(--color-surface-subtle)")}
                           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
                         >
-                          Print Current Document (Standard Format)
+                          Print Current Document
                         </button>
                       </div>
                     </div>

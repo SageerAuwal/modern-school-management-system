@@ -1117,10 +1117,10 @@ export default function TimetablePage() {
                 title="Print official academic timetable"
               >
                 {activeView === "master"
-                  ? "Print Master Schedule (Standard A4 Landscape)"
+                  ? "Print Master Schedule"
                   : activeView === "teacher"
-                  ? "Print Teacher Workload Roster (Standard A4 Format)"
-                  : `Print ${selectedClass?.name || "Class"} Schedule (Standard A4 Format)`}
+                  ? "Print Teacher Workload Roster"
+                  : `Print ${selectedClass?.name || "Class"} Schedule`}
               </button>
             </div>
           </div>
@@ -1165,10 +1165,10 @@ export default function TimetablePage() {
               >
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                    General Master Academic Routine (Single A4 Sheet)
+                    General Master Academic Routine
                   </div>
                   <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
-                    All {classes.length} classes and assigned subjects across Monday–Friday are formatted to fit standard A4 landscape paper on a single consolidated sheet.
+                    All {classes.length} classes and assigned subjects across Monday–Friday formatted on a single consolidated sheet.
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1186,7 +1186,7 @@ export default function TimetablePage() {
                     onClick={() => window.print()}
                     style={{ fontSize: 12, padding: "6px 16px", fontWeight: 700, backgroundColor: "var(--color-brand-teal, #0E7D75)" }}
                   >
-                    Print Master Schedule (Standard A4 Landscape)
+                    Print Master Schedule
                   </button>
                 </div>
               </div>

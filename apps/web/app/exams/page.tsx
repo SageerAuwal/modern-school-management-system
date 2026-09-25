@@ -433,7 +433,7 @@ export default function ExamsPage() {
                 onClick={() => window.print()}
                 title="Print Official Examination Docket"
               >
-                Print Official Examination Docket (Standard A4 Format)
+                Print Official Examination Docket
               </button>
               {isAdmin && (
                 <button
@@ -1074,7 +1074,7 @@ export default function ExamsPage() {
                 onClick={() => window.print()}
                 style={{ padding: "5px 12px", fontSize: 12 }}
               >
-                Print Official Examination Docket (Standard A4 Format)
+                Print Official Examination Docket
               </button>
             </div>
 

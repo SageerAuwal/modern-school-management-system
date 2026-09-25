@@ -227,7 +227,7 @@ export default function OnlinePaymentModal({
           {/* Modal Body */}
           <div style={{ padding: "20px 24px", overflowY: "auto" }}>
             {receipt ? (
-              /* Official Payment Submission Acknowledgement Slip (Standard A4 Format) */
+              /* Official Payment Submission Acknowledgement Slip */
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {/* Official Letterhead */}
                 <div style={{ textAlign: "center", borderBottom: "2px solid #0B2545", paddingBottom: 12 }}>
@@ -264,7 +264,7 @@ export default function OnlinePaymentModal({
                       letterSpacing: "0.04em",
                     }}
                   >
-                    Payment Submission Acknowledgement Slip (Standard A4 Format)
+                    Payment Submission Acknowledgement Slip
                   </div>
                 </div>
 
@@ -357,7 +357,7 @@ export default function OnlinePaymentModal({
                     style={{ flex: 1, padding: "10px 14px", fontWeight: 700 }}
                     onClick={() => window.print()}
                   >
-                    Print Submission Slip (Standard A4 Format)
+                    Print Submission Slip
                   </button>
                   <button
                     type="button"
