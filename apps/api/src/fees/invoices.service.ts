@@ -353,9 +353,18 @@ export class InvoicesService {
 
     const reference = `TXN-ONL-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
     const paymentMethod = dto.method === 'BANK_DEPOSIT' ? PaymentMethod.BANK_DEPOSIT : PaymentMethod.PAYSTACK;
-    const isAdmin = actor?.role === 'ADMIN';
+    const isPrivileged = actor?.role === 'ADMIN' || actor?.role === 'BURSAR';
 
-    if (isAdmin) {
+    if (!isPrivileged) {
+      const existingPending = inv.payments?.find((p: any) => p.status === PaymentStatus.PENDING);
+      if (existingPending) {
+        throw new BadRequestException(
+          `A payment submission of ₦${Number(existingPending.amount).toLocaleString('en-NG')} (Ref: ${existingPending.reference}) is already awaiting verification by the School Bursar. To avoid duplicate charges, please allow the bursary to verify it before submitting another payment.`
+        );
+      }
+    }
+
+    if (isPrivileged) {
       // Direct Admin / Bursar Confirmation
       const newPaid = inv.paidAmount + paymentAmount;
       const newStatus = resolveStatus(inv.totalAmount, newPaid);

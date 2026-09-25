@@ -84,21 +84,21 @@ export class InvoicesController {
 
   /** GET /api/v1/fees/invoices/outstanding — unpaid + partial balances */
   @Get('outstanding')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.BURSAR)
   outstanding(@Query('academicYear') year: string, @CurrentUser() actor: { schoolId: string }) {
     return this.invoicesService.getOutstandingReport(actor.schoolId, year);
   }
 
   /** GET /api/v1/fees/invoices/payments/pending — list pending payments awaiting bursary confirmation */
   @Get('payments/pending')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.BURSAR)
   getPendingPayments(@CurrentUser() actor: { schoolId: string }) {
     return this.invoicesService.getPendingPayments(actor.schoolId);
   }
 
   /** POST /api/v1/fees/invoices/payments/:paymentId/confirm — bursar confirms payment */
   @Post('payments/:paymentId/confirm')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.BURSAR)
   confirmPayment(
     @Param('paymentId') paymentId: string,
     @CurrentUser() actor: { id: string; email: string; schoolId: string },
@@ -108,7 +108,7 @@ export class InvoicesController {
 
   /** POST /api/v1/fees/invoices/payments/:paymentId/reject — bursar rejects payment */
   @Post('payments/:paymentId/reject')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.BURSAR)
   rejectPayment(
     @Param('paymentId') paymentId: string,
     @Body('reason') reason: string,
@@ -119,14 +119,14 @@ export class InvoicesController {
 
   /** GET /api/v1/fees/invoices/:id — invoice detail with payments */
   @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.PARENT, UserRole.STUDENT)
+  @Roles(UserRole.ADMIN, UserRole.BURSAR, UserRole.PARENT, UserRole.STUDENT)
   findOne(@Param('id') id: string, @CurrentUser() actor: { id: string; schoolId: string; role?: string; email?: string; firstName?: string; lastName?: string }) {
     return this.invoicesService.findOne(id, actor.schoolId, actor);
   }
 
   /** PATCH /api/v1/fees/invoices/:id/cancel */
   @Patch(':id/cancel')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.BURSAR)
   cancel(@Param('id') id: string, @CurrentUser() actor: { id: string; email: string; schoolId: string }) {
     return this.invoicesService.cancel(id, actor.schoolId, actor.id, actor.email);
   }
@@ -140,7 +140,7 @@ export class InvoicesController {
 
   /** POST /api/v1/fees/invoices/:id/pay/cash — bursar records cash/bank payment */
   @Post(':id/pay/cash')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.BURSAR)
   recordCash(@Param('id') id: string, @Body() dto: RecordCashPaymentDto, @CurrentUser() actor: { id: string; email: string; schoolId: string }) {
     return this.invoicesService.recordCashPayment(id, dto, actor.schoolId, actor.id, actor.email);
   }

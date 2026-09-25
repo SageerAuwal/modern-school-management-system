@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PosReceiptSlip from "../components/PosReceiptSlip";
+import ActionConfirmationModal from "../components/ActionConfirmationModal";
+import RejectPaymentModal from "../components/RejectPaymentModal";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface PendingPaymentItem {
@@ -104,11 +106,14 @@ function getFeeType(invoice: Invoice): string {
 
 export default function FeesPage() {
   const router = useRouter();
-  const { isAdmin, isParent } = useCurrentUser();
+  const { isAdmin, isBursar, isParent } = useCurrentUser();
+  const canManageFees = isAdmin || isBursar;
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [pendingPayments, setPendingPayments] = useState<PendingPaymentItem[]>([]);
   const [showPendingModal, setShowPendingModal] = useState(false);
-  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [confirmTargetPayment, setConfirmTargetPayment] = useState<PendingPaymentItem | null>(null);
+  const [rejectTargetPayment, setRejectTargetPayment] = useState<PendingPaymentItem | null>(null);
+  const [actionProcessing, setActionProcessing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedReceiptInvoice, setSelectedReceiptInvoice] = useState<Invoice | null>(null);
@@ -126,7 +131,7 @@ export default function FeesPage() {
         setError(err.message || "Failed to load invoices");
       }
 
-      if (isAdmin) {
+      if (canManageFees) {
         const resPend = await fetch(`${API}/api/v1/fees/invoices/payments/pending`, { credentials: "include" });
         if (resPend.ok) {
           const pendData = await resPend.json();
@@ -138,20 +143,22 @@ export default function FeesPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [canManageFees]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const handleConfirmPendingPayment = async (paymentId: string) => {
-    setVerifyingId(paymentId);
+  const executeConfirmPayment = async () => {
+    if (!confirmTargetPayment) return;
+    setActionProcessing(true);
     try {
-      const res = await fetch(`${API}/api/v1/fees/invoices/payments/${paymentId}/confirm`, {
+      const res = await fetch(`${API}/api/v1/fees/invoices/payments/${confirmTargetPayment.id}/confirm`, {
         method: "POST",
         credentials: "include",
       });
       if (res.ok) {
+        setConfirmTargetPayment(null);
         await loadData();
       } else {
         const err = await res.json();
@@ -160,22 +167,22 @@ export default function FeesPage() {
     } catch {
       alert("Network error while confirming payment");
     } finally {
-      setVerifyingId(null);
+      setActionProcessing(false);
     }
   };
 
-  const handleRejectPendingPayment = async (paymentId: string) => {
-    const reason = window.prompt("Enter reason for rejecting this payment submission (e.g. Unverified bank teller):");
-    if (reason === null) return;
-    setVerifyingId(paymentId);
+  const executeRejectPayment = async (reason: string) => {
+    if (!rejectTargetPayment) return;
+    setActionProcessing(true);
     try {
-      const res = await fetch(`${API}/api/v1/fees/invoices/payments/${paymentId}/reject`, {
+      const res = await fetch(`${API}/api/v1/fees/invoices/payments/${rejectTargetPayment.id}/reject`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason: reason.trim() || "Unverified by Bursary" }),
+        body: JSON.stringify({ reason }),
       });
       if (res.ok) {
+        setRejectTargetPayment(null);
         await loadData();
       } else {
         const err = await res.json();
@@ -184,7 +191,7 @@ export default function FeesPage() {
     } catch {
       alert("Network error while rejecting payment");
     } finally {
-      setVerifyingId(null);
+      setActionProcessing(false);
     }
   };
 
@@ -273,7 +280,7 @@ export default function FeesPage() {
       </div>
 
       {/* Bursary Verification Queue Banner (Admin/Bursar only) */}
-      {isAdmin && pendingPayments.length > 0 && (
+      {canManageFees && pendingPayments.length > 0 && (
         <div
           style={{
             marginBottom: 20,
@@ -649,17 +656,15 @@ export default function FeesPage() {
                               type="button"
                               className="btn btn-primary"
                               style={{ padding: "4px 10px", fontSize: 11, backgroundColor: "#059669", color: "#ffffff" }}
-                              disabled={verifyingId === p.id}
-                              onClick={() => handleConfirmPendingPayment(p.id)}
+                              onClick={() => setConfirmTargetPayment(p)}
                             >
-                              {verifyingId === p.id ? "Clearing..." : "Confirm & Clear"}
+                              Confirm &amp; Clear
                             </button>
                             <button
                               type="button"
                               className="btn btn-secondary"
                               style={{ padding: "4px 10px", fontSize: 11, color: "var(--color-danger-text)" }}
-                              disabled={verifyingId === p.id}
-                              onClick={() => handleRejectPendingPayment(p.id)}
+                              onClick={() => setRejectTargetPayment(p)}
                             >
                               Reject
                             </button>
@@ -682,6 +687,74 @@ export default function FeesPage() {
           onClose={() => setSelectedReceiptInvoice(null)}
         />
       )}
+
+      {/* Action Confirmation Modal for Payment Acceptance */}
+      <ActionConfirmationModal
+        isOpen={Boolean(confirmTargetPayment)}
+        title="Confirm & Verify Payment Submission"
+        message="You are about to verify this payment submission and officially credit the student's fee invoice."
+        warningNote="This action verifies the credit against school accounts, generates an official receipt, and updates the student ledger. This action is permanently audited."
+        confirmVariant="success"
+        confirmText="Verify &amp; Credit Account"
+        cancelText="Cancel"
+        isProcessing={actionProcessing}
+        onCancel={() => setConfirmTargetPayment(null)}
+        onConfirm={executeConfirmPayment}
+        details={
+          confirmTargetPayment
+            ? [
+                {
+                  label: "Student",
+                  value: confirmTargetPayment.invoice.student
+                    ? `${confirmTargetPayment.invoice.student.firstName} ${confirmTargetPayment.invoice.student.lastName}`
+                    : "Student",
+                },
+                {
+                  label: "Admission No",
+                  value: confirmTargetPayment.invoice.student?.admissionNumber || "—",
+                },
+                {
+                  label: "Payment Amount",
+                  value: formatNaira(confirmTargetPayment.amount),
+                  highlight: true,
+                },
+                {
+                  label: "Channel / Method",
+                  value: confirmTargetPayment.method?.replace(/_/g, " ") || "Online",
+                },
+                {
+                  label: "Submission Reference",
+                  value: confirmTargetPayment.reference,
+                },
+                {
+                  label: "Term",
+                  value: confirmTargetPayment.invoice.term?.name || "Term",
+                },
+              ]
+            : []
+        }
+      />
+
+      {/* Reject Payment Reason Modal */}
+      <RejectPaymentModal
+        isOpen={Boolean(rejectTargetPayment)}
+        onClose={() => setRejectTargetPayment(null)}
+        onConfirm={executeRejectPayment}
+        isProcessing={actionProcessing}
+        paymentDetails={
+          rejectTargetPayment
+            ? {
+                studentName: rejectTargetPayment.invoice.student
+                  ? `${rejectTargetPayment.invoice.student.firstName} ${rejectTargetPayment.invoice.student.lastName}`
+                  : "Student",
+                admissionNumber: rejectTargetPayment.invoice.student?.admissionNumber || "—",
+                amount: rejectTargetPayment.amount,
+                reference: rejectTargetPayment.reference,
+                method: rejectTargetPayment.method,
+              }
+            : null
+        }
+      />
     </div>
   );
 }

@@ -15,6 +15,15 @@ interface InvoiceTarget {
     lastName: string;
     admissionNumber?: string | null;
   } | null;
+  payments?: Array<{
+    id: string;
+    amount: number;
+    method: string;
+    status: string;
+    reference: string;
+    notes?: string | null;
+    createdAt?: string;
+  }>;
 }
 
 interface OnlinePaymentModalProps {
@@ -251,20 +260,37 @@ export default function OnlinePaymentModal({
                 }}
               >
                 <div style={{ color: receipt.isPending ? "#92400E" : "#065F46", fontWeight: 800, fontSize: 14 }}>
-                  {receipt.isPending ? "Payment Submitted - Awaiting Bursary Verification" : "Payment Confirmed"}
+                  {receipt.isPending ? "Payment Submitted — Awaiting Bursary Confirmation" : "Payment Confirmed"}
                 </div>
                 <div style={{ fontSize: 24, fontWeight: 900, color: receipt.isPending ? "#B45309" : "#065F46", marginTop: 6 }}>
                   ₦{receipt.amount.toLocaleString()}
                 </div>
-                <div style={{ fontSize: 11, color: receipt.isPending ? "#92400E" : "#047857", marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: receipt.isPending ? "#92400E" : "#047857", marginTop: 4, fontFamily: "monospace" }}>
                   Transaction Reference: {receipt.reference}
                 </div>
-                {receipt.isPending && (
-                  <div style={{ fontSize: 11, color: "#92400E", marginTop: 6, lineHeight: 1.4 }}>
-                    Your payment submission is queued for Bursary confirmation. Once verified by the School Bursar, your invoice balance will officially clear.
-                  </div>
-                )}
               </div>
+
+              {receipt.isPending && (
+                <div
+                  style={{
+                    backgroundColor: "#FEF2F2",
+                    border: "1px solid #FECACA",
+                    borderRadius: 10,
+                    padding: "12px 14px",
+                    fontSize: 12,
+                    color: "#991B1B",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  <div style={{ fontWeight: 800, marginBottom: 4 }}>
+                    Important: Please Do Not Repeat This Payment
+                  </div>
+                  <div>
+                    Your payment submission has been securely recorded. The School Bursary is verifying this transaction with our bank.
+                    Submitting another payment will cause duplicate debits on your account.
+                  </div>
+                </div>
+              )}
 
               <div
                 style={{
@@ -327,13 +353,104 @@ export default function OnlinePaymentModal({
                 <button
                   type="button"
                   className="btn btn-primary"
-                  style={{ flex: 1, padding: "10px 14px", fontWeight: 700 }}
-                  onClick={onClose}
+                  style={{ flex: 1, padding: "10px 14px", fontWeight: 700, backgroundColor: "var(--color-brand-navy, #0B2545)" }}
+                  onClick={() => {
+                    onClose();
+                  }}
                 >
-                  Done
+                  Return to Dashboard
                 </button>
               </div>
             </div>
+          ) : invoice.payments?.some((p) => p.status === "PENDING") ? (
+            /* Pending Payment Lock View to Prevent Duplicate Submissions */
+            (() => {
+              const pending = invoice.payments.find((p) => p.status === "PENDING")!;
+              return (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "10px 0" }}>
+                  <div
+                    style={{
+                      padding: 16,
+                      borderRadius: 14,
+                      backgroundColor: "#FEF3C7",
+                      border: "1px solid #FCD34D",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ color: "#92400E", fontWeight: 800, fontSize: 15 }}>
+                      Payment Already Submitted &amp; Awaiting Verification
+                    </div>
+                    <div style={{ fontSize: 24, fontWeight: 900, color: "#B45309", marginTop: 8 }}>
+                      ₦{Number(pending.amount).toLocaleString("en-NG")}
+                    </div>
+                    <div style={{ fontSize: 12, color: "#92400E", marginTop: 4, fontFamily: "monospace" }}>
+                      Reference: {pending.reference}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      backgroundColor: "#FFFBEB",
+                      border: "1px solid #FDE68A",
+                      borderRadius: 10,
+                      padding: "12px 14px",
+                      fontSize: 12.5,
+                      color: "#92400E",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, marginBottom: 4 }}>
+                      Duplicate Payment Prevention Guard
+                    </div>
+                    <div>
+                      We have already received a payment submission for this invoice. The School Bursar is currently cross-checking
+                      bank records to verify and credit the payment.
+                    </div>
+                    <div style={{ marginTop: 6, fontWeight: 600 }}>
+                      Submitting another payment now will result in duplicate debits. Please allow the Bursary to verify the existing transaction.
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                      borderRadius: 12,
+                      padding: 14,
+                      fontSize: 12,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 6,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--color-text-secondary)" }}>Method:</span>
+                      <strong style={{ textTransform: "capitalize" }}>{pending.method?.replace(/_/g, " ").toLowerCase() || "Online / Transfer"}</strong>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--color-text-secondary)" }}>Submitted At:</span>
+                      <span>{pending.createdAt ? new Date(pending.createdAt).toLocaleString("en-NG") : "Recently"}</span>
+                    </div>
+                    {pending.notes && (
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--color-text-secondary)" }}>Notes:</span>
+                        <span style={{ fontStyle: "italic" }}>{pending.notes}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ flex: 1, padding: "10px 14px", fontWeight: 700 }}
+                      onClick={onClose}
+                    >
+                      Close Window
+                    </button>
+                  </div>
+                </div>
+              );
+            })()
           ) : (
             /* Checkout Form View */
             <form onSubmit={handleSubmitPayment} style={{ display: "flex", flexDirection: "column", gap: 16 }}>

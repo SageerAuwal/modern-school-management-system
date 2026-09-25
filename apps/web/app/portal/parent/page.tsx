@@ -51,6 +51,17 @@ interface UserProfile {
   role: string;
 }
 
+interface PaymentRecord {
+  id: string;
+  amount: number;
+  method: string;
+  status: string;
+  reference: string;
+  paidAt?: string | null;
+  notes?: string | null;
+  createdAt?: string;
+}
+
 interface Invoice {
   id: string;
   studentId: string;
@@ -59,6 +70,7 @@ interface Invoice {
   status: string;
   term?: { name: string; academicYear: string };
   feeStructure?: { feeType: string };
+  payments?: PaymentRecord[];
 }
 
 function formatNaira(amount: number): string {
@@ -157,6 +169,9 @@ export default function ParentDashboardPage() {
   const activeChild = children.find((c) => c.id === selectedChildId) || children[0];
   const childInvoices = invoices.filter((inv) => !inv.studentId || inv.studentId === selectedChildId);
   const totalOutstanding = childInvoices.reduce((sum, inv) => sum + (inv.totalAmount - inv.paidAmount), 0);
+  const pendingChildPayments = childInvoices.flatMap((inv) => inv.payments ?? []).filter((p) => p.status === "PENDING");
+  const hasPendingPayments = pendingChildPayments.length > 0;
+  const pendingAmount = pendingChildPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
   return (
     <div className="page">
@@ -271,22 +286,46 @@ export default function ParentDashboardPage() {
                 {formatNaira(totalOutstanding)}
               </div>
               <div className="stat-sub" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-                <span>{totalOutstanding > 0 ? "Payment outstanding" : "All fees cleared"}</span>
+                <span>
+                  {hasPendingPayments
+                    ? `${formatNaira(pendingAmount)} awaiting Bursar`
+                    : totalOutstanding > 0
+                    ? "Payment outstanding"
+                    : "All fees cleared"}
+                </span>
                 {totalOutstanding > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{ fontSize: 11, padding: "2px 8px" }}
-                    onClick={() => {
-                      const unpaid = childInvoices.find((i) => i.status !== "PAID");
-                      if (unpaid) {
-                        setSelectedInvoiceForPayment(unpaid);
-                        setIsPaymentModalOpen(true);
-                      }
-                    }}
-                  >
-                    Pay Online
-                  </button>
+                  hasPendingPayments && pendingAmount >= totalOutstanding ? (
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        backgroundColor: "#FEF3C7",
+                        color: "#92400E",
+                        padding: "2px 8px",
+                        borderRadius: 4,
+                        border: "1px solid #FCD34D",
+                      }}
+                    >
+                      Verification in Progress
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ fontSize: 11, padding: "2px 8px" }}
+                      onClick={() => {
+                        const unpaid = childInvoices.find(
+                          (i) => i.status !== "PAID" && !i.payments?.some((p) => p.status === "PENDING")
+                        );
+                        if (unpaid) {
+                          setSelectedInvoiceForPayment(unpaid);
+                          setIsPaymentModalOpen(true);
+                        }
+                      }}
+                    >
+                      Pay Online
+                    </button>
+                  )
                 )}
               </div>
             </div>
@@ -421,6 +460,58 @@ export default function ParentDashboardPage() {
               </Link>
             </div>
 
+            {hasPendingPayments && (
+              <div
+                style={{
+                  backgroundColor: "#FEF3C7",
+                  border: "1px solid #FCD34D",
+                  borderRadius: "var(--radius-control, 8px)",
+                  padding: "14px 16px",
+                  marginBottom: 16,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                }}
+              >
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: "50%",
+                    backgroundColor: "#FDE68A",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#D97706",
+                    flexShrink: 0,
+                    marginTop: 2,
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#92400E" }}>
+                    Payment Submission Received &amp; Awaiting Bursary Verification
+                  </div>
+                  <div style={{ fontSize: 12, color: "#78350F", marginTop: 3, lineHeight: 1.45 }}>
+                    We received your payment submission of <strong>₦{pendingAmount.toLocaleString("en-NG")}</strong>. The School Bursar is currently verifying it against bank statements.
+                    <strong> Please do not submit duplicate payments while verification is underway.</strong> Once verified, your balance will be credited and official receipt issued.
+                  </div>
+                  <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {pendingChildPayments.map((p) => (
+                      <span key={p.id} style={{ fontSize: 11, fontFamily: "monospace", backgroundColor: "#FDE68A", color: "#92400E", padding: "2px 8px", borderRadius: 4, fontWeight: 600 }}>
+                        Ref: {p.reference} ({formatNaira(p.amount)})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {childInvoices.length === 0 ? (
               <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
                 No invoices recorded for this student.
@@ -441,6 +532,7 @@ export default function ParentDashboardPage() {
                 <tbody>
                   {childInvoices.map((inv) => {
                     const balance = inv.totalAmount - inv.paidAmount;
+                    const pendingPayment = inv.payments?.find((p) => p.status === "PENDING");
                     return (
                       <tr key={inv.id}>
                         <td style={{ fontWeight: 600 }}>{inv.term?.name ?? "First Term"}</td>
@@ -451,13 +543,39 @@ export default function ParentDashboardPage() {
                           {formatNaira(balance)}
                         </td>
                         <td>
-                          <span className={inv.status === "PAID" ? "pill-success" : inv.status === "PARTIAL" ? "pill-warning" : "pill-danger"}>
-                            {inv.status}
-                          </span>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                            <span className={inv.status === "PAID" ? "pill-success" : inv.status === "PARTIAL" ? "pill-warning" : "pill-danger"}>
+                              {inv.status}
+                            </span>
+                            {pendingPayment && (
+                              <span style={{ fontSize: 10, fontWeight: 700, color: "#B45309", backgroundColor: "#FEF3C7", padding: "1px 6px", borderRadius: 4, display: "inline-block" }}>
+                                Awaiting Bursar
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td style={{ textAlign: "right" }}>
                           <div style={{ display: "inline-flex", gap: 6 }}>
-                            {balance > 0 && (
+                            {pendingPayment ? (
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                style={{
+                                  padding: "4px 10px",
+                                  fontSize: 12,
+                                  borderColor: "#FCD34D",
+                                  color: "#92400E",
+                                  backgroundColor: "#FFFBEB",
+                                  fontWeight: 600,
+                                }}
+                                onClick={() => {
+                                  setSelectedInvoiceForPayment(inv);
+                                  setIsPaymentModalOpen(true);
+                                }}
+                              >
+                                Payment Submitted
+                              </button>
+                            ) : balance > 0 ? (
                               <button
                                 type="button"
                                 className="btn btn-primary"
@@ -469,7 +587,7 @@ export default function ParentDashboardPage() {
                               >
                                 Pay Online
                               </button>
-                            )}
+                            ) : null}
                             <Link href={`/fees/${inv.id}`} className="btn btn-secondary" style={{ padding: "4px 10px", fontSize: 12 }}>
                               {balance > 0 ? "Details" : "Receipt"}
                             </Link>

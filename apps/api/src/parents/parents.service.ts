@@ -137,8 +137,18 @@ export class ParentsService {
               orderBy: { createdAt: 'desc' },
               include: {
                 term: { select: { id: true, name: true, academicYear: true } },
-                items: true,
-                payments: { select: { id: true, amount: true, method: true, paidAt: true, reference: true } },
+                payments: {
+                  select: {
+                    id: true,
+                    amount: true,
+                    method: true,
+                    paidAt: true,
+                    reference: true,
+                    status: true,
+                    notes: true,
+                    createdAt: true,
+                  },
+                },
               },
             },
             scores: {
@@ -175,6 +185,8 @@ export class ParentsService {
       const totalInvoiced = invoices.reduce((sum: number, inv: any) => sum + Number(inv.totalAmount || 0), 0);
       const totalPaid = invoices.reduce((sum: number, inv: any) => sum + Number(inv.paidAmount || 0), 0);
       const outstandingBalance = Math.max(0, totalInvoiced - totalPaid);
+      const pendingPayments = invoices.flatMap((inv: any) => inv.payments ?? []).filter((p: any) => p.status === 'PENDING');
+      const pendingPaymentsAmount = pendingPayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
 
       return {
         linkId: link.id,
@@ -199,6 +211,8 @@ export class ParentsService {
           totalInvoiced,
           totalPaid,
           outstandingBalance,
+          pendingPaymentsCount: pendingPayments.length,
+          pendingPaymentsAmount,
         },
         invoices,
         recentScores: s.scores ?? [],
