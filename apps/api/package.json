@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "prisma": {
-    "schema": "../../prisma/schema.prisma"
+    "schema": "prisma/schema.prisma"
   },
   "scripts": {
+    "postinstall": "prisma generate",
     "prebuild": "prisma generate",
     "build": "nest build",
     "start": "node dist/main",
@@ -23,6 +24,7 @@
   "dependencies": {
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.0.0",
+    "prisma": "^5.0.0",
     "@nestjs/core": "^10.0.0",
     "@nestjs/jwt": "^10.0.0",
     "@nestjs/mapped-types": "^12.0.0",
