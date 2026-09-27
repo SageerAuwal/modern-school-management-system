@@ -60,6 +60,54 @@
   --grid-gap: 14px;
 }
 
+/* ─── Dark Mode Design Tokens ─────────────────────────────────────────── */
+[data-theme="dark"] {
+  --color-canvas: #090E17;
+  --color-ink: #F1F5F9;
+  --color-page: #0F172A;
+  --color-surface: #131E32;
+  --color-surface-subtle: #1A2844;
+  --color-border: #223454;
+  --color-text-secondary: #94A3B8;
+
+  --color-brand-navy: #38BDF8;
+  --color-brand-navy-dark: #0284C7;
+  --color-brand-navy-bg: rgba(56, 189, 248, 0.12);
+  --color-brand-teal: #38BDF8;
+  --color-brand-teal-dark: #0284C7;
+  --color-brand-teal-bg: rgba(56, 189, 248, 0.12);
+
+  --color-brand-crimson: #F87171;
+  --color-brand-crimson-bg: rgba(248, 113, 113, 0.14);
+  --color-brand-crimson-border: rgba(248, 113, 113, 0.28);
+
+  --color-accent-gold: #FBBF24;
+  --color-accent-gold-hover: #F59E0B;
+  --color-accent-gold-bg: rgba(251, 191, 36, 0.14);
+
+  --color-pastel-lavender: #2E2555;
+  --color-pastel-lavender-text: #C4B5FD;
+  --color-pastel-blue: #133954;
+  --color-pastel-blue-text: #7DD3FC;
+  --color-pastel-pink: #4A1A3A;
+  --color-pastel-pink-text: #F472B6;
+  --color-pastel-peach: #4A2810;
+  --color-pastel-peach-text: #FDBA74;
+  --color-pastel-mint: #113D2D;
+  --color-pastel-mint-text: #86EFAC;
+
+  --color-success-bg: rgba(34, 197, 94, 0.16);
+  --color-success-text: #4ADE80;
+  --color-danger-bg: rgba(239, 68, 68, 0.16);
+  --color-danger-text: #F87171;
+  --color-warning-bg: rgba(245, 158, 11, 0.16);
+  --color-warning-text: #FBBF24;
+  --color-info-bg: rgba(56, 189, 248, 0.16);
+  --color-info-text: #38BDF8;
+  --color-neutral-bg: rgba(148, 163, 184, 0.14);
+  --color-neutral-text: #CBD5E1;
+}
+
 /* ─── Reset & Base ─────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -172,7 +220,7 @@ a { color: inherit; text-decoration: none; }
   color: var(--color-ink, #0A192F);
   border: 1px solid var(--color-border);
 }
-.btn-secondary:hover { background-color: #E2E8F0; }
+.btn-secondary:hover { background-color: var(--color-border); }
 
 .btn-danger {
   background-color: var(--color-danger-bg);
@@ -187,14 +235,14 @@ a { color: inherit; text-decoration: none; }
   border-radius: 10px;
   font-size: 13px;
   color: var(--color-ink);
-  background-color: #FFFFFF;
+  background-color: var(--color-surface, #FFFFFF);
   outline: none;
   transition: all 0.15s;
 }
 .input:focus {
   border-color: var(--color-brand-navy);
-  background-color: #FFFFFF;
-  box-shadow: 0 0 0 3px rgba(11, 37, 69, 0.1);
+  background-color: var(--color-surface, #FFFFFF);
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
 }
 .input::placeholder {
   color: var(--color-text-secondary);
@@ -235,7 +283,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .table tbody tr { transition: background-color 0.1s; }
-.table tbody tr:hover { background-color: var(--color-page); }
+.table tbody tr:hover { background-color: var(--color-surface-subtle); }
 .table tbody tr:last-child td { border-bottom: none; }
 
 /* ─── Nav Pill ─────────────────────────────────────────────────────────────── */
