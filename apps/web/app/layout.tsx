@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import AppShell from "./components/AppShell";
-import { ThemeProvider } from "./context/ThemeContext";
 
 export const metadata: Metadata = {
   title: {
@@ -22,33 +21,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  var saved = localStorage.getItem('sms-theme');
-                  var theme = saved;
-                  if (theme === 'system' || !theme) {
-                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                  }
-                  if (theme === 'dark') {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                  } else {
-                    document.documentElement.setAttribute('data-theme', 'light');
-                  }
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
-      </head>
+    <html lang="en">
       <body>
-        <ThemeProvider>
-          <AppShell>{children}</AppShell>
-        </ThemeProvider>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

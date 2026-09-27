@@ -712,7 +712,7 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
       <nav
         style={{
           width: isCollapsed ? 76 : 246,
-          backgroundColor: "var(--color-surface, #FFFFFF)",
+          backgroundColor: "#FFFFFF",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",

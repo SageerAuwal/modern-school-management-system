@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "./Sidebar";
-import { useTheme } from "../context/ThemeContext";
 
 // Pages that should NOT show the sidebar (auth pages)
 const AUTH_ROUTES = ["/login", "/set-password", "/mfa"];
@@ -60,7 +59,6 @@ interface AuthUser {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { resolvedTheme, toggleTheme } = useTheme();
 
   // Current authenticated user state
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -365,7 +363,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     fontSize: 10,
                     fontWeight: 700,
                     color: "var(--color-text-secondary)",
-                    backgroundColor: "var(--color-surface, #FFFFFF)",
+                    backgroundColor: "#FFFFFF",
                     padding: "2px 6px",
                     borderRadius: 6,
                     border: "1px solid var(--color-border)",
@@ -382,52 +380,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
 
             {/* Right: Notifications & User Profile Controls */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {/* ── THEME TOGGLE (DARK / LIGHT MODE) ── */}
-              <button
-                type="button"
-                onClick={toggleTheme}
-                title={resolvedTheme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-                aria-label="Toggle display theme"
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: "50%",
-                  backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
-                  border: "1px solid var(--color-border, #E8ECE9)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  color: "var(--color-ink)",
-                  transition: "all 0.15s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--color-border)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "var(--color-surface-subtle, #F4F7F5)";
-                }}
-              >
-                {resolvedTheme === "dark" ? (
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="5" />
-                    <line x1="12" y1="1" x2="12" y2="3" />
-                    <line x1="12" y1="21" x2="12" y2="23" />
-                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                    <line x1="1" y1="12" x2="3" y2="12" />
-                    <line x1="21" y1="12" x2="23" y2="12" />
-                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                  </svg>
-                ) : (
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-                  </svg>
-                )}
-              </button>
-
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               {/* ── 1. REAL NOTIFICATION BELL CONTAINER ────────────────────── */}
               <div ref={notifRef} style={{ position: "relative" }}>
                 <button
@@ -475,7 +428,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         alignItems: "center",
                         justifyContent: "center",
                         boxShadow: "0 2px 6px rgba(0, 0, 0, 0.15)",
-                        border: "2px solid var(--color-surface, #FFFFFF)",
+                        border: "2px solid #FFFFFF",
                       }}
                     >
                       {unreadCount}
@@ -491,9 +444,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       top: 48,
                       right: 0,
                       width: 350,
-                      backgroundColor: "var(--color-surface, #FFFFFF)",
+                      backgroundColor: "#FFFFFF",
                       borderRadius: 20,
-                      boxShadow: "0 20px 48px rgba(0, 0, 0, 0.28)",
+                      boxShadow: "0 20px 48px rgba(18, 50, 38, 0.16)",
                       border: "1px solid var(--color-border, #E8ECE9)",
                       padding: 0,
                       zIndex: 9999,
@@ -566,7 +519,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                               display: "flex",
                               flexDirection: "column",
                               gap: 4,
-                              backgroundColor: notif.isRead ? "var(--color-surface, #FFFFFF)" : "var(--color-surface-subtle)",
+                              backgroundColor: notif.isRead ? "#FFFFFF" : "var(--color-surface-subtle)",
                               transition: "background 0.15s",
                             }}
                           >
@@ -696,9 +649,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       top: 48,
                       right: 0,
                       width: 290,
-                      backgroundColor: "var(--color-surface, #FFFFFF)",
+                      backgroundColor: "#FFFFFF",
                       borderRadius: 20,
-                      boxShadow: "0 20px 48px rgba(0, 0, 0, 0.28)",
+                      boxShadow: "0 20px 48px rgba(18, 50, 38, 0.16)",
                       border: "1px solid var(--color-border, #E8ECE9)",
                       padding: "16px 18px",
                       zIndex: 9999,
