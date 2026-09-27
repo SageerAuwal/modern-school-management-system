@@ -72,7 +72,7 @@ async function bootstrap() {
   );
 
   // ── API prefix ─────────────────────────────────────────────────────────────
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', { exclude: ['/', 'health'] });
 
   await app.listen(port, '0.0.0.0');
   console.log(`[API] Server listening on port ${port}/api/v1`);
