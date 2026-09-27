@@ -7,12 +7,9 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   async onModuleInit() {
-    try {
-      await this.$connect();
-      console.log('[Prisma] Database connected successfully');
-    } catch (err: any) {
-      console.error('[Prisma] Initial connection deferred:', err.message);
-    }
+    // In serverless environments (e.g. Vercel), do NOT await $connect() on module init
+    // to prevent cold start timeouts while waiting for serverless DB wake-up.
+    // Prisma connects lazily on the first database query.
   }
 
   async onModuleDestroy() {
