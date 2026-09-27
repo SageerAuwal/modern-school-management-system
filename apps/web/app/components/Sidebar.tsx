@@ -566,7 +566,15 @@ const STUDENT_CATEGORIES: NavCategory[] = [
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
-export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
+export default function Sidebar({
+  role = "ADMIN",
+  isMobileOpen = false,
+  onMobileClose,
+}: {
+  role?: string;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
+}) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -635,6 +643,7 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
       <Link
         key={item.href}
         href={item.href}
+        onClick={() => onMobileClose?.()}
         style={{ textDecoration: "none", display: "block" }}
         onMouseEnter={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
@@ -709,7 +718,15 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
 
   return (
     <>
+      {isMobileOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={onMobileClose}
+          aria-hidden="true"
+        />
+      )}
       <nav
+        className={`app-sidebar ${isMobileOpen ? "mobile-open" : ""}`}
         style={{
           width: isCollapsed ? 76 : 246,
           backgroundColor: "#FFFFFF",
@@ -827,36 +844,52 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={toggleCollapse}
-              title="Collapse sidebar"
-              aria-label="Collapse sidebar"
-              style={{
-                width: 30,
-                height: 30,
-                borderRadius: 8,
-                border: "1px solid var(--color-border, #E8ECE9)",
-                backgroundColor: "transparent",
-                color: "var(--color-text-secondary, #5C6E82)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                transition: "all 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
-                e.currentTarget.style.color = "var(--color-ink, #0A192F)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "transparent";
-                e.currentTarget.style.color = "var(--color-text-secondary, #5C6E82)";
-              }}
-            >
-              {icons.toggleCollapse}
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button
+                type="button"
+                className="mobile-close-sidebar-btn"
+                onClick={onMobileClose}
+                title="Close navigation menu"
+                aria-label="Close navigation menu"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                className="desktop-only"
+                onClick={toggleCollapse}
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar"
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 8,
+                  border: "1px solid var(--color-border, #E8ECE9)",
+                  backgroundColor: "transparent",
+                  color: "var(--color-text-secondary, #5C6E82)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
+                  e.currentTarget.style.color = "var(--color-ink, #0A192F)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                  e.currentTarget.style.color = "var(--color-text-secondary, #5C6E82)";
+                }}
+              >
+                {icons.toggleCollapse}
+              </button>
+            </div>
           </div>
         ) : (
           <div
@@ -1070,6 +1103,7 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
             {/* Account & Profile Settings Link */}
             <Link
               href="/account"
+              onClick={() => onMobileClose?.()}
               title="My Account & Settings"
               style={{
                 textDecoration: "none",

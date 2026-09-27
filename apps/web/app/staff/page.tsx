@@ -448,7 +448,7 @@ export default function StaffPage() {
 
       {/* Loading Skeleton State */}
       {loading && (
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card" style={{ padding: 0, overflowX: "auto" }}>
           <table className="table">
             <thead>
               <tr>
@@ -614,7 +614,7 @@ export default function StaffPage() {
           </div>
 
           {/* 2. Staff Table with Actions Column */}
-          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="card" style={{ padding: 0, overflowX: "auto" }}>
             {filteredStaff.length === 0 ? (
               <div
                 style={{

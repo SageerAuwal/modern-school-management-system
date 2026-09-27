@@ -613,7 +613,7 @@ export default function GradesPage() {
         </div>
       ) : loadingSheet ? (
         /* Loading Skeleton */
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card" style={{ padding: 0, overflow: "auto" }}>
           <table className="table">
             <thead>
               <tr>

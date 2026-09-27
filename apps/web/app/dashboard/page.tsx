@@ -135,16 +135,9 @@ export default function DashboardPage() {
   const maxEnrollment = enrollment?.reduce((max, item) => Math.max(max, item.count), 0) || 1;
 
   return (
-    <div style={{ padding: "24px 28px", backgroundColor: "#FFFFFF", minHeight: "100%" }}>
+    <div className="page" style={{ backgroundColor: "#FFFFFF", minHeight: "100%" }}>
       {/* ── Two-Column Main Layout ─────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "300px 1fr",
-          gap: 28,
-          alignItems: "start",
-        }}
-      >
+      <div className="dashboard-grid">
         {/* ════ LEFT COLUMN: Live Mini Calendar, Radar Card, Filters ══════════ */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {/* Card 1: Real-Time Mini Calendar */}
@@ -596,7 +589,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Two-Column: Enrollment by Class & Fee Collection */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1.5rem" }}>
             <div className="card" style={{ borderRadius: 24 }}>
               <h2 style={{ fontSize: "1.1rem", marginBottom: "1rem", fontWeight: 700, color: "var(--color-ink)" }}>
                 Enrollment by Class
@@ -658,7 +651,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Two-Column: Action Needed & Recent Activity */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "1.5rem" }}>
             <div className="card" style={{ display: "flex", flexDirection: "column", gap: "0.75rem", borderRadius: 24 }}>
               <h2 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "0.25rem", color: "var(--color-ink)" }}>
                 Action Needed

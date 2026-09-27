@@ -63,7 +63,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // Current authenticated user state
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
-  // Dropdown states
+  // Dropdown & mobile navigation states
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState<AlertNotification[]>([]);
@@ -73,6 +74,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const profileRef = useRef<HTMLDivElement>(null);
 
   const isAuthPage = AUTH_ROUTES.some((r) => pathname.startsWith(r));
+
+  // Automatically close mobile menu drawer on navigation
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [pathname]);
 
   // Load authenticated user profile from backend
   useEffect(() => {
@@ -310,11 +316,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           position: "relative",
         }}
       >
-        <Sidebar role={currentUser?.role} />
+        <Sidebar
+          role={currentUser?.role}
+          isMobileOpen={isMobileNavOpen}
+          onMobileClose={() => setIsMobileNavOpen(false)}
+        />
 
         <div className="app-main-column" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", height: "calc(100vh - 32px)", overflow: "hidden" }}>
           {/* Top Header Bar matching reference */}
           <header
+            className="app-topbar"
             style={{
               height: 64,
               padding: "0 28px",
@@ -328,9 +339,62 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               zIndex: 80,
             }}
           >
-            {/* Left: Pill Search Bar & Breadcrumb */}
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            {/* Left: Mobile Controls or Desktop Search Bar & Breadcrumb */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {/* Mobile Hamburger Toggle Button */}
+              <button
+                type="button"
+                className="mobile-hamburger-btn"
+                onClick={() => setIsMobileNavOpen((prev) => !prev)}
+                aria-label="Open navigation menu"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+
+              {/* Mobile Header Brand & Title */}
+              <div className="mobile-header-brand">
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    backgroundColor: "#FFFFFF",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "1px solid var(--color-border)",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                  }}
+                >
+                  <img
+                    src="/school-logo.png"
+                    alt="Logo"
+                    style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                  />
+                </div>
+                <span
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "var(--color-ink)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: 150,
+                  }}
+                >
+                  {breadcrumb || "Portal"}
+                </span>
+              </div>
+
+              {/* Desktop Pill Search Bar */}
               <div
+                className="desktop-search-pill"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -374,7 +438,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </span>
               </div>
 
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)", marginLeft: 6 }}>
+              <span className="desktop-breadcrumb" style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)", marginLeft: 6 }}>
                 {breadcrumb}
               </span>
             </div>
@@ -444,6 +508,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       top: 48,
                       right: 0,
                       width: 350,
+                      maxWidth: "calc(100vw - 28px)",
                       backgroundColor: "#FFFFFF",
                       borderRadius: 20,
                       boxShadow: "0 20px 48px rgba(18, 50, 38, 0.16)",
@@ -612,7 +677,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   >
                     {userInitials}
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div className="desktop-user-name" style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span
                       style={{
                         fontSize: 13,
@@ -649,6 +714,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       top: 48,
                       right: 0,
                       width: 290,
+                      maxWidth: "calc(100vw - 28px)",
                       backgroundColor: "#FFFFFF",
                       borderRadius: 20,
                       boxShadow: "0 20px 48px rgba(18, 50, 38, 0.16)",

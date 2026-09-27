@@ -142,7 +142,7 @@ export default function TransportPage() {
 
       {/* Table / Skeleton / Empty State */}
       {loading ? (
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card" style={{ padding: 0, overflowX: "auto" }}>
           <table className="table">
             <thead>
               <tr>
@@ -223,7 +223,7 @@ export default function TransportPage() {
           )}
         </div>
       ) : (
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card" style={{ padding: 0, overflowX: "auto" }}>
           <table className="table">
             <thead>
               <tr>

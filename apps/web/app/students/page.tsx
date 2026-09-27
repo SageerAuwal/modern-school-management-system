@@ -287,7 +287,7 @@ export default function StudentsPage() {
 
       {/* Loading Skeleton */}
       {loading ? (
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card" style={{ padding: 0, overflowX: "auto" }}>
           <table className="table">
             <thead>
               <tr>
@@ -336,7 +336,7 @@ export default function StudentsPage() {
         </div>
       ) : (
         /* Students Table with Edit & Remove/Withdraw Actions */
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card" style={{ padding: 0, overflowX: "auto" }}>
           <table className="table">
             <thead>
               <tr>

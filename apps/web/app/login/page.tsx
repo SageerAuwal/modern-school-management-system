@@ -146,18 +146,9 @@ export default function LoginPage() {
   }
 
   return (
-    <main style={{ minHeight: "100vh", display: "flex", backgroundColor: "var(--color-surface-subtle, #F8FAFC)" }}>
+    <main className="login-container">
       {/* Left Column: Form with Clean Institutional Card */}
-      <div
-        style={{
-          flex: 1.1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "48px 32px",
-        }}
-      >
+      <div className="login-form-column">
         <div style={{ width: "100%", maxWidth: 440 }}>
           {/* Brand Header: Centered Prestigious Institutional Seal */}
           <div
@@ -217,27 +208,9 @@ export default function LoginPage() {
           </div>
 
           {/* Form Card */}
-          <div
-            style={{
-              backgroundColor: "#FFFFFF",
-              border: "1px solid var(--color-border, #E1E8F0)",
-              borderRadius: 16,
-              padding: "28px 28px 32px",
-              boxShadow: "0 4px 20px rgba(11, 37, 69, 0.04)",
-            }}
-          >
+          <div className="login-card">
             {/* Role Selector Tabs */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 4,
-                padding: 4,
-                backgroundColor: "#F1F5F9",
-                borderRadius: 10,
-                marginBottom: 24,
-              }}
-            >
+            <div className="login-role-selector">
               {(["admin", "teacher", "parent", "student"] as RoleType[]).map((role) => {
                 const active = selectedRole === role;
                 return (
@@ -351,20 +324,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right Column: Institutional Showcase in Deep Royal Navy */}
-      <div
-        style={{
-          flex: 1.1,
-          backgroundColor: "#0B2545",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "100vh",
-          padding: "48px 40px",
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
+      <div className="login-banner-column">
         <div style={{ textAlign: "center", maxWidth: 460, width: "100%", color: "rgba(255,255,255,0.92)", zIndex: 1 }}>
           {/* Official Crest Badge */}
           <div
