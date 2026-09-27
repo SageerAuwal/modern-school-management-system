@@ -12,9 +12,13 @@ import { LoginDto } from './dto/login.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { JwtPayload } from './strategies/jwt.strategy';
 import * as bcrypt from 'bcrypt';
-import * as otplib from 'otplib';
 import * as QRCode from 'qrcode';
 import { Response } from 'express';
+
+const getOtplib = async (): Promise<any> => {
+  const dynamicImport = new Function('m', 'return import(m)');
+  return dynamicImport('otplib');
+};
 
 const BCRYPT_ROUNDS = 12;
 const isProduction = process.env.NODE_ENV === 'production';
@@ -122,6 +126,7 @@ export class AuthService {
       throw new UnauthorizedException('MFA not configured');
     }
 
+    const otplib = await getOtplib();
     const isValid = otplib.verify({ token: totpToken, secret: user.mfaSecret });
     if (!isValid) {
       await this.auditService.log({
@@ -167,6 +172,7 @@ export class AuthService {
       where: { id: userId },
     });
 
+    const otplib = await getOtplib();
     const secret = otplib.generateSecret();
     const otpAuthUrl = otplib.generateURI({
       issuer: 'School Management System',
@@ -191,6 +197,7 @@ export class AuthService {
     if (!user.mfaSecret) {
       throw new BadRequestException('MFA setup not initiated');
     }
+    const otplib = await getOtplib();
     const isValid = otplib.verify({ token: totpToken, secret: user.mfaSecret });
     if (!isValid) {
       throw new BadRequestException('Invalid MFA code — please try again');
