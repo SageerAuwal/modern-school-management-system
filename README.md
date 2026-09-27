@@ -1,3 +1,9 @@
+---
+title: Modern School API
+sdk: docker
+app_port: 7860
+---
+
 <div align="center">
 
 # Modern School Management System
