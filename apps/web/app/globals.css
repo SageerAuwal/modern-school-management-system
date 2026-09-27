@@ -432,3 +432,14 @@ a { color: inherit; text-decoration: none; }
   }
 }
 
+/* ─── Scrollbar Utility: Hide visual scrollbar while preserving wheel/touch scroll ─── */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / legacy Edge */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Edge, Safari */
+  width: 0;
+  height: 0;
+}

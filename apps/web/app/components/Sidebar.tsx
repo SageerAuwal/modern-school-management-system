@@ -146,13 +146,17 @@ const icons = {
     </svg>
   ),
   toggleCollapse: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="15 18 9 12 15 6" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+      <path d="m14 9-3 3 3 3" />
     </svg>
   ),
   toggleExpand: (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="9 18 15 12 9 6" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      <path d="M9 3v18" />
+      <path d="m13 15 3-3-3-3" />
     </svg>
   ),
   logout: (
@@ -723,65 +727,72 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
           borderRight: "1px solid var(--color-border, #E8ECE9)",
         }}
       >
-        {/* Top Brand Mark */}
-        <div
-          style={{
-            width: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: isCollapsed ? "center" : "space-between",
-            padding: isCollapsed ? "0" : "0 6px",
-            marginBottom: 16,
-            cursor: "pointer",
-          }}
-          onClick={() => {
-            const r = (role || "ADMIN").toUpperCase();
-            const home =
-              r === "BURSAR"
-                ? "/fees"
-                : r === "NURSE"
-                ? "/clinic"
-                : r === "TEACHER"
-                ? "/portal/teacher"
-                : r === "PARENT"
-                ? "/portal/parent"
-                : r === "STUDENT"
-                ? "/portal/student"
-                : "/dashboard";
-            router.push(home);
-          }}
-          title="Bright Future Academy - Kashere"
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-            {/* Bright Future Academy Official Logo Crest */}
+        {/* Top Brand & Toggle Header */}
+        {!isCollapsed ? (
+          <div
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "0 4px",
+              marginBottom: 16,
+            }}
+          >
             <div
               style={{
-                width: 42,
-                height: 42,
-                borderRadius: "50%",
-                backgroundColor: "#FFFFFF",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
-                border: "1px solid var(--color-border, #E8ECE9)",
-                overflow: "hidden",
-                padding: 1,
+                gap: 10,
+                minWidth: 0,
+                cursor: "pointer",
               }}
+              onClick={() => {
+                const r = (role || "ADMIN").toUpperCase();
+                const home =
+                  r === "BURSAR"
+                    ? "/fees"
+                    : r === "NURSE"
+                    ? "/clinic"
+                    : r === "TEACHER"
+                    ? "/portal/teacher"
+                    : r === "PARENT"
+                    ? "/portal/parent"
+                    : r === "STUDENT"
+                    ? "/portal/student"
+                    : "/dashboard";
+                router.push(home);
+              }}
+              title="Bright Future Academy - Kashere"
             >
-              <img
-                src="/school-logo.png"
-                alt="Bright Future Academy Crest"
+              {/* Bright Future Academy Official Logo Crest */}
+              <div
                 style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
+                  width: 40,
+                  height: 40,
+                  borderRadius: "50%",
+                  backgroundColor: "#FFFFFF",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
+                  border: "1px solid var(--color-border, #E8ECE9)",
+                  overflow: "hidden",
+                  padding: 1,
                 }}
-              />
-            </div>
+              >
+                <img
+                  src="/school-logo.png"
+                  alt="Bright Future Academy Crest"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                  }}
+                />
+              </div>
 
-            {!isCollapsed && (
               <div style={{ overflow: "hidden", minWidth: 0 }}>
                 <p
                   style={{
@@ -814,34 +825,130 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
                   Guided By Principles, Driven By Purpose
                 </p>
               </div>
-            )}
-          </div>
+            </div>
 
-          {!isCollapsed && (
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleCollapse();
-              }}
-              title="Collapse to icon rail"
+              onClick={toggleCollapse}
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
               style={{
-                border: "none",
-                background: "transparent",
-                color: "var(--color-text-secondary)",
+                width: 30,
+                height: 30,
+                borderRadius: 8,
+                border: "1px solid var(--color-border, #E8ECE9)",
+                backgroundColor: "transparent",
+                color: "var(--color-text-secondary, #5C6E82)",
                 cursor: "pointer",
-                padding: 4,
                 display: "flex",
                 alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
+                e.currentTarget.style.color = "var(--color-ink, #0A192F)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.color = "var(--color-text-secondary, #5C6E82)";
               }}
             >
               {icons.toggleCollapse}
             </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: "50%",
+                backgroundColor: "#FFFFFF",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
+                border: "1px solid var(--color-border, #E8ECE9)",
+                overflow: "hidden",
+                padding: 1,
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                const r = (role || "ADMIN").toUpperCase();
+                const home =
+                  r === "BURSAR"
+                    ? "/fees"
+                    : r === "NURSE"
+                    ? "/clinic"
+                    : r === "TEACHER"
+                    ? "/portal/teacher"
+                    : r === "PARENT"
+                    ? "/portal/parent"
+                    : r === "STUDENT"
+                    ? "/portal/student"
+                    : "/dashboard";
+                router.push(home);
+              }}
+              title="Bright Future Academy - Click for Home"
+            >
+              <img
+                src="/school-logo.png"
+                alt="Bright Future Academy Crest"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={toggleCollapse}
+              title="Expand sidebar"
+              aria-label="Expand sidebar"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                border: "1px solid var(--color-border, #E8ECE9)",
+                backgroundColor: "var(--color-surface-subtle, #F4F7FB)",
+                color: "var(--color-text-secondary, #5C6E82)",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.08)";
+                e.currentTarget.style.color = "var(--color-ink, #0A192F)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "var(--color-surface-subtle, #F4F7FB)";
+                e.currentTarget.style.color = "var(--color-text-secondary, #5C6E82)";
+              }}
+            >
+              {icons.toggleExpand}
+            </button>
+          </div>
+        )}
 
         {/* Floating Capsule Rail holding Categorized Nav Items */}
         <div
+          className="no-scrollbar"
           style={{
             flex: 1,
             width: "100%",
@@ -853,6 +960,8 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
             flexDirection: "column",
             overflowY: "auto",
             overflowX: "hidden",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
             gap: 2,
           }}
         >
@@ -942,35 +1051,165 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
           })}
         </div>
 
-        {/* Bottom Utility Floating Capsule (Settings / Help / Sign Out) */}
-        <div
-          style={{
-            width: "100%",
-            marginTop: 12,
-            backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
-            borderRadius: isCollapsed ? 28 : 16,
-            padding: isCollapsed ? "6px 4px" : "6px 8px",
-            border: "1px solid var(--color-border, #E8ECE9)",
-            display: "flex",
-            flexDirection: isCollapsed ? "column" : "row",
-            alignItems: "center",
-            justifyContent: isCollapsed ? "center" : "space-between",
-            gap: 4,
-          }}
-        >
-          {/* Account & Profile Settings Icon (Available for all roles) */}
-          <Link
-            href="/account"
-            title="My Account & Settings"
-            style={{ textDecoration: "none" }}
-            onMouseEnter={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setTooltipPos({ top: rect.top + rect.height / 2 - 18, left: rect.right + 10 });
-              setHoveredTooltip({ label: "My Account & Settings", category: "Account" });
+        {/* Bottom Utility Floating Capsule (Account & Sign Out - completely separated from collapse toggle) */}
+        {!isCollapsed ? (
+          <div
+            style={{
+              width: "100%",
+              marginTop: 12,
+              backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+              borderRadius: 16,
+              padding: "6px 8px",
+              border: "1px solid var(--color-border, #E8ECE9)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 6,
             }}
-            onMouseLeave={() => setHoveredTooltip(null)}
           >
+            {/* Account & Profile Settings Link */}
+            <Link
+              href="/account"
+              title="My Account & Settings"
+              style={{
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "6px 10px",
+                borderRadius: 9999,
+                color: pathname.startsWith("/account") ? "var(--color-brand-teal, #0E7D75)" : "var(--color-ink, #0B2545)",
+                backgroundColor: pathname.startsWith("/account") ? "rgba(14, 125, 117, 0.1)" : "transparent",
+                fontSize: 12,
+                fontWeight: 600,
+                transition: "all 0.15s",
+                flex: 1,
+                minWidth: 0,
+              }}
+              onMouseEnter={(e) => {
+                if (!pathname.startsWith("/account")) {
+                  e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!pathname.startsWith("/account")) {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {icons.account}
+              </div>
+              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                My Profile
+              </span>
+            </Link>
+
+            {/* Sign Out Button (Distinct red accent, clearly separated) */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="Sign out of your account"
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "#991B1B",
+                padding: "6px 10px",
+                borderRadius: 9999,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                transition: "all 0.15s",
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = "#FEF2F2";
+                e.currentTarget.style.color = "#DC2626";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.color = "#991B1B";
+              }}
+            >
+              {icons.logout}
+              <span>Sign Out</span>
+            </button>
+          </div>
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              marginTop: 12,
+              backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+              borderRadius: 28,
+              padding: "8px 4px",
+              border: "1px solid var(--color-border, #E8ECE9)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {/* Account Icon */}
+            <Link
+              href="/account"
+              title="My Account & Settings"
+              style={{ textDecoration: "none" }}
+              onMouseEnter={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setTooltipPos({ top: rect.top + rect.height / 2 - 18, left: rect.right + 10 });
+                setHoveredTooltip({ label: "My Account & Settings", category: "Account" });
+              }}
+              onMouseLeave={() => setHoveredTooltip(null)}
+            >
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: pathname.startsWith("/account") ? "var(--color-brand-teal, #0E7D75)" : "var(--color-text-secondary, #70817B)",
+                  backgroundColor: pathname.startsWith("/account") ? "rgba(14, 125, 117, 0.1)" : "transparent",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
+                  e.currentTarget.style.color = "var(--color-ink, #0A192F)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = pathname.startsWith("/account") ? "rgba(14, 125, 117, 0.1)" : "transparent";
+                  e.currentTarget.style.color = pathname.startsWith("/account") ? "var(--color-brand-teal, #0E7D75)" : "var(--color-text-secondary, #70817B)";
+                }}
+              >
+                {icons.account}
+              </div>
+            </Link>
+
+            {/* Subtle separator divider */}
+            <div style={{ width: 22, height: 1, backgroundColor: "var(--color-border, #E8ECE9)" }} />
+
+            {/* Logout Icon with distinct red hover */}
             <div
+              onClick={handleLogout}
+              title="Sign out of account"
+              onMouseEnter={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setTooltipPos({ top: rect.top + rect.height / 2 - 18, left: rect.right + 10 });
+                setHoveredTooltip({ label: "Sign Out", category: "Session" });
+                e.currentTarget.style.backgroundColor = "#FEF2F2";
+                e.currentTarget.style.color = "#DC2626";
+              }}
+              onMouseLeave={(e) => {
+                setHoveredTooltip(null);
+                e.currentTarget.style.backgroundColor = "transparent";
+                e.currentTarget.style.color = "#991B1B";
+              }}
               style={{
                 width: 36,
                 height: 36,
@@ -978,77 +1217,15 @@ export default function Sidebar({ role = "ADMIN" }: { role?: string }) {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: pathname.startsWith("/account") ? "var(--color-brand-teal, #0E7D75)" : "var(--color-text-secondary, #70817B)",
-                backgroundColor: pathname.startsWith("/account") ? "rgba(14, 125, 117, 0.1)" : "transparent",
+                color: "#991B1B",
                 cursor: "pointer",
                 transition: "all 0.15s",
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(0, 0, 0, 0.05)";
-                e.currentTarget.style.color = "var(--color-ink)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = pathname.startsWith("/account") ? "rgba(14, 125, 117, 0.1)" : "transparent";
-                e.currentTarget.style.color = pathname.startsWith("/account") ? "var(--color-brand-teal, #0E7D75)" : "var(--color-text-secondary)";
-              }}
             >
-              {icons.account}
+              {icons.logout}
             </div>
-          </Link>
-
-          {/* Expand / Collapse Icon */}
-          <div
-            onClick={toggleCollapse}
-            title={isCollapsed ? "Expand menu" : "Collapse rail"}
-            onMouseEnter={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setTooltipPos({ top: rect.top + rect.height / 2 - 18, left: rect.right + 10 });
-              setHoveredTooltip({
-                label: isCollapsed ? "Expand menu" : "Collapse rail",
-                category: "Navigation",
-              });
-            }}
-            onMouseLeave={() => setHoveredTooltip(null)}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--color-text-secondary, #70817B)",
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            {isCollapsed ? icons.toggleExpand : icons.toggleCollapse}
           </div>
-
-          {/* Logout Icon */}
-          <div
-            onClick={handleLogout}
-            title="Sign out"
-            onMouseEnter={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              setTooltipPos({ top: rect.top + rect.height / 2 - 18, left: rect.right + 10 });
-              setHoveredTooltip({ label: "Sign out", category: "Account" });
-            }}
-            onMouseLeave={() => setHoveredTooltip(null)}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--color-text-secondary, #70817B)",
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-          >
-            {icons.logout}
-          </div>
-        </div>
+        )}
       </nav>
 
       {/* Floating Hover Tooltip for Rail Mode */}
