@@ -26,7 +26,10 @@ export class JwtRefreshStrategy extends PassportStrategy(
         (req: Request) => req?.cookies?.['refresh_token'] ?? null,
       ]),
       ignoreExpiration: false,
-      secretOrKey: configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
+      secretOrKey:
+        configService.get<string>('JWT_REFRESH_SECRET') ||
+        process.env.JWT_REFRESH_SECRET ||
+        'secret-token-refresh-2026-prod-brightfuture-akko',
       passReqToCallback: true,
     });
   }

@@ -14,50 +14,70 @@ async function bootstrap(): Promise<Express> {
     return cachedServer;
   }
 
-  const expressApp = express();
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), { rawBody: true });
+  try {
+    const expressApp = express();
+    const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
+      rawBody: true,
+      logger: ['error', 'warn', 'log'],
+    });
 
-  const configService = app.get(ConfigService);
-  const webUrl = configService.get<string>('WEB_URL') ?? 'http://localhost:3000';
-  const allowedOrigins = webUrl.split(',').map((url) => url.trim());
+    const configService = app.get(ConfigService);
+    const webUrl =
+      configService.get<string>('WEB_URL') ??
+      process.env.WEB_URL ??
+      'http://localhost:3000';
+    const allowedOrigins = webUrl.split(',').map((url) => url.trim());
 
-  app.use(cookieParser());
+    app.use(cookieParser());
 
-  app.use(
-    helmet({
-      contentSecurityPolicy: false,
-    }),
-  );
+    app.use(
+      helmet({
+        contentSecurityPolicy: false,
+      }),
+    );
 
-  app.enableCors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
-        callback(null, true);
-      } else {
-        callback(null, true);
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
-  });
-
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
+    app.enableCors({
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+          callback(null, true);
+        } else {
+          callback(null, true);
+        }
       },
-    }),
-  );
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    });
 
-  app.setGlobalPrefix('api/v1', { exclude: ['/', 'health'] });
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+      }),
+    );
 
-  await app.init();
-  cachedServer = expressApp;
-  return cachedServer;
+    app.setGlobalPrefix('api/v1', { exclude: ['/', 'health'] });
+
+    await app.init();
+    cachedServer = expressApp;
+    return cachedServer;
+  } catch (error: any) {
+    console.error('[BOOTSTRAP FATAL ERROR]', error);
+    const fallbackApp = express();
+    fallbackApp.all('*', (req, res) => {
+      res.status(500).json({
+        statusCode: 500,
+        error: 'BootstrapInitializationError',
+        message: error?.message || 'NestJS bootstrap failed',
+        details: error?.stack || String(error),
+      });
+    });
+    return fallbackApp;
+  }
 }
 
 // Local server mode when not executing as a Vercel serverless function

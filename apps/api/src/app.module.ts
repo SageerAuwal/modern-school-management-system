@@ -28,7 +28,11 @@ import { AppService } from './app.service';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: '../../.env' }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
+      envFilePath: ['.env', '../../.env'],
+    }),
     ThrottlerModule.forRoot([{ name: 'global', ttl: 60000, limit: 100 }]),
     PrismaModule,
     CommonModule,
