@@ -1,81 +1,77 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { ExpressAdapter } from '@nestjs/platform-express';
+import express, { Express } from 'express';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
-async function bootstrap() {
-  // rawBody: true — required for Paystack webhook HMAC-SHA512 signature verification
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+let cachedServer: Express;
+
+async function bootstrap(): Promise<Express> {
+  if (cachedServer) {
+    return cachedServer;
+  }
+
+  const expressApp = express();
+  const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), { rawBody: true });
 
   const configService = app.get(ConfigService);
-  const port = Number(process.env.PORT) || configService.get<number>('API_PORT') || 3001;
   const webUrl = configService.get<string>('WEB_URL') ?? 'http://localhost:3000';
   const allowedOrigins = webUrl.split(',').map((url) => url.trim());
 
-  // ── Cookie parser — required to read httpOnly cookies for JWT auth ──────
   app.use(cookieParser());
 
-  // ── Security: Helmet (CSP, HSTS, X-Frame-Options, etc.) ────────────────────
   app.use(
     helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", 'data:', 'https:'],
-          connectSrc: ["'self'"],
-          fontSrc: ["'self'"],
-          objectSrc: ["'none'"],
-          frameSrc: ["'none'"],
-          upgradeInsecureRequests: [],
-        },
-      },
-      hsts: {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: true,
-      },
+      contentSecurityPolicy: false,
     }),
   );
 
-  // ── Security: CORS — allow configured frontend domains and Vercel previews ─
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
         callback(null, true);
       } else {
-        // Fallback for testing environments
         callback(null, true);
       }
     },
-    credentials: true,                 // Required for httpOnly cookie auth
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   });
 
-  // ── Security: Global validation pipe ───────────────────────────────────────
-  // Rejects any request body that doesn't match the DTO shape.
-  // whitelist: strips unknown properties silently.
-  // forbidNonWhitelisted: rejects requests with unknown properties.
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
-      transform: true,                 // Auto-transform payloads to DTO types
+      transform: true,
       transformOptions: {
         enableImplicitConversion: true,
       },
     }),
   );
 
-  // ── API prefix ─────────────────────────────────────────────────────────────
   app.setGlobalPrefix('api/v1', { exclude: ['/', 'health'] });
 
-  await app.listen(port, '0.0.0.0');
-  console.log(`[API] Server listening on port ${port}/api/v1`);
+  await app.init();
+  cachedServer = expressApp;
+  return cachedServer;
 }
 
-bootstrap();
+// Local server mode when not executing as a Vercel serverless function
+if (!process.env.VERCEL) {
+  bootstrap().then((server) => {
+    const port = Number(process.env.PORT) || 3001;
+    server.listen(port, '0.0.0.0', () => {
+      console.log(`[API] Server listening on port ${port}/api/v1`);
+    });
+  });
+}
+
+// Export default handler for Vercel Serverless Function runtime
+export default async function handler(req: any, res: any) {
+  const server = await bootstrap();
+  return server(req, res);
+}
