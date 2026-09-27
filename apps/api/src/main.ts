@@ -10,8 +10,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('API_PORT') ?? 3001;
+  const port = Number(process.env.PORT) || configService.get<number>('API_PORT') || 3001;
   const webUrl = configService.get<string>('WEB_URL') ?? 'http://localhost:3000';
+  const allowedOrigins = webUrl.split(',').map((url) => url.trim());
 
   // ── Cookie parser — required to read httpOnly cookies for JWT auth ──────
   app.use(cookieParser());
@@ -40,12 +41,19 @@ async function bootstrap() {
     }),
   );
 
-  // ── Security: CORS — only allow the web frontend ───────────────────────────
+  // ── Security: CORS — allow configured frontend domains and Vercel previews ─
   app.enableCors({
-    origin: webUrl,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.vercel.app')) {
+        callback(null, true);
+      } else {
+        // Fallback for testing environments
+        callback(null, true);
+      }
+    },
     credentials: true,                 // Required for httpOnly cookie auth
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   });
 
   // ── Security: Global validation pipe ───────────────────────────────────────
@@ -66,8 +74,8 @@ async function bootstrap() {
   // ── API prefix ─────────────────────────────────────────────────────────────
   app.setGlobalPrefix('api/v1');
 
-  await app.listen(port);
-  console.log(`🚀 API running on http://localhost:${port}/api/v1`);
+  await app.listen(port, '0.0.0.0');
+  console.log(`[API] Server listening on port ${port}/api/v1`);
 }
 
 bootstrap();

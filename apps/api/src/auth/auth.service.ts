@@ -17,10 +17,11 @@ import * as QRCode from 'qrcode';
 import { Response } from 'express';
 
 const BCRYPT_ROUNDS = 12;
+const isProduction = process.env.NODE_ENV === 'production';
 const COOKIE_OPTIONS = {
   httpOnly: true,       // Never readable by JavaScript
-  secure: true,         // HTTPS only in production
-  sameSite: 'lax' as const,
+  secure: isProduction, // HTTPS only in production
+  sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax', // Required for cross-origin Vercel <-> Koyeb auth
   path: '/',
 };
 

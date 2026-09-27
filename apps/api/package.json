@@ -6,6 +6,7 @@
     "schema": "../../prisma/schema.prisma"
   },
   "scripts": {
+    "prebuild": "prisma generate",
     "build": "nest build",
     "start": "node dist/main",
     "start:dev": "nest start --watch",
