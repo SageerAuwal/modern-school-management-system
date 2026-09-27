@@ -6,7 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../common/audit/audit.service';
 import { CreateClassSectionDto } from './dto/create-class.dto';
-import { PartialType } from '@nestjs/mapped-types';
+import { PartialType } from '../common/utils/partial-type.helper';
 
 class UpdateClassSectionDto extends PartialType(CreateClassSectionDto) {}
 
