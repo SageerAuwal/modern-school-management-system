@@ -8,36 +8,40 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   /** GET /api/v1/dashboard/overview — headline KPIs */
   @Get('overview')
+  @Roles(UserRole.ADMIN)
   getOverview(@CurrentUser() actor: { schoolId: string }) {
     return this.dashboardService.getOverview(actor.schoolId);
   }
 
-  /** GET /api/v1/dashboard/alerts — actionable alerts */
+  /** GET /api/v1/dashboard/alerts — actionable alerts for all authenticated portal users */
   @Get('alerts')
+  @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.BURSAR, UserRole.STUDENT, UserRole.PARENT)
   getAlerts(@CurrentUser() actor: { schoolId: string }) {
     return this.dashboardService.getAlerts(actor.schoolId);
   }
 
   /** GET /api/v1/dashboard/enrollment — enrollment per class (chart data) */
   @Get('enrollment')
+  @Roles(UserRole.ADMIN)
   getEnrollment(@CurrentUser() actor: { schoolId: string }) {
     return this.dashboardService.getEnrollmentBreakdown(actor.schoolId);
   }
 
   /** GET /api/v1/dashboard/fees — fee collection by term (chart data) */
   @Get('fees')
+  @Roles(UserRole.ADMIN, UserRole.BURSAR)
   getFees(@CurrentUser() actor: { schoolId: string }) {
     return this.dashboardService.getFeeCollectionByTerm(actor.schoolId);
   }
 
   /** GET /api/v1/dashboard/activity — recent audit log */
   @Get('activity')
+  @Roles(UserRole.ADMIN)
   getActivity(@CurrentUser() actor: { schoolId: string }) {
     return this.dashboardService.getRecentActivity(actor.schoolId);
   }

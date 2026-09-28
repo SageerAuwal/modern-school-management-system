@@ -168,7 +168,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             });
           }
 
-          // Always add routine school system notices
+          // Routine informational notice (marked read by default so it doesn't trigger false badge)
           list.push({
             id: "notice-term",
             category: "System",
@@ -177,14 +177,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             href: "/timetable",
             actionText: "View Timetable",
             timestamp: "Today",
-            isRead: false,
+            isRead: true,
           });
 
           setNotifications(list);
           setUnreadCount(list.filter((n) => !n.isRead).length);
+        } else {
+          setNotifications([]);
+          setUnreadCount(0);
         }
       } catch {
-        // Fallback standard notices if API is offline
+        // Fallback standard notice if API is temporarily unavailable
         const fallbackList: AlertNotification[] = [
           {
             id: "fb-1",
@@ -194,11 +197,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             href: "/dashboard",
             actionText: "Dashboard",
             timestamp: "Today",
-            isRead: false,
+            isRead: true,
           },
         ];
         setNotifications(fallbackList);
-        setUnreadCount(1);
+        setUnreadCount(0);
       }
     }
 
@@ -608,7 +611,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
                             <Link
                               href={notif.href}
-                              onClick={() => setIsNotificationsOpen(false)}
+                              onClick={() => {
+                                setIsNotificationsOpen(false);
+                                setNotifications((prev) =>
+                                  prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n))
+                                );
+                                setUnreadCount((prev) => Math.max(0, prev - (notif.isRead ? 0 : 1)));
+                              }}
                               style={{
                                 fontSize: 11,
                                 fontWeight: 700,
