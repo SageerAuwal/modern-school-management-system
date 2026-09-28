@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useEffect, use, FormEvent } from "react";
+import { useState, useEffect, use, useMemo, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
+import OfficialCumulativeTranscriptModal from "../../components/OfficialCumulativeTranscriptModal";
+import OfficialGraduationTestimonialModal from "../../components/OfficialGraduationTestimonialModal";
+import ProcessGraduationModal, { GraduationDataPayload } from "../../components/ProcessGraduationModal";
 
 interface GuardianData {
   id: string;
@@ -34,6 +37,11 @@ interface StudentDetail {
   lga: string | null;
   religion: string | null;
   bloodGroup: string | null;
+  genotype: string | null;
+  allergies: string | null;
+  chronicConditions: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
   medicalNotes: string | null;
   photoUrl: string | null;
   guardianName: string | null;
@@ -42,13 +50,35 @@ interface StudentDetail {
   enrollmentStatus: string;
   enrolledAt: string;
   withdrawnAt: string | null;
+  school?: {
+    id: string;
+    name: string;
+    address: string | null;
+    state: string | null;
+    lga: string | null;
+    phone: string | null;
+    email: string | null;
+    website: string | null;
+  } | null;
   enrollments: Array<{
     id: string;
+    academicYear: string;
+    status: string;
+    enrolledAt: string;
+    exitedAt?: string | null;
+    exitReason?: string | null;
     classSection: {
       id: string;
       name: string;
       level: string;
       academicYear: string;
+      teacher?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        email: string | null;
+      } | null;
     };
   }>;
   attendanceRecords: Array<{
@@ -61,11 +91,15 @@ interface StudentDetail {
     id: string;
     ca1: number | null;
     ca2: number | null;
+    ca3?: number | null;
     exam: number | null;
     total: number | null;
     grade: string | null;
+    remark?: string | null;
+    academicYear?: string;
     subject: { id: string; name: string; code: string | null };
     term: { id: string; name: string; academicYear: string } | null;
+    classSection?: { id: string; name: string; level: string } | null;
   }>;
   invoices: Array<{
     id: string;
@@ -74,7 +108,8 @@ interface StudentDetail {
     status: string;
     dueDate: string | null;
     createdAt: string;
-    payments?: Array<{ id: string; amount: number; method: string; paidAt: string }>;
+    term?: { id: string; name: string; academicYear: string } | null;
+    payments?: Array<{ id: string; amount: number; method: string; paidAt: string; reference?: string }>;
   }>;
   bookLoans: Array<{
     id: string;
@@ -83,6 +118,15 @@ interface StudentDetail {
     status: string;
     fine: number;
     book: { id: string; title: string; author: string };
+  }>;
+  clinicVisits?: Array<{
+    id: string;
+    visitDate: string;
+    complaint: string;
+    symptoms: string | null;
+    diagnosis: string | null;
+    treatmentGiven: string | null;
+    disposition: string;
   }>;
   guardians: GuardianData[];
   portalUser: {
@@ -152,9 +196,19 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"academic" | "attendance" | "fees" | "portal">("academic");
+  const [activeTab, setActiveTab] = useState<"academic" | "attendance" | "fees" | "health" | "portal">("academic");
 
-  // Reset Password Modal
+  // Cumulative Transcript Modal state
+  const [showCumulativeTranscriptModal, setShowCumulativeTranscriptModal] = useState(false);
+
+  // Graduation Testimonial Modal state
+  const [showGraduationTestimonialModal, setShowGraduationTestimonialModal] = useState(false);
+  const [graduationData, setGraduationData] = useState<GraduationDataPayload | undefined>(undefined);
+
+  // Process Graduation Modal state
+  const [showProcessGraduationModal, setShowProcessGraduationModal] = useState(false);
+
+  // Reset Password Modal state
   const [showResetModal, setShowResetModal] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [submittingReset, setSubmittingReset] = useState(false);
@@ -169,6 +223,30 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
   const [submittingGuardianLink, setSubmittingGuardianLink] = useState(false);
   const [guardianLinkError, setGuardianLinkError] = useState<string | null>(null);
   const [unlinkingGuardianId, setUnlinkingGuardianId] = useState<string | null>(null);
+
+  const fetchStudent = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/api/v1/students/${studentId}`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? `Failed to load student record (${res.status})`);
+      }
+      const data = await res.json();
+      setStudent(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load student details");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudent();
+  }, [studentId]);
 
   const handleOpenLinkGuardianModal = async () => {
     setSelectedGuardianParentId("");
@@ -240,30 +318,6 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
-  const fetchStudent = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`${API}/api/v1/students/${studentId}`, {
-        credentials: "include",
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message ?? `Failed to load student record (${res.status})`);
-      }
-      const data = await res.json();
-      setStudent(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load student details");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStudent();
-  }, [studentId]);
-
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isAdmin) return;
@@ -295,6 +349,79 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
       setSubmittingReset(false);
     }
   };
+
+  // Chronological multi-year terms grouping for transcript timeline
+  const chronologicalTerms = useMemo(() => {
+    if (!student) return [];
+
+    interface TermSessionGroup {
+      sessionKey: string;
+      academicYear: string;
+      termName: string;
+      classSectionName: string;
+      classLevel: string;
+      classTeacherName?: string;
+      scores: StudentDetail["scores"];
+      totalScore: number;
+      averageScore: number;
+    }
+
+    const groups: Record<string, TermSessionGroup> = {};
+
+    student.scores.forEach((score) => {
+      const year = score.term?.academicYear || score.academicYear || "2025/2026";
+      const termName = score.term?.name || "First Term";
+      const key = `${year}___${termName}`;
+
+      if (!groups[key]) {
+        const matchingEnrollment = student.enrollments.find(
+          (e) => e.academicYear === year || e.classSection.id === score.classSection?.id
+        );
+        const classSectionName =
+          score.classSection?.name || matchingEnrollment?.classSection.name || "Academic Class";
+        const classLevel =
+          score.classSection?.level || matchingEnrollment?.classSection.level || "Standard";
+        const teacher = matchingEnrollment?.classSection.teacher;
+        const classTeacherName = teacher ? `${teacher.firstName} ${teacher.lastName}` : undefined;
+
+        groups[key] = {
+          sessionKey: key,
+          academicYear: year,
+          termName,
+          classSectionName,
+          classLevel,
+          classTeacherName,
+          scores: [],
+          totalScore: 0,
+          averageScore: 0,
+        };
+      }
+
+      groups[key].scores.push(score);
+    });
+
+    return Object.values(groups)
+      .map((g) => {
+        const validScores = g.scores.filter((s) => s.total !== null);
+        const total = validScores.reduce((sum, s) => sum + (s.total || 0), 0);
+        const avg = validScores.length > 0 ? Math.round((total / validScores.length) * 10) / 10 : 0;
+        return {
+          ...g,
+          totalScore: total,
+          averageScore: avg,
+        };
+      })
+      .sort((a, b) => b.academicYear.localeCompare(a.academicYear));
+  }, [student]);
+
+  // Overall Cumulative GPA & Metrics
+  const cumulativeGPA = useMemo(() => {
+    if (!student || student.scores.length === 0) return 0;
+    const validScores = student.scores.filter((s) => s.total !== null);
+    if (validScores.length === 0) return 0;
+    const total = validScores.reduce((sum, s) => sum + (s.total || 0), 0);
+    return Math.round((total / validScores.length) * 10) / 10;
+  }, [student]);
 
   if (loading) {
     return (
@@ -334,7 +461,29 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const currentClass = student.enrollments[0]?.classSection?.name ?? "Not enrolled";
+  const latestEnrollment = student.enrollments[0];
+  const currentClass = latestEnrollment?.classSection?.name ?? "Not enrolled";
+  const currentLevel = (latestEnrollment?.classSection?.level ?? "").toUpperCase();
+
+  const isTerminalClass =
+    currentLevel.includes("PRI 6") ||
+    currentLevel.includes("PRIMARY 6") ||
+    currentLevel.includes("BASIC 6") ||
+    currentLevel.includes("CLASS 6") ||
+    currentLevel.includes("SSS 3") ||
+    currentLevel.includes("SS 3") ||
+    currentLevel.includes("SSS3") ||
+    currentLevel.includes("SS3");
+
+  const isGraduated = student.enrollmentStatus === "GRADUATED";
+
+  const handleGraduationSuccess = (data: GraduationDataPayload) => {
+    setGraduationData(data);
+    setShowProcessGraduationModal(false);
+    setActionSuccess("Student graduation processed successfully! Official Testimonial issued.");
+    fetchStudent();
+    setShowGraduationTestimonialModal(true);
+  };
 
   return (
     <div className="page">
@@ -398,16 +547,17 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
           <div
             style={{
-              width: 56,
-              height: 56,
+              width: 60,
+              height: 60,
               borderRadius: "50%",
-              backgroundColor: "var(--color-primary-subtle, #E6F4F2)",
-              color: "var(--color-primary, #0E7D75)",
+              backgroundColor: isGraduated ? "#ECFDF5" : "var(--color-primary-subtle, #E6F4F2)",
+              color: isGraduated ? "#047857" : "var(--color-primary, #0E7D75)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 20,
-              fontWeight: 700,
+              fontSize: 22,
+              fontWeight: 800,
+              border: `2px solid ${isGraduated ? "#A7F3D0" : "transparent"}`,
             }}
           >
             {student.firstName.charAt(0)}{student.lastName.charAt(0)}
@@ -415,12 +565,26 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
 
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
+              <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: "var(--color-ink)" }}>
                 {student.firstName} {student.lastName} {student.otherNames || ""}
               </h1>
-              <span className={student.enrollmentStatus === "ACTIVE" ? "pill-success" : "pill-danger"}>
-                {student.enrollmentStatus}
+
+              <span
+                className={
+                  isGraduated
+                    ? "pill-success"
+                    : student.enrollmentStatus === "ACTIVE"
+                    ? "pill-success"
+                    : "pill-danger"
+                }
+                style={{
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}
+              >
+                {isGraduated ? "GRADUATED ALUMNUS" : student.enrollmentStatus}
               </span>
+
               {student.invoices.length > 0 && (
                 <span
                   className={
@@ -437,17 +601,95 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
               )}
             </div>
 
-            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 4, display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 6, display: "flex", gap: 16, flexWrap: "wrap" }}>
               <span>Adm No: <strong style={{ color: "var(--color-ink)", fontFamily: "monospace" }}>{student.admissionNumber || "—"}</strong></span>
               <span>Class: <strong style={{ color: "var(--color-ink)" }}>{currentClass}</strong></span>
               <span>Gender: <strong style={{ color: "var(--color-ink)" }}>{student.gender || "—"}</strong></span>
+              <span>DOB: <strong style={{ color: "var(--color-ink)" }}>{formatDate(student.dateOfBirth)}</strong></span>
+              <span>Origin: <strong style={{ color: "var(--color-ink)" }}>{student.stateOfOrigin || "—"} {student.lga ? `(${student.lga})` : ""}</strong></span>
               <span>Enrolled: <strong style={{ color: "var(--color-ink)" }}>{formatDate(student.enrolledAt)}</strong></span>
             </div>
           </div>
         </div>
 
-        {isAdmin && student.portalUser && (
-          <div>
+        {/* Action Buttons Desk */}
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          {/* Cumulative Transcript Action */}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowCumulativeTranscriptModal(true)}
+            style={{
+              fontSize: 12.5,
+              padding: "6px 12px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            Cumulative Transcript
+          </button>
+
+          {/* Terminal Class Graduation Action */}
+          {isTerminalClass && !isGraduated && isAdmin && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowProcessGraduationModal(true)}
+              style={{
+                fontSize: 12.5,
+                padding: "6px 14px",
+                backgroundColor: "var(--color-brand-navy, #0B2545)",
+                borderColor: "var(--color-brand-navy, #0B2545)",
+                color: "#FFFFFF",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontWeight: 700,
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+                <path d="M6 12v5c3 3 9 3 12 0v-5" />
+              </svg>
+              Process Graduation
+            </button>
+          )}
+
+          {/* Official Testimonial Action (If Graduated) */}
+          {isGraduated && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowGraduationTestimonialModal(true)}
+              style={{
+                fontSize: 12.5,
+                padding: "6px 14px",
+                backgroundColor: "var(--color-brand-teal, #0E7D75)",
+                borderColor: "var(--color-brand-teal, #0E7D75)",
+                color: "#FFFFFF",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                fontWeight: 700,
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="8" r="7" />
+                <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+              </svg>
+              Official Testimonial
+            </button>
+          )}
+
+          {isAdmin && student.portalUser && (
             <button
               type="button"
               className="btn btn-secondary"
@@ -456,20 +698,29 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                 setNewPassword("");
                 setShowResetModal(true);
               }}
+              style={{ fontSize: 12.5, padding: "6px 12px" }}
             >
-              Reset Student Password
+              Reset Portal Password
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Metrics Grid */}
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         <div className="card">
+          <div className="stat-label">Cumulative GPA / Average</div>
+          <div className="stat-value" style={{ color: cumulativeGPA >= 75 ? "var(--color-brand-teal, #0E7D75)" : "var(--color-ink)" }}>
+            {cumulativeGPA > 0 ? `${cumulativeGPA}%` : "—"}
+          </div>
+          <div className="stat-sub">Across {student.scores.length} recorded subjects</div>
+        </div>
+
+        <div className="card">
           <div className="stat-label">Attendance Rate</div>
           <div className="stat-value">{student.attendanceStats.rate}%</div>
           <div className="stat-sub">
-            {student.attendanceStats.presentDays} present of {student.attendanceStats.totalDays} days
+            {student.attendanceStats.presentDays} present of {student.attendanceStats.totalDays} sessions
           </div>
         </div>
 
@@ -487,108 +738,293 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
         <div className="card">
-          <div className="stat-label">Subjects Evaluated</div>
-          <div className="stat-value">{student.scores.length}</div>
-          <div className="stat-sub">Continuous assessments</div>
-        </div>
-
-        <div className="card">
-          <div className="stat-label">Library Books</div>
-          <div className="stat-value">{student.bookLoans.length}</div>
-          <div className="stat-sub">Borrow history</div>
+          <div className="stat-label">Dossier Standing</div>
+          <div className="stat-value" style={{ fontSize: 18, fontWeight: 700, color: "var(--color-brand-navy, #0B2545)" }}>
+            {isGraduated ? "Alumnus" : isTerminalClass ? "Terminal Candidate" : "Enrolled Scholar"}
+          </div>
+          <div className="stat-sub">Session: {latestEnrollment?.academicYear || "2025/2026"}</div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 18, borderBottom: "1px solid var(--color-border)", paddingBottom: 8 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 18, borderBottom: "1px solid var(--color-border)", paddingBottom: 8, overflowX: "auto" }}>
         <button
           type="button"
           onClick={() => setActiveTab("academic")}
           className={activeTab === "academic" ? "btn btn-primary" : "btn btn-secondary"}
-          style={{ fontSize: 13, padding: "6px 14px" }}
+          style={{ fontSize: 13, padding: "6px 14px", whiteSpace: "nowrap" }}
         >
-          Academic Performance
+          Academic Transcript &amp; Timeline
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("attendance")}
           className={activeTab === "attendance" ? "btn btn-primary" : "btn btn-secondary"}
-          style={{ fontSize: 13, padding: "6px 14px" }}
+          style={{ fontSize: 13, padding: "6px 14px", whiteSpace: "nowrap" }}
         >
-          Attendance Record
+          Attendance Dossier
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("fees")}
           className={activeTab === "fees" ? "btn btn-primary" : "btn btn-secondary"}
-          style={{ fontSize: 13, padding: "6px 14px" }}
+          style={{ fontSize: 13, padding: "6px 14px", whiteSpace: "nowrap" }}
         >
-          Fee Invoices & Payments
+          Fee Ledger &amp; Clearance
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("health")}
+          className={activeTab === "health" ? "btn btn-primary" : "btn btn-secondary"}
+          style={{ fontSize: 13, padding: "6px 14px", whiteSpace: "nowrap" }}
+        >
+          Health &amp; Clinic Dossier
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab("portal")}
           className={activeTab === "portal" ? "btn btn-primary" : "btn btn-secondary"}
-          style={{ fontSize: 13, padding: "6px 14px" }}
+          style={{ fontSize: 13, padding: "6px 14px", whiteSpace: "nowrap" }}
         >
-          Portal & Linked Guardians
+          Portal &amp; Linked Guardians
         </button>
       </div>
 
-      {/* Tab 1: Academic Performance */}
+      {/* Tab 1: Academic Performance & Multi-Year Timeline */}
       {activeTab === "academic" && (
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-border)" }}>
-            <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
-              Continuous Assessment & Exam Scores
-            </h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          {/* Cumulative Dossier Snapshot Header */}
+          <div
+            className="card"
+            style={{
+              padding: "18px 22px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 14,
+              backgroundColor: "var(--color-surface-subtle, #F8FAFC)",
+              border: "1px solid var(--color-border, #E2E8F0)",
+            }}
+          >
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 800, margin: 0, color: "var(--color-ink)" }}>
+                Multi-Year Chronological Academic Timeline
+              </h2>
+              <div style={{ fontSize: 12.5, color: "var(--color-text-secondary)", marginTop: 2 }}>
+                Audit-ready academic progression across all instructional sessions at Bright Future Academy.
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={() => setShowCumulativeTranscriptModal(true)}
+                className="btn btn-primary"
+                style={{
+                  fontSize: 12.5,
+                  padding: "6px 14px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 6 2 18 2 18 9" />
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                  <rect x="6" y="14" width="12" height="8" />
+                </svg>
+                Print Official Cumulative Transcript (A4)
+              </button>
+            </div>
           </div>
 
-          {student.scores.length === 0 ? (
-            <div style={{ padding: 32, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
-              No assessment scores have been recorded for this student yet.
+          {/* Chronological Vertical Progression Cards */}
+          {chronologicalTerms.length === 0 ? (
+            <div className="card" style={{ padding: 40, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
+              No examination or continuous assessment records found for this student yet.
             </div>
           ) : (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Subject</th>
-                  <th>Term / Academic Session</th>
-                  <th style={{ textAlign: "right" }}>CA 1 (20)</th>
-                  <th style={{ textAlign: "right" }}>CA 2 (20)</th>
-                  <th style={{ textAlign: "right" }}>Exam (60)</th>
-                  <th style={{ textAlign: "right" }}>Total (100)</th>
-                  <th style={{ textAlign: "center" }}>Grade</th>
-                </tr>
-              </thead>
-              <tbody>
-                {student.scores.map((score) => (
-                  <tr key={score.id}>
-                    <td style={{ fontWeight: 600 }}>
-                      {score.subject.name} {score.subject.code ? `(${score.subject.code})` : ""}
-                    </td>
-                    <td style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>
-                      {score.term?.name || "Term 1"} &middot; {score.term?.academicYear || "2025/2026"}
-                    </td>
-                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{score.ca1 ?? "—"}</td>
-                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{score.ca2 ?? "—"}</td>
-                    <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{score.exam ?? "—"}</td>
-                    <td style={{ textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>
-                      {score.total ?? "—"}
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      <span className={getGradePillClass(score.grade)}>
-                        {score.grade || "—"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            chronologicalTerms.map((termGroup, termIdx) => (
+              <div
+                key={termGroup.sessionKey}
+                className="card"
+                style={{
+                  padding: 0,
+                  overflow: "hidden",
+                  borderLeft: `4px solid ${termIdx === 0 ? "var(--color-brand-teal, #0E7D75)" : "var(--color-brand-navy, #0B2545)"}`,
+                }}
+              >
+                {/* Term Header Bar */}
+                <div
+                  style={{
+                    padding: "16px 20px",
+                    borderBottom: "1px solid var(--color-border)",
+                    backgroundColor: "var(--color-surface-subtle, #F8FAFC)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: "var(--color-ink)" }}>
+                        {termGroup.academicYear} &middot; {termGroup.termName}
+                      </h3>
+                      {termIdx === 0 && (
+                        <span className="pill-success" style={{ fontSize: 11 }}>
+                          Latest Session
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12.5, color: "var(--color-text-secondary)", marginTop: 2 }}>
+                      Class Section: <strong>{termGroup.classSectionName}</strong> ({termGroup.classLevel})
+                      {termGroup.classTeacherName && (
+                        <span> &middot; Class Teacher: <strong>{termGroup.classTeacherName}</strong></span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 12.5 }}>
+                      <span style={{ color: "var(--color-text-secondary)" }}>Subjects Scored: </span>
+                      <strong style={{ color: "var(--color-ink)" }}>{termGroup.scores.length}</strong>
+                    </div>
+                    <div style={{ fontSize: 12.5 }}>
+                      <span style={{ color: "var(--color-text-secondary)" }}>Term Total: </span>
+                      <strong style={{ color: "var(--color-brand-navy, #0B2545)" }}>{termGroup.totalScore}</strong>
+                    </div>
+                    <div style={{ fontSize: 12.5 }}>
+                      <span style={{ color: "var(--color-text-secondary)" }}>Term Average: </span>
+                      <strong style={{ color: "var(--color-brand-teal, #0E7D75)", fontSize: 14 }}>
+                        {termGroup.averageScore}%
+                      </strong>
+                    </div>
+                    <Link
+                      href="/results"
+                      className="btn btn-secondary"
+                      style={{ fontSize: 11.5, padding: "4px 10px" }}
+                    >
+                      Terminal Score Desk
+                    </Link>
+                  </div>
+                </div>
+
+                {/* Term Scores Table */}
+                <div style={{ overflowX: "auto" }}>
+                  <table className="table" style={{ margin: 0 }}>
+                    <thead>
+                      <tr>
+                        <th>Subject Name</th>
+                        <th style={{ width: 80 }}>Code</th>
+                        <th style={{ textAlign: "right", width: 85 }}>CA 1 (20)</th>
+                        <th style={{ textAlign: "right", width: 85 }}>CA 2 (20)</th>
+                        <th style={{ textAlign: "right", width: 85 }}>Exam (60)</th>
+                        <th style={{ textAlign: "right", width: 95 }}>Total (100)</th>
+                        <th style={{ textAlign: "center", width: 75 }}>Grade</th>
+                        <th style={{ width: 130 }}>Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {termGroup.scores.map((score) => (
+                        <tr key={score.id}>
+                          <td style={{ fontWeight: 600 }}>{score.subject.name}</td>
+                          <td style={{ color: "var(--color-text-secondary)", fontFamily: "monospace", fontSize: 12 }}>
+                            {score.subject.code || "—"}
+                          </td>
+                          <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{score.ca1 ?? "—"}</td>
+                          <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{score.ca2 ?? "—"}</td>
+                          <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{score.exam ?? "—"}</td>
+                          <td style={{ textAlign: "right", fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "var(--color-brand-navy, #0B2545)" }}>
+                            {score.total ?? "—"}
+                          </td>
+                          <td style={{ textAlign: "center" }}>
+                            <span className={getGradePillClass(score.grade)}>
+                              {score.grade || "—"}
+                            </span>
+                          </td>
+                          <td style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                            {score.remark ||
+                              (score.grade === "A"
+                                ? "Excellent"
+                                : score.grade === "B"
+                                ? "Very Good"
+                                : score.grade === "C"
+                                ? "Credit"
+                                : score.grade === "D"
+                                ? "Pass"
+                                : score.grade === "F"
+                                ? "Fail"
+                                : "Satisfactory")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))
           )}
+
+          {/* Historical Class Enrollment Timeline */}
+          <div className="card" style={{ padding: 20 }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 14px 0", color: "var(--color-ink)" }}>
+              Institutional Enrollment History
+            </h3>
+            {student.enrollments.length === 0 ? (
+              <div style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>No enrollment history recorded.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {student.enrollments.map((enr, idx) => (
+                  <div
+                    key={enr.id}
+                    style={{
+                      padding: "10px 14px",
+                      border: "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-control)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      backgroundColor: idx === 0 ? "var(--color-surface-subtle, #F8FAFC)" : "#FFFFFF",
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontWeight: 700, fontSize: 13.5, color: "var(--color-ink)" }}>
+                        {enr.classSection.name}
+                      </span>
+                      <span style={{ fontSize: 12, color: "var(--color-text-secondary)", marginLeft: 8 }}>
+                        ({enr.classSection.level}) &middot; Session: {enr.academicYear}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                        Enrolled: {formatDate(enr.enrolledAt)}
+                      </span>
+                      <span
+                        className={
+                          enr.status === "ACTIVE"
+                            ? "pill-success"
+                            : enr.status === "GRADUATED"
+                            ? "pill-success"
+                            : "pill-neutral"
+                        }
+                        style={{ fontSize: 11 }}
+                      >
+                        {enr.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -731,7 +1167,107 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
-      {/* Tab 4: Portal & Linked Guardians */}
+      {/* Tab 4: Health & Clinic Dossier */}
+      {activeTab === "health" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
+          {/* Medical Profile Card */}
+          <div className="card">
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 14px 0", color: "var(--color-ink)" }}>
+              Clinical Profile &amp; Vitals
+            </h2>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 13 }}>
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Blood Group: </span>
+                <strong style={{ color: "var(--color-ink)" }}>{student.bloodGroup || "Not recorded"}</strong>
+              </div>
+
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Genotype: </span>
+                <strong style={{ color: "var(--color-ink)" }}>{student.genotype || "Not recorded"}</strong>
+              </div>
+
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Known Allergies: </span>
+                <strong style={{ color: student.allergies ? "#DC2626" : "var(--color-ink)" }}>
+                  {student.allergies || "None reported"}
+                </strong>
+              </div>
+
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Chronic Conditions: </span>
+                <strong style={{ color: student.chronicConditions ? "#DC2626" : "var(--color-ink)" }}>
+                  {student.chronicConditions || "None recorded"}
+                </strong>
+              </div>
+
+              <div>
+                <span style={{ color: "var(--color-text-secondary)" }}>Emergency Contact: </span>
+                <strong style={{ color: "var(--color-ink)" }}>
+                  {student.emergencyContactName || "Guardian on record"}
+                  {student.emergencyContactPhone ? ` (${student.emergencyContactPhone})` : ""}
+                </strong>
+              </div>
+
+              {student.medicalNotes && (
+                <div style={{ marginTop: 8, padding: 10, backgroundColor: "var(--color-surface-subtle)", borderRadius: 6 }}>
+                  <span style={{ color: "var(--color-text-secondary)", display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase" }}>
+                    Clinical Remarks:
+                  </span>
+                  <p style={{ margin: "4px 0 0 0", fontSize: 12.5 }}>{student.medicalNotes}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Clinic Visitation Log Card */}
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-border)" }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
+                School Clinic Triage Log
+              </h2>
+            </div>
+
+            {!student.clinicVisits || student.clinicVisits.length === 0 ? (
+              <div style={{ padding: 32, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
+                No clinic triage visits recorded for this student.
+              </div>
+            ) : (
+              <table className="table" style={{ margin: 0 }}>
+                <thead>
+                  <tr>
+                    <th>Visit Date</th>
+                    <th>Chief Complaint</th>
+                    <th>Diagnosis &amp; Care</th>
+                    <th>Disposition</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {student.clinicVisits.map((visit) => (
+                    <tr key={visit.id}>
+                      <td style={{ fontWeight: 600 }}>{formatDate(visit.visitDate)}</td>
+                      <td>{visit.complaint}</td>
+                      <td style={{ fontSize: 12 }}>
+                        <div><strong>Diagnosis:</strong> {visit.diagnosis || "Under evaluation"}</div>
+                        {visit.treatmentGiven && (
+                          <div style={{ color: "var(--color-text-secondary)" }}><strong>Care:</strong> {visit.treatmentGiven}</div>
+                        )}
+                      </td>
+                      <td>
+                        <span className="pill-neutral" style={{ fontSize: 11 }}>
+                          {visit.disposition.replace(/_/g, " ")}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 5: Portal & Linked Guardians */}
       {activeTab === "portal" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 20 }}>
           {/* Left: Student Portal Account */}
@@ -881,6 +1417,42 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
         </div>
       )}
 
+      {/* Modal: Official Cumulative Transcript */}
+      <OfficialCumulativeTranscriptModal
+        isOpen={showCumulativeTranscriptModal}
+        onClose={() => setShowCumulativeTranscriptModal(false)}
+        student={{
+          ...student,
+          scores: student.scores.map((s) => ({
+            ...s,
+            academicYear: s.term?.academicYear || s.academicYear || "2025/2026",
+          })),
+        }}
+      />
+
+      {/* Modal: Official Graduation Testimonial */}
+      <OfficialGraduationTestimonialModal
+        isOpen={showGraduationTestimonialModal}
+        onClose={() => setShowGraduationTestimonialModal(false)}
+        student={student}
+        graduationData={graduationData}
+      />
+
+      {/* Modal: Process Graduation */}
+      <ProcessGraduationModal
+        isOpen={showProcessGraduationModal}
+        onClose={() => setShowProcessGraduationModal(false)}
+        student={{
+          id: student.id,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          admissionNumber: student.admissionNumber,
+          currentClass,
+          level: currentLevel,
+        }}
+        onSuccess={handleGraduationSuccess}
+      />
+
       {/* Modal: Reset Student Password */}
       {showResetModal && isAdmin && (
         <div
@@ -954,6 +1526,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
       )}
+
       {/* Modal: Link Parent / Guardian */}
       {showLinkGuardianModal && isAdmin && (
         <div

@@ -182,6 +182,18 @@ export class StudentsService {
     const student = await this.prisma.student.findFirst({
       where: { id, schoolId },
       include: {
+        school: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            state: true,
+            lga: true,
+            phone: true,
+            email: true,
+            website: true,
+          },
+        },
         guardianLinks: {
           select: {
             id: true,
@@ -218,10 +230,11 @@ export class StudentsService {
           select: { id: true, date: true, status: true, note: true },
         },
         scores: {
-          orderBy: { createdAt: 'desc' },
+          orderBy: [{ academicYear: 'desc' }, { createdAt: 'desc' }],
           include: {
             subject: { select: { id: true, name: true, code: true } },
             term: { select: { id: true, name: true, academicYear: true } },
+            classSection: { select: { id: true, name: true, level: true } },
           },
         },
         invoices: {
@@ -236,6 +249,19 @@ export class StudentsService {
           orderBy: { createdAt: 'desc' },
           include: {
             book: { select: { id: true, title: true, author: true } },
+          },
+        },
+        clinicVisits: {
+          orderBy: { visitDate: 'desc' },
+          take: 15,
+          select: {
+            id: true,
+            visitDate: true,
+            complaint: true,
+            symptoms: true,
+            diagnosis: true,
+            treatmentGiven: true,
+            disposition: true,
           },
         },
         transportAssignments: {
@@ -500,6 +526,49 @@ export class StudentsService {
       action: 'STUDENT_REENROLLED',
       targetType: 'STUDENT',
       targetId: id,
+    });
+
+    return updated;
+  }
+
+  // ── Graduate ──────────────────────────────────────────────────────────────
+
+  async graduate(
+    id: string,
+    schoolId: string,
+    remarks: string,
+    actorId: string,
+    actorEmail: string,
+  ) {
+    const student = await this.findOne(id, schoolId);
+
+    // Close all active enrollments with GRADUATED status
+    await this.prisma.enrollment.updateMany({
+      where: { studentId: id, status: EnrollmentStatus.ACTIVE },
+      data: {
+        status: EnrollmentStatus.GRADUATED,
+        exitedAt: new Date(),
+        exitReason: remarks || 'Graduated from Bright Future Academy',
+      },
+    });
+
+    const updated = await this.prisma.student.update({
+      where: { id },
+      data: {
+        enrollmentStatus: EnrollmentStatus.GRADUATED,
+      },
+    });
+
+    await this.auditService.log({
+      actorId,
+      actorEmail,
+      action: 'STUDENT_GRADUATED',
+      targetType: 'STUDENT',
+      targetId: id,
+      afterValue: {
+        enrollmentStatus: EnrollmentStatus.GRADUATED,
+        remarks: remarks || 'Graduated from Bright Future Academy',
+      } as Record<string, unknown>,
     });
 
     return updated;

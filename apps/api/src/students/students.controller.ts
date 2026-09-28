@@ -95,6 +95,17 @@ export class StudentsController {
     return this.studentsService.reenroll(id, actor.schoolId, actor.id, actor.email);
   }
 
+  /** PATCH /api/v1/students/:id/graduate — graduate a terminal student */
+  @Patch(':id/graduate')
+  @Roles(UserRole.ADMIN)
+  graduate(
+    @Param('id') id: string,
+    @Body('remarks') remarks: string,
+    @CurrentUser() actor: { id: string; email: string; schoolId: string },
+  ) {
+    return this.studentsService.graduate(id, actor.schoolId, remarks ?? 'Graduated from Bright Future Academy', actor.id, actor.email);
+  }
+
   /** POST /api/v1/students/:id/guardians — link a guardian */
   @Post(':id/guardians')
   @Roles(UserRole.ADMIN)
