@@ -441,7 +441,12 @@ export class TimetableService {
       },
     });
 
-    return timetable;
+    // Always return a JSON-serialisable object.
+    // When no active timetable exists, Prisma returns null.
+    // NestJS serialises a bare null return as an empty HTTP body (0 bytes),
+    // which causes the frontend to crash on .json(). Wrapping guarantees
+    // the response is always valid JSON the client can parse safely.
+    return { timetable: timetable ?? null, active: timetable !== null };
   }
 
   /**

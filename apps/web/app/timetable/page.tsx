@@ -271,25 +271,49 @@ export default function TimetablePage() {
   const loadData = async () => {
     setLoading(true);
     setError("");
+
+    // Helper: read response as text first, then parse — never crashes on empty body.
+    async function safeJson<T>(res: Response): Promise<T | null> {
+      try {
+        const text = await res.text();
+        if (!text || text.trim() === "") return null;
+        return JSON.parse(text) as T;
+      } catch {
+        return null;
+      }
+    }
+
+    // Step 1 — Fetch timetable in isolation.
+    // This must NOT be inside the same try/catch as classes and terms.
+    // If no timetable exists the API returns { timetable: null, active: false }
+    // and we simply show the "no timetable" state without crashing the page.
+    let initialTimetable: TimetableData | null = null;
     try {
-      const [resTt, resCls, resStaff, resTerms] = await Promise.all([
-        fetch(`${API}/api/v1/timetable/active`, { credentials: "include" }),
+      const resTt = await fetch(`${API}/api/v1/timetable/active`, { credentials: "include" });
+      if (resTt.ok) {
+        const envelope = await safeJson<{ timetable: TimetableData | null; active: boolean }>(resTt);
+        const ttData = envelope?.timetable ?? null;
+        initialTimetable = ttData;
+        setTimetable(ttData);
+      } else {
+        setTimetable(null);
+      }
+    } catch {
+      // Timetable fetch failed — page continues loading classes and terms.
+      setTimetable(null);
+    }
+
+    // Step 2 — Fetch all metadata. Classes, staff, and terms must always load
+    // so the admin can generate a timetable even when none exists yet.
+    try {
+      const [resCls, resStaff, resTerms] = await Promise.all([
         fetch(`${API}/api/v1/classes`, { credentials: "include" }),
         fetch(`${API}/api/v1/staff`, { credentials: "include" }),
         fetch(`${API}/api/v1/terms`, { credentials: "include" }),
       ]);
 
-      let initialTimetable: TimetableData | null = null;
-      if (resTt.ok) {
-        const data = await resTt.json();
-        initialTimetable = data;
-        setTimetable(data);
-      } else {
-        setTimetable(null);
-      }
-
       if (resCls.ok) {
-        const data = await resCls.json();
+        const data = await safeJson<{ id: string; name: string; level: string }[]>(resCls);
         if (Array.isArray(data)) {
           setClasses(data);
 
@@ -331,16 +355,16 @@ export default function TimetablePage() {
       const teacherMap = new Map<string, { id: string; firstName: string; lastName: string; email?: string }>();
 
       if (resStaff.ok) {
-        const data = await resStaff.json();
+        const data = await safeJson<{ id: string; firstName?: string; lastName?: string; isActive?: boolean; user?: { id: string; firstName: string; lastName: string; email: string } }[]>(resStaff);
         if (Array.isArray(data)) {
           for (const s of data) {
             if (s.isActive !== false) {
               const teacherId = s.user?.id || s.id;
               teacherMap.set(teacherId, {
                 id: teacherId,
-                firstName: s.user?.firstName || s.firstName,
-                lastName: s.user?.lastName || s.lastName,
-                email: s.user?.email || s.email,
+                firstName: s.user?.firstName || s.firstName || "",
+                lastName: s.user?.lastName || s.lastName || "",
+                email: s.user?.email,
               });
             }
           }
@@ -370,7 +394,7 @@ export default function TimetablePage() {
       }
 
       if (resTerms.ok) {
-        const data = await resTerms.json();
+        const data = await safeJson<Term[]>(resTerms);
         if (Array.isArray(data)) {
           setTerms(data);
           const current = data.find((t: Term) => t.isCurrent);
