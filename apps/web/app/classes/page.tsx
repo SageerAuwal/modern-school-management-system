@@ -82,6 +82,56 @@ function getDivisionInfo(level: string): { label: string; isPrimary: boolean } {
   return { label: "All School", isPrimary: true };
 }
 
+function getSubjectSection(sub: SchoolSubject): { label: "Primary" | "Secondary" | "All Sections"; badgeBg: string; badgeColor: string; badgeBorder: string } {
+  const desc = (sub.description || "").toLowerCase();
+  const name = (sub.name || "").toLowerCase();
+
+  if (
+    desc.includes("[primary]") ||
+    desc.includes("primary") ||
+    desc.includes("nursery") ||
+    name.includes("nursery") ||
+    name.includes("basic science") ||
+    name.includes("handwriting") ||
+    name.includes("phonics")
+  ) {
+    return {
+      label: "Primary",
+      badgeBg: "#E6F4F2",
+      badgeColor: "#0E7D75",
+      badgeBorder: "#BCE5DF",
+    };
+  }
+  if (
+    desc.includes("[secondary]") ||
+    desc.includes("secondary") ||
+    desc.includes("jss") ||
+    desc.includes("sss") ||
+    desc.includes("waec") ||
+    desc.includes("neco") ||
+    name.includes("further mathematics") ||
+    name.includes("physics") ||
+    name.includes("chemistry") ||
+    name.includes("biology") ||
+    name.includes("government") ||
+    name.includes("economics") ||
+    name.includes("commerce")
+  ) {
+    return {
+      label: "Secondary",
+      badgeBg: "#E8EEF5",
+      badgeColor: "#0B2545",
+      badgeBorder: "#C4D3E6",
+    };
+  }
+  return {
+    label: "All Sections",
+    badgeBg: "#F1F5F9",
+    badgeColor: "#475569",
+    badgeBorder: "#CBD5E1",
+  };
+}
+
 export default function ClassesPage() {
   const { isAdmin } = useCurrentUser();
   const [classes, setClasses] = useState<ClassSection[]>([]);
@@ -123,6 +173,8 @@ export default function ClassesPage() {
   const [newSubjectName, setNewSubjectName] = useState("");
   const [newSubjectCode, setNewSubjectCode] = useState("");
   const [newSubjectDesc, setNewSubjectDesc] = useState("");
+  const [newSubjectSection, setNewSubjectSection] = useState<"ALL" | "PRIMARY" | "SECONDARY">("ALL");
+  const [subjectSectionFilter, setSubjectSectionFilter] = useState<"ALL" | "PRIMARY" | "SECONDARY">("ALL");
   const [submittingSubject, setSubmittingSubject] = useState(false);
   const [subjectError, setSubjectError] = useState("");
   const [subjectSuccess, setSubjectSuccess] = useState("");
@@ -133,12 +185,18 @@ export default function ClassesPage() {
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewTab, setOverviewTab] = useState<"subjects" | "students" | "details">("subjects");
 
-  // In-Overview Subject Assignment
+  // In-Overview Subject Assignment & Inline Creator
   const [assignSubjectId, setAssignSubjectId] = useState("");
   const [assignTeacherId, setAssignTeacherId] = useState("");
   const [assigningSubject, setAssigningSubject] = useState(false);
   const [assignError, setAssignError] = useState("");
   const [assignSuccess, setAssignSuccess] = useState("");
+  const [showInlineCreateSubject, setShowInlineCreateSubject] = useState(false);
+  const [inlineSubjectName, setInlineSubjectName] = useState("");
+  const [inlineSubjectCode, setInlineSubjectCode] = useState("");
+  const [inlineSubjectTeacherId, setInlineSubjectTeacherId] = useState("");
+  const [inlineCreatingSubject, setInlineCreatingSubject] = useState(false);
+  const [inlineSubjectError, setInlineSubjectError] = useState("");
 
   // Division filter: ALL | PRIMARY | SECONDARY (persisted in sessionStorage)
   const [divisionFilter, setDivisionFilter] = useState<"ALL" | "PRIMARY" | "SECONDARY">(() => {
@@ -407,6 +465,17 @@ export default function ClassesPage() {
     setSubjectSuccess("");
 
     try {
+      const sectionTag =
+        newSubjectSection === "PRIMARY"
+          ? "[Primary]"
+          : newSubjectSection === "SECONDARY"
+          ? "[Secondary]"
+          : "[All Sections]";
+
+      const combinedDesc = newSubjectDesc.trim()
+        ? `${sectionTag} ${newSubjectDesc.trim()}`
+        : sectionTag;
+
       const res = await fetch(`${API}/api/v1/subjects`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -414,7 +483,7 @@ export default function ClassesPage() {
         body: JSON.stringify({
           name: newSubjectName.trim(),
           code: newSubjectCode.trim() ? newSubjectCode.trim().toUpperCase() : undefined,
-          description: newSubjectDesc.trim() || undefined,
+          description: combinedDesc,
         }),
       });
 
@@ -423,7 +492,7 @@ export default function ClassesPage() {
         throw new Error(data.message || "Failed to create subject");
       }
 
-      setSubjectSuccess(`Subject "${newSubjectName.trim()}" created successfully.`);
+      setSubjectSuccess(`Subject "${newSubjectName.trim()}" created successfully for ${newSubjectSection === "PRIMARY" ? "Primary" : newSubjectSection === "SECONDARY" ? "Secondary" : "All Sections"}.`);
       setNewSubjectName("");
       setNewSubjectCode("");
       setNewSubjectDesc("");
@@ -433,6 +502,69 @@ export default function ClassesPage() {
       setSubjectError(err instanceof Error ? err.message : "Failed to create subject");
     } finally {
       setSubmittingSubject(false);
+    }
+  };
+
+  const handleInlineCreateAndAssignSubject = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!overviewClassId || !overviewClassData || !inlineSubjectName.trim()) return;
+
+    setInlineCreatingSubject(true);
+    setInlineSubjectError("");
+
+    try {
+      const divInfo = getDivisionInfo(overviewClassData.level);
+      const sectionTag = divInfo.isPrimary ? "[Primary]" : "[Secondary]";
+      const desc = `${sectionTag} Created for ${overviewClassData.name}`;
+
+      // 1. Create the subject
+      const subRes = await fetch(`${API}/api/v1/subjects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: inlineSubjectName.trim(),
+          code: inlineSubjectCode.trim() ? inlineSubjectCode.trim().toUpperCase() : undefined,
+          description: desc,
+        }),
+      });
+
+      const subData = await subRes.json();
+      if (!subRes.ok) {
+        throw new Error(subData.message || "Failed to create subject");
+      }
+
+      const createdSubjectId = subData.id;
+
+      // 2. Assign the subject to the class
+      const assignRes = await fetch(`${API}/api/v1/subjects/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          classSectionId: overviewClassId,
+          subjectId: createdSubjectId,
+          teacherId: inlineSubjectTeacherId || undefined,
+        }),
+      });
+
+      if (!assignRes.ok) {
+        const assignData = await assignRes.json();
+        throw new Error(assignData.message || "Subject created, but failed to assign to class");
+      }
+
+      setAssignSuccess(`Subject "${inlineSubjectName.trim()}" created and assigned to ${overviewClassData.name}!`);
+      setInlineSubjectName("");
+      setInlineSubjectCode("");
+      setInlineSubjectTeacherId("");
+      setShowInlineCreateSubject(false);
+      fetchSubjects();
+      await refreshClassOverview(overviewClassId);
+      setTimeout(() => setAssignSuccess(""), 4000);
+    } catch (err: unknown) {
+      setInlineSubjectError(err instanceof Error ? err.message : "Failed to create and assign subject");
+    } finally {
+      setInlineCreatingSubject(false);
     }
   };
 
@@ -564,15 +696,36 @@ export default function ClassesPage() {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <button
             type="button"
             className="btn btn-secondary"
             onClick={() => setIsSubjectsModalOpen(true)}
             style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
-            Manage Subjects Catalog ({schoolSubjects.length})
+            Curriculum Subjects ({schoolSubjects.length})
           </button>
+
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setNewSubjectSection("ALL");
+                setIsSubjectsModalOpen(true);
+              }}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                borderColor: "var(--color-brand-teal)",
+                color: "var(--color-brand-teal)",
+                fontWeight: 600,
+              }}
+            >
+              + Create Subject
+            </button>
+          )}
 
           {isAdmin && (
             <button
@@ -580,7 +733,7 @@ export default function ClassesPage() {
               className="btn btn-primary"
               onClick={handleOpenModal}
             >
-              Create a class
+              + Create a class
             </button>
           )}
         </div>
@@ -1177,13 +1330,53 @@ export default function ClassesPage() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)", marginBottom: 12 }}>
                   Add New Subject to Curriculum
                 </div>
+
+                {/* Section / Division Choice */}
+                <div style={{ marginBottom: 12 }}>
+                  <label className="label" style={{ fontSize: 12, marginBottom: 6 }}>
+                    Applicable School Section / Division *
+                  </label>
+                  <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="subjectSection"
+                        value="ALL"
+                        checked={newSubjectSection === "ALL"}
+                        onChange={() => setNewSubjectSection("ALL")}
+                      />
+                      <span>All School (Universal)</span>
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="subjectSection"
+                        value="PRIMARY"
+                        checked={newSubjectSection === "PRIMARY"}
+                        onChange={() => setNewSubjectSection("PRIMARY")}
+                      />
+                      <span style={{ color: "var(--color-brand-teal)", fontWeight: 600 }}>Nursery &amp; Primary</span>
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, cursor: "pointer" }}>
+                      <input
+                        type="radio"
+                        name="subjectSection"
+                        value="SECONDARY"
+                        checked={newSubjectSection === "SECONDARY"}
+                        onChange={() => setNewSubjectSection("SECONDARY")}
+                      />
+                      <span style={{ color: "var(--color-brand-navy)", fontWeight: 600 }}>Secondary Section</span>
+                    </label>
+                  </div>
+                </div>
+
                 <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 12, marginBottom: 12 }}>
                   <div>
                     <label className="label" style={{ fontSize: 12 }}>Subject Name *</label>
                     <input
                       type="text"
                       className="input"
-                      placeholder="e.g. Technical Drawing"
+                      placeholder="e.g. Technical Drawing, Basic Science"
                       value={newSubjectName}
                       onChange={(e) => setNewSubjectName(e.target.value)}
                       required
@@ -1194,7 +1387,7 @@ export default function ClassesPage() {
                     <input
                       type="text"
                       className="input"
-                      placeholder="e.g. TD"
+                      placeholder="e.g. TD, BST"
                       value={newSubjectCode}
                       onChange={(e) => setNewSubjectCode(e.target.value)}
                       maxLength={10}
@@ -1206,7 +1399,7 @@ export default function ClassesPage() {
                   <input
                     type="text"
                     className="input"
-                    placeholder="e.g. Senior Secondary vocational elective"
+                    placeholder="e.g. Core curriculum for basic science and technology"
                     value={newSubjectDesc}
                     onChange={(e) => setNewSubjectDesc(e.target.value)}
                   />
@@ -1224,50 +1417,153 @@ export default function ClassesPage() {
               </form>
             )}
 
-            {/* List of existing subjects */}
+            {/* List of existing subjects with Section Filter */}
             <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)" }}>
-                  Current Subjects ({schoolSubjects.length})
-                </span>
-              </div>
+              {(() => {
+                const primaryCount = schoolSubjects.filter(
+                  (s) => getSubjectSection(s).label === "Primary" || getSubjectSection(s).label === "All Sections"
+                ).length;
+                const secondaryCount = schoolSubjects.filter(
+                  (s) => getSubjectSection(s).label === "Secondary" || getSubjectSection(s).label === "All Sections"
+                ).length;
 
-              {schoolSubjects.length === 0 ? (
-                <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
-                  No subjects defined yet. Add your first subject above.
-                </div>
-              ) : (
-                <div className="table-responsive" style={{ overflowX: "auto" }}>
-                  <table className="table" style={{ width: "100%", fontSize: 13 }}>
-                    <thead>
-                      <tr>
-                        <th>Subject Name</th>
-                        <th style={{ width: 100 }}>Code</th>
-                        <th style={{ textAlign: "right", width: 140 }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {schoolSubjects.map((sub) => (
-                        <tr key={sub.id}>
-                          <td>
-                            <strong style={{ color: "var(--color-ink)" }}>{sub.name}</strong>
-                          </td>
-                          <td>
-                            <span className="pill-neutral" style={{ fontFamily: "monospace", fontSize: 11 }}>
-                              {sub.code || "—"}
-                            </span>
-                          </td>
-                          <td style={{ textAlign: "right" }}>
-                            <span className="pill-success" style={{ fontSize: 11 }}>
-                              Active
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                const filteredCatalogSubjects = schoolSubjects.filter((s) => {
+                  if (subjectSectionFilter === "ALL") return true;
+                  const sec = getSubjectSection(s);
+                  if (subjectSectionFilter === "PRIMARY") {
+                    return sec.label === "Primary" || sec.label === "All Sections";
+                  }
+                  if (subjectSectionFilter === "SECONDARY") {
+                    return sec.label === "Secondary" || sec.label === "All Sections";
+                  }
+                  return true;
+                });
+
+                return (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)" }}>
+                        Current Subjects ({filteredCatalogSubjects.length})
+                      </span>
+
+                      {/* Section Filter Pills */}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          type="button"
+                          onClick={() => setSubjectSectionFilter("ALL")}
+                          className="btn"
+                          style={{
+                            fontSize: 11,
+                            padding: "3px 10px",
+                            backgroundColor: subjectSectionFilter === "ALL" ? "var(--color-ink)" : "#F1F5F9",
+                            color: subjectSectionFilter === "ALL" ? "#FFFFFF" : "var(--color-ink)",
+                            border: "none",
+                            borderRadius: 999,
+                            cursor: "pointer",
+                          }}
+                        >
+                          All ({schoolSubjects.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSubjectSectionFilter("PRIMARY")}
+                          className="btn"
+                          style={{
+                            fontSize: 11,
+                            padding: "3px 10px",
+                            backgroundColor: subjectSectionFilter === "PRIMARY" ? "var(--color-brand-teal)" : "#E6F4F2",
+                            color: subjectSectionFilter === "PRIMARY" ? "#FFFFFF" : "var(--color-brand-teal)",
+                            border: "none",
+                            borderRadius: 999,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Primary ({primaryCount})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSubjectSectionFilter("SECONDARY")}
+                          className="btn"
+                          style={{
+                            fontSize: 11,
+                            padding: "3px 10px",
+                            backgroundColor: subjectSectionFilter === "SECONDARY" ? "var(--color-brand-navy)" : "#E8EEF5",
+                            color: subjectSectionFilter === "SECONDARY" ? "#FFFFFF" : "var(--color-brand-navy)",
+                            border: "none",
+                            borderRadius: 999,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Secondary ({secondaryCount})
+                        </button>
+                      </div>
+                    </div>
+
+                    {filteredCatalogSubjects.length === 0 ? (
+                      <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
+                        No subjects found in this section. Add one above.
+                      </div>
+                    ) : (
+                      <div className="table-responsive" style={{ overflowX: "auto" }}>
+                        <table className="table" style={{ width: "100%", fontSize: 13 }}>
+                          <thead>
+                            <tr>
+                              <th>Subject Name</th>
+                              <th style={{ width: 90 }}>Code</th>
+                              <th style={{ width: 130 }}>Section</th>
+                              <th style={{ textAlign: "right", width: 100 }}>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredCatalogSubjects.map((sub) => {
+                              const sec = getSubjectSection(sub);
+                              return (
+                                <tr key={sub.id}>
+                                  <td>
+                                    <strong style={{ color: "var(--color-ink)" }}>{sub.name}</strong>
+                                    {sub.description && !sub.description.startsWith("[") && (
+                                      <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                                        {sub.description}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td>
+                                    <span className="pill-neutral" style={{ fontFamily: "monospace", fontSize: 11 }}>
+                                      {sub.code || "—"}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span
+                                      style={{
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        padding: "2px 8px",
+                                        borderRadius: 6,
+                                        backgroundColor: sec.badgeBg,
+                                        color: sec.badgeColor,
+                                        border: `1px solid ${sec.badgeBorder}`,
+                                      }}
+                                    >
+                                      {sec.label}
+                                    </span>
+                                  </td>
+                                  <td style={{ textAlign: "right" }}>
+                                    <span className="pill-success" style={{ fontSize: 11 }}>
+                                      Active
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--color-border)" }}>
@@ -1415,74 +1711,171 @@ export default function ClassesPage() {
                   </div>
                 )}
 
-                {/* If Admin: Quick Assign Form */}
+                {/* If Admin: Quick Assign or Create Form */}
                 {isAdmin && (
-                  <form
-                    onSubmit={handleAssignSubjectInOverview}
+                  <div
                     style={{
                       padding: 14,
-                      backgroundColor: "var(--color-surface-subtle, #F8FAFC)",
+                      backgroundColor: showInlineCreateSubject ? "#F0FDFA" : "var(--color-surface-subtle, #F8FAFC)",
                       borderRadius: 8,
-                      border: "1px solid var(--color-border)",
+                      border: `1px solid ${showInlineCreateSubject ? "#99F6E4" : "var(--color-border)"}`,
                       marginBottom: 16,
+                      transition: "all 0.2s ease",
                     }}
                   >
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--color-ink)", marginBottom: 10 }}>
-                      Assign a Subject to this Class
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.2fr auto", gap: 10, alignItems: "flex-end" }}>
-                      <div>
-                        <label className="label" style={{ fontSize: 11.5 }}>Select Subject *</label>
-                        <select
-                          className="input"
-                          style={{ fontSize: 12.5 }}
-                          value={assignSubjectId}
-                          onChange={(e) => setAssignSubjectId(e.target.value)}
-                          required
-                        >
-                          <option value="">-- Choose Subject --</option>
-                          {schoolSubjects
-                            .filter(
-                              (s) =>
-                                !overviewClassData?.classSubjects?.some(
-                                  (cs) => cs.subjectId === s.id || cs.subject?.id === s.id
-                                )
-                            )
-                            .map((s) => (
-                              <option key={s.id} value={s.id}>
-                                {s.name} {s.code ? `(${s.code})` : ""}
-                              </option>
-                            ))}
-                        </select>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)" }}>
+                        {showInlineCreateSubject
+                          ? `Create New Subject for ${overviewClassData ? getDivisionInfo(overviewClassData.level).label : ""} Section`
+                          : "Assign a Subject to this Class"}
                       </div>
-
-                      <div>
-                        <label className="label" style={{ fontSize: 11.5 }}>Assign Subject Teacher</label>
-                        <select
-                          className="input"
-                          style={{ fontSize: 12.5 }}
-                          value={assignTeacherId}
-                          onChange={(e) => setAssignTeacherId(e.target.value)}
-                        >
-                          <option value="">-- Unassigned (Set Later) --</option>
-                          {teachers.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.firstName} {t.lastName}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
                       <button
-                        type="submit"
-                        className="btn btn-primary"
-                        disabled={assigningSubject || !assignSubjectId}
-                        style={{ fontSize: 12.5, padding: "8px 16px", whiteSpace: "nowrap" }}
+                        type="button"
+                        onClick={() => {
+                          setShowInlineCreateSubject((prev) => !prev);
+                          setInlineSubjectError("");
+                        }}
+                        className="btn btn-secondary"
+                        style={{
+                          fontSize: "11.5px",
+                          padding: "4px 10px",
+                          borderColor: "var(--color-brand-teal)",
+                          color: "var(--color-brand-teal)",
+                          fontWeight: 600,
+                        }}
                       >
-                        {assigningSubject ? "Assigning..." : "Assign Subject"}
+                        {showInlineCreateSubject ? "Cancel New Subject" : "+ Create New Subject for this Section"}
                       </button>
                     </div>
-                  </form>
+
+                    {showInlineCreateSubject ? (
+                      /* Inline Create & Assign Form */
+                      <form onSubmit={handleInlineCreateAndAssignSubject}>
+                        <p style={{ fontSize: 11.5, color: "#115E59", margin: "0 0 10px" }}>
+                          This creates the subject in the curriculum tagged for the {overviewClassData ? getDivisionInfo(overviewClassData.level).label : ""} section, and immediately assigns it to {overviewClassData?.name}.
+                        </p>
+
+                        {inlineSubjectError && (
+                          <div className="pill-danger" style={{ display: "block", marginBottom: 10, padding: "6px 10px", fontSize: 12 }}>
+                            {inlineSubjectError}
+                          </div>
+                        )}
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr 1.2fr auto", gap: 10, alignItems: "flex-end" }}>
+                          <div>
+                            <label className="label" style={{ fontSize: 11.5 }}>Subject Name *</label>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="e.g. Cultural & Creative Arts"
+                              value={inlineSubjectName}
+                              onChange={(e) => setInlineSubjectName(e.target.value)}
+                              required
+                              style={{ fontSize: 12.5 }}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="label" style={{ fontSize: 11.5 }}>Code (Optional)</label>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="e.g. CCA"
+                              value={inlineSubjectCode}
+                              onChange={(e) => setInlineSubjectCode(e.target.value)}
+                              maxLength={10}
+                              style={{ fontSize: 12.5 }}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="label" style={{ fontSize: 11.5 }}>Assign Teacher</label>
+                            <select
+                              className="input"
+                              style={{ fontSize: 12.5 }}
+                              value={inlineSubjectTeacherId}
+                              onChange={(e) => setInlineSubjectTeacherId(e.target.value)}
+                            >
+                              <option value="">-- Unassigned --</option>
+                              {teachers.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.firstName} {t.lastName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <button
+                            type="submit"
+                            className="btn btn-primary"
+                            disabled={inlineCreatingSubject || !inlineSubjectName.trim()}
+                            style={{ fontSize: 12.5, padding: "8px 14px", whiteSpace: "nowrap" }}
+                          >
+                            {inlineCreatingSubject ? "Creating..." : "Create & Assign"}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      /* Standard Assign Existing Subject Form */
+                      <form onSubmit={handleAssignSubjectInOverview}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.2fr auto", gap: 10, alignItems: "flex-end" }}>
+                          <div>
+                            <label className="label" style={{ fontSize: 11.5 }}>Select Subject *</label>
+                            <select
+                              className="input"
+                              style={{ fontSize: 12.5 }}
+                              value={assignSubjectId}
+                              onChange={(e) => setAssignSubjectId(e.target.value)}
+                              required
+                            >
+                              <option value="">-- Choose Subject --</option>
+                              {schoolSubjects
+                                .filter(
+                                  (s) =>
+                                    !overviewClassData?.classSubjects?.some(
+                                      (cs) => cs.subjectId === s.id || cs.subject?.id === s.id
+                                    )
+                                )
+                                .map((s) => {
+                                  const sec = getSubjectSection(s);
+                                  return (
+                                    <option key={s.id} value={s.id}>
+                                      {s.name} {s.code ? `(${s.code})` : ""} · [{sec.label}]
+                                    </option>
+                                  );
+                                })}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="label" style={{ fontSize: 11.5 }}>Assign Subject Teacher</label>
+                            <select
+                              className="input"
+                              style={{ fontSize: 12.5 }}
+                              value={assignTeacherId}
+                              onChange={(e) => setAssignTeacherId(e.target.value)}
+                            >
+                              <option value="">-- Unassigned (Set Later) --</option>
+                              {teachers.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.firstName} {t.lastName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <button
+                            type="submit"
+                            className="btn btn-primary"
+                            disabled={assigningSubject || !assignSubjectId}
+                            style={{ fontSize: 12.5, padding: "8px 16px", whiteSpace: "nowrap" }}
+                          >
+                            {assigningSubject ? "Assigning..." : "Assign Subject"}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
                 )}
 
                 {/* Table of Assigned Subjects */}
@@ -1927,13 +2320,25 @@ export default function ClassesPage() {
                       marginTop: "4px",
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: 6 }}>
                       <label className="label" style={{ margin: 0, fontWeight: 700, color: "var(--color-ink)" }}>
                         Assign Subject Teachers (Optional)
                       </label>
-                      <span style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>
-                        You can also assign anytime via Class Overview
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsSubjectsModalOpen(true)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--color-brand-teal)",
+                          fontSize: "11.5px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                        }}
+                      >
+                        + Add New Subject to Catalog
+                      </button>
                     </div>
 
                     <div
@@ -1946,7 +2351,9 @@ export default function ClassesPage() {
                         paddingRight: "4px",
                       }}
                     >
-                      {schoolSubjects.map((sub) => (
+                      {schoolSubjects.map((sub) => {
+                        const sec = getSubjectSection(sub);
+                        return (
                         <div
                           key={sub.id}
                           style={{
@@ -1960,9 +2367,14 @@ export default function ClassesPage() {
                             borderRadius: "var(--radius-control)",
                           }}
                         >
-                          <span style={{ fontWeight: 600, color: "var(--color-ink)", minWidth: "120px" }}>
-                            {sub.name} {sub.code ? `(${sub.code})` : ""}
-                          </span>
+                          <div style={{ display: "flex", flexDirection: "column", minWidth: "130px" }}>
+                            <span style={{ fontWeight: 600, color: "var(--color-ink)" }}>
+                              {sub.name} {sub.code ? `(${sub.code})` : ""}
+                            </span>
+                            <span style={{ fontSize: "10px", color: sec.badgeColor }}>
+                              {sec.label}
+                            </span>
+                          </div>
                           <select
                             className="input"
                             style={{ padding: "4px 8px", fontSize: "12px", flex: 1, height: "auto" }}
@@ -1982,7 +2394,8 @@ export default function ClassesPage() {
                             ))}
                           </select>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -2239,43 +2652,62 @@ export default function ClassesPage() {
                         paddingRight: "4px",
                       }}
                     >
-                      {schoolSubjects.map((sub) => (
-                        <div
-                          key={sub.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: "8px",
-                            fontSize: "12px",
-                            padding: "4px 8px",
-                            backgroundColor: "var(--color-surface-subtle)",
-                            borderRadius: "var(--radius-control)",
-                          }}
-                        >
-                          <span style={{ fontWeight: 600, color: "var(--color-ink)", minWidth: "120px" }}>
-                            {sub.name} {sub.code ? `(${sub.code})` : ""}
-                          </span>
-                          <select
-                            className="input"
-                            style={{ padding: "4px 8px", fontSize: "12px", flex: 1, height: "auto" }}
-                            value={editSubjectTeachers[sub.id] || ""}
-                            onChange={(e) =>
-                              setEditSubjectTeachers((prev) => ({
-                                ...prev,
-                                [sub.id]: e.target.value,
-                              }))
-                            }
+                      {schoolSubjects.map((sub) => {
+                        const sec = getSubjectSection(sub);
+                        return (
+                          <div
+                            key={sub.id}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: "8px",
+                              fontSize: "12px",
+                              padding: "4px 8px",
+                              backgroundColor: "var(--color-surface-subtle)",
+                              borderRadius: "var(--radius-control)",
+                            }}
                           >
-                            <option value="">-- No Teacher Assigned --</option>
-                            {teachers.map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {t.firstName} {t.lastName}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      ))}
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: "160px" }}>
+                              <span style={{ fontWeight: 600, color: "var(--color-ink)" }}>
+                                {sub.name} {sub.code ? `(${sub.code})` : ""}
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "9px",
+                                  fontWeight: 700,
+                                  padding: "1px 5px",
+                                  borderRadius: "4px",
+                                  backgroundColor: sec.badgeBg,
+                                  color: sec.badgeColor,
+                                  border: `1px solid ${sec.badgeBorder}`,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {sec.label}
+                              </span>
+                            </div>
+                            <select
+                              className="input"
+                              style={{ padding: "4px 8px", fontSize: "12px", flex: 1, height: "auto" }}
+                              value={editSubjectTeachers[sub.id] || ""}
+                              onChange={(e) =>
+                                setEditSubjectTeachers((prev) => ({
+                                  ...prev,
+                                  [sub.id]: e.target.value,
+                                }))
+                              }
+                            >
+                              <option value="">-- No Teacher Assigned --</option>
+                              {teachers.map((t) => (
+                                <option key={t.id} value={t.id}>
+                                  {t.firstName} {t.lastName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
