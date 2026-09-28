@@ -333,25 +333,15 @@ export default function FeeStructuresPage() {
       {/* Add Fee Structure Modal */}
       {isModalOpen && isAdmin && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsModalOpen(false);
           }}
         >
           <div
-            className="card"
+            className="modal-card"
             style={{
-              width: "100%",
               maxWidth: 520,
-              backgroundColor: "var(--color-surface, #fff)",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-              borderRadius: "var(--radius-card)",
               padding: 24,
             }}
           >

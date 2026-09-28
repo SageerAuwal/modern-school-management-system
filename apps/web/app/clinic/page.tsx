@@ -952,10 +952,11 @@ export default function ClinicPage() {
             backgroundColor: "rgba(11, 37, 69, 0.6)",
             backdropFilter: "blur(4px)",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
-            zIndex: 999,
-            padding: 16,
+            zIndex: 1000,
+            padding: "32px 16px 64px 16px",
+            overflowY: "auto",
           }}
         >
           <div
@@ -1227,10 +1228,11 @@ export default function ClinicPage() {
             backgroundColor: "rgba(11, 37, 69, 0.6)",
             backdropFilter: "blur(4px)",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
-            zIndex: 999,
-            padding: 16,
+            zIndex: 1000,
+            padding: "32px 16px 64px 16px",
+            overflowY: "auto",
           }}
         >
           <div
@@ -1397,10 +1399,11 @@ export default function ClinicPage() {
             backgroundColor: "rgba(11, 37, 69, 0.6)",
             backdropFilter: "blur(4px)",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
-            zIndex: 999,
-            padding: 16,
+            zIndex: 1000,
+            padding: "32px 16px 64px 16px",
+            overflowY: "auto",
           }}
         >
           <div
@@ -1578,10 +1581,11 @@ export default function ClinicPage() {
             backgroundColor: "rgba(0, 0, 0, 0.7)",
             backdropFilter: "blur(5px)",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
             zIndex: 1000,
-            padding: 20,
+            padding: "32px 16px 64px 16px",
+            overflowY: "auto",
           }}
         >
           <div

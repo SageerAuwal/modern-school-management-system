@@ -827,16 +827,7 @@ export default function StaffPage() {
       {/* Add Staff Member Modal */}
       {isAddModalOpen && isAdmin && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16,
-          }}
+          className="modal-overlay"
           role="dialog"
           aria-modal="true"
           aria-labelledby="modal-add-title"
@@ -845,13 +836,9 @@ export default function StaffPage() {
           }}
         >
           <div
-            className="card"
+            className="modal-card"
             style={{
-              width: "100%",
-              maxWidth: 500,
-              backgroundColor: "var(--color-surface)",
-              maxHeight: "90vh",
-              overflowY: "auto",
+              maxWidth: 520,
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1234,16 +1221,7 @@ export default function StaffPage() {
       {/* Edit Staff Member Modal */}
       {editingStaff && isAdmin && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16,
-          }}
+          className="modal-overlay"
           role="dialog"
           aria-modal="true"
           aria-labelledby="modal-edit-title"
@@ -1252,13 +1230,9 @@ export default function StaffPage() {
           }}
         >
           <div
-            className="card"
+            className="modal-card"
             style={{
-              width: "100%",
-              maxWidth: 500,
-              backgroundColor: "var(--color-surface)",
-              maxHeight: "90vh",
-              overflowY: "auto",
+              maxWidth: 520,
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1491,16 +1465,7 @@ export default function StaffPage() {
       {/* Delete Confirmation Modal */}
       {deletingStaff && isAdmin && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16,
-          }}
+          className="modal-overlay"
           role="dialog"
           aria-modal="true"
           aria-labelledby="modal-delete-title"
@@ -1509,11 +1474,10 @@ export default function StaffPage() {
           }}
         >
           <div
-            className="card"
+            className="modal-card"
             style={{
-              width: "100%",
               maxWidth: 440,
-              backgroundColor: "var(--color-surface)",
+              padding: 24,
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1578,18 +1542,10 @@ export default function StaffPage() {
       {/* Created Credentials Modal */}
       {createdCredentials && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 50%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 70,
-            padding: 16,
-          }}
+          className="modal-overlay"
+          onClick={() => setCreatedCredentials(null)}
         >
-          <div className="card" style={{ width: "100%", maxWidth: 440 }}>
+          <div className="modal-card" style={{ maxWidth: 440, padding: 24 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ textAlign: "center", marginBottom: 16 }}>
               <div
                 className="pill-success"

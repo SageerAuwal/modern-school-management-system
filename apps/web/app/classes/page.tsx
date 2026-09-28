@@ -989,16 +989,7 @@ export default function ClassesPage() {
       {/* ── SCHOOL SUBJECTS CATALOG MODAL ── */}
       {isSubjectsModalOpen && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(11, 25, 44, 0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 60,
-            padding: 16,
-          }}
+          className="modal-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget && !submittingSubject) {
               setIsSubjectsModalOpen(false);
@@ -1006,15 +997,10 @@ export default function ClassesPage() {
           }}
         >
           <div
-            className="card"
+            className="modal-card"
             style={{
-              width: "100%",
-              maxWidth: 640,
-              maxHeight: "90vh",
-              overflowY: "auto",
+              maxWidth: 660,
               padding: 24,
-              borderRadius: 12,
-              backgroundColor: "#FFFFFF",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
@@ -1198,16 +1184,7 @@ export default function ClassesPage() {
       {/* ── CLASS OVERVIEW & DETAILS MODAL ── */}
       {overviewClassId && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(11, 25, 44, 0.65)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 60,
-            padding: 16,
-          }}
+          className="modal-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               handleCloseClassOverview();
@@ -1215,15 +1192,10 @@ export default function ClassesPage() {
           }}
         >
           <div
-            className="card"
+            className="modal-card"
             style={{
-              width: "100%",
-              maxWidth: 740,
-              maxHeight: "92vh",
-              overflowY: "auto",
+              maxWidth: 760,
               padding: 24,
-              borderRadius: 12,
-              backgroundColor: "#FFFFFF",
             }}
           >
             {/* Header */}
@@ -1632,19 +1604,7 @@ export default function ClassesPage() {
       {/* ── MODAL: CREATE A CLASS ── */}
       {isModalOpen && isAdmin && (
         <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px",
-            zIndex: 50,
-          }}
+          className="modal-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               handleCloseModal();
@@ -1652,13 +1612,9 @@ export default function ClassesPage() {
           }}
         >
           <div
-            className="card"
+            className="modal-card"
             style={{
-              width: "100%",
-              maxWidth: "520px",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              padding: "24px",
+              maxWidth: "560px",
             }}
           >
             <div
@@ -1962,19 +1918,7 @@ export default function ClassesPage() {
       {/* ── MODAL: EDIT A CLASS ── */}
       {isEditModalOpen && isAdmin && (
         <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px",
-            zIndex: 50,
-          }}
+          className="modal-overlay"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               handleCloseEditModal();
@@ -1982,13 +1926,9 @@ export default function ClassesPage() {
           }}
         >
           <div
-            className="card"
+            className="modal-card"
             style={{
-              width: "100%",
-              maxWidth: "520px",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              padding: "24px",
+              maxWidth: "560px",
             }}
           >
             <div

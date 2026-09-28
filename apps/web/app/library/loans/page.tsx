@@ -501,24 +501,14 @@ export default function LibraryLoansPage() {
       {/* Issue Book Modal */}
       {showIssueModal && isAdmin && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16,
-          }}
+          className="modal-overlay"
           onClick={() => setShowIssueModal(false)}
         >
           <div
-            className="card"
+            className="modal-card"
             style={{
-              width: "100%",
               maxWidth: 480,
-              backgroundColor: "var(--color-surface)",
+              padding: 24,
             }}
             onClick={(e) => e.stopPropagation()}
           >

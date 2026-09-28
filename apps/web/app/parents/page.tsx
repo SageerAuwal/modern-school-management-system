@@ -600,43 +600,39 @@ export default function ParentsPage() {
       {/* Modal: Register Parent with Portal Account */}
       {isRegisterModalOpen && isAdmin && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 50%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 60,
-            padding: 16,
-          }}
+          className="modal-overlay"
           onClick={() => setIsRegisterModalOpen(false)}
         >
           <div
-            className="card"
-            style={{ width: "100%", maxWidth: 520, maxHeight: "90vh", overflowY: "auto" }}
+            className="modal-card"
+            style={{ maxWidth: 540 }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
-                Register Parent / Guardian
-              </h2>
+            <div className="modal-header">
+              <div>
+                <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
+                  Register Parent / Guardian
+                </h2>
+                <p style={{ fontSize: 12.5, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
+                  Create parent portal account and link enrolled students.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsRegisterModalOpen(false)}
-                style={{ border: "none", background: "none", fontSize: 18, cursor: "pointer", color: "var(--color-text-secondary)" }}
+                style={{ border: "none", background: "none", fontSize: 22, cursor: "pointer", color: "var(--color-text-secondary)", lineHeight: 1 }}
               >
                 &times;
               </button>
             </div>
 
-            {registerError && (
-              <div className="pill-danger" style={{ marginBottom: 16, padding: "8px 12px", fontSize: 13 }}>
-                {registerError}
-              </div>
-            )}
-
-            <form onSubmit={handleRegisterParent}>
+            <form onSubmit={handleRegisterParent} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+              <div className="modal-body">
+                {registerError && (
+                  <div className="pill-danger" style={{ marginBottom: 16, padding: "8px 12px", fontSize: 13 }}>
+                    {registerError}
+                  </div>
+                )}
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   <div>
@@ -774,8 +770,9 @@ export default function ParentsPage() {
                   </p>
                 </div>
               </div>
+              </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+              <div className="modal-footer">
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -800,20 +797,14 @@ export default function ParentsPage() {
       {/* Modal: Created Credentials Slip */}
       {createdCredentials && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 50%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 70,
-            padding: 16,
-          }}
+          className="modal-overlay"
+          style={{ zIndex: 1000 }}
+          onClick={() => setCreatedCredentials(null)}
         >
           <div
-            className="card"
-            style={{ width: "100%", maxWidth: 440 }}
+            className="modal-card"
+            style={{ maxWidth: 460, padding: 24 }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ textAlign: "center", marginBottom: 16 }}>
               <div
@@ -886,21 +877,13 @@ export default function ParentsPage() {
       {/* Modal: Quick Reset Password */}
       {resetModalParent && isAdmin && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 50%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 60,
-            padding: 16,
-          }}
+          className="modal-overlay"
+          style={{ zIndex: 1000 }}
           onClick={() => setResetModalParent(null)}
         >
           <div
-            className="card"
-            style={{ width: "100%", maxWidth: 400 }}
+            className="modal-card"
+            style={{ maxWidth: 420, padding: 24 }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>

@@ -451,18 +451,12 @@ export default function StudentsPage() {
       {/* Edit Student Modal */}
       {editingStudent && isAdmin && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-            zIndex: 100,
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEditingStudent(null);
           }}
         >
-          <div className="card" style={{ maxWidth: 520, width: "100%", backgroundColor: "#ffffff", maxHeight: "90vh", overflowY: "auto" }}>
+          <div className="modal-card" style={{ maxWidth: 520, padding: 24 }}>
             <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 14 }}>Edit Student Details</h3>
 
             {editError && (
@@ -641,18 +635,12 @@ export default function StudentsPage() {
       {/* Withdraw Confirmation Modal */}
       {withdrawingStudent && isAdmin && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-            zIndex: 100,
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setWithdrawingStudent(null);
           }}
         >
-          <div className="card" style={{ maxWidth: 440, width: "100%", backgroundColor: "#ffffff" }}>
+          <div className="modal-card" style={{ maxWidth: 440, padding: 24 }}>
             <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: "var(--color-danger-text)" }}>
               Withdraw Student
             </h3>

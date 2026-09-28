@@ -660,11 +660,12 @@ export default function FeesPage() {
             position: "fixed",
             inset: 0,
             backgroundColor: "rgba(0, 0, 0, 0.65)",
+            backdropFilter: "blur(4px)",
             zIndex: 9999,
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
-            padding: 16,
+            padding: "32px 16px 64px 16px",
             overflowY: "auto",
           }}
           onClick={() => setShowPendingModal(false)}

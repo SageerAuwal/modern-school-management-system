@@ -993,16 +993,7 @@ function InvoiceDetailContent() {
       {/* Cash Payment Dialog */}
       {isCashModalOpen && canManage && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16,
-          }}
+          className="modal-overlay"
           role="dialog"
           aria-modal="true"
           aria-labelledby="cash-payment-title"
@@ -1011,11 +1002,10 @@ function InvoiceDetailContent() {
           }}
         >
           <div
-            className="card"
+            className="modal-card"
             style={{
-              width: "100%",
               maxWidth: 440,
-              backgroundColor: "var(--color-surface)",
+              padding: 24,
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1301,22 +1291,13 @@ function InvoiceDetailContent() {
       {/* Fee Waiver Modal with 2-Step Confirmation */}
       {isWaiveModalOpen && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 50,
-            padding: 16,
-          }}
+          className="modal-overlay"
           role="dialog"
           aria-modal="true"
         >
           <div
-            className="card"
-            style={{ width: "100%", maxWidth: 440, backgroundColor: "var(--color-surface)" }}
+            className="modal-card"
+            style={{ maxWidth: 440, padding: 24 }}
           >
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 8px", color: "var(--color-ink)" }}>
               Waive Student Fee Balance

@@ -1619,8 +1619,10 @@ export default function BursarConsolePage() {
             backgroundColor: "rgba(16, 20, 26, 0.56)",
             backdropFilter: "blur(4px)",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
+            padding: "32px 16px 64px 16px",
+            overflowY: "auto",
             zIndex: 1000,
           }}
         >
@@ -1795,8 +1797,10 @@ export default function BursarConsolePage() {
             backgroundColor: "rgba(16, 20, 26, 0.56)",
             backdropFilter: "blur(4px)",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
+            padding: "32px 16px 64px 16px",
+            overflowY: "auto",
             zIndex: 1000,
           }}
         >
@@ -2036,11 +2040,13 @@ export default function BursarConsolePage() {
             position: "fixed",
             inset: 0,
             backgroundColor: "rgba(0, 0, 0, 0.5)",
+            backdropFilter: "blur(4px)",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
+            padding: "32px 16px 64px 16px",
+            overflowY: "auto",
             zIndex: 9999,
-            padding: 20,
           }}
         >
           <div

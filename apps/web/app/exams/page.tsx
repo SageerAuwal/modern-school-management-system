@@ -1217,9 +1217,10 @@ export default function ExamsPage() {
             backgroundColor: "rgba(16, 20, 26, 0.48)",
             backdropFilter: "blur(2px)",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
-            padding: 16,
+            padding: "32px 16px 64px 16px",
+            overflowY: "auto",
             zIndex: 9999,
           }}
           onClick={(e) => {
@@ -1320,9 +1321,10 @@ export default function ExamsPage() {
             backgroundColor: "rgba(16, 20, 26, 0.48)",
             backdropFilter: "blur(2px)",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
-            padding: 16,
+            padding: "32px 16px 64px 16px",
+            overflowY: "auto",
             zIndex: 9999,
           }}
           onClick={(e) => {

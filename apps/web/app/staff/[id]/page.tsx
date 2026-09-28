@@ -489,19 +489,10 @@ export default function StaffDetailPage({ params }: { params: Promise<{ id: stri
       {/* Modal: Reset Staff Password */}
       {showResetModal && isAdmin && staff.user && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 50%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 60,
-            padding: 16,
-          }}
+          className="modal-overlay"
           onClick={() => setShowResetModal(false)}
         >
-          <div className="card" style={{ width: "100%", maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+          <div className="modal-card" style={{ maxWidth: 400, padding: 24 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
               <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
                 Reset Staff Password

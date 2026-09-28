@@ -110,11 +110,12 @@ export default function ProcessGraduationModal({
         position: "fixed",
         inset: 0,
         backgroundColor: "color-mix(in srgb, var(--color-ink, #0B2545) 60%, transparent)",
+        backdropFilter: "blur(4px)",
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
-        zIndex: 80,
-        padding: "20px 16px",
+        zIndex: 1000,
+        padding: "32px 16px 64px 16px",
         overflowY: "auto",
       }}
       onClick={() => {

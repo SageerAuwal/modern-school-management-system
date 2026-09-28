@@ -683,18 +683,12 @@ export default function ParentDashboardPage() {
       {/* Parent Profile Photo Modal */}
       {isProfileModalOpen && (
         <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            zIndex: 100,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
+          className="modal-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !savingProfile) setIsProfileModalOpen(false);
           }}
         >
-          <div className="card" style={{ maxWidth: 440, width: "100%", backgroundColor: "#ffffff" }}>
+          <div className="modal-card" style={{ maxWidth: 440, padding: 24 }}>
             <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>
               Parent &amp; Guardian Photo
             </h3>

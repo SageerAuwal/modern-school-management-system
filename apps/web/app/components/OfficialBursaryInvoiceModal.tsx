@@ -96,11 +96,12 @@ export default function OfficialBursaryInvoiceModal({
         position: "fixed",
         inset: 0,
         backgroundColor: "rgba(11, 37, 69, 0.75)",
-        zIndex: 99999,
+        backdropFilter: "blur(4px)",
+        zIndex: 10000,
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
-        padding: 20,
+        padding: "32px 16px 64px 16px",
         overflowY: "auto",
       }}
     >

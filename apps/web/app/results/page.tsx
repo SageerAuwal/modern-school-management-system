@@ -2165,11 +2165,13 @@ export default function ResultsPage() {
             position: "fixed",
             inset: 0,
             backgroundColor: "rgba(0, 0, 0, 0.5)",
+            backdropFilter: "blur(4px)",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
+            padding: "32px 16px 64px 16px",
+            overflowY: "auto",
             zIndex: 1000,
-            padding: 20,
           }}
         >
           <div className="card" style={{ maxWidth: 540, width: "100%", padding: 24, borderRadius: 12, backgroundColor: "#FFFFFF" }}>
@@ -2285,11 +2287,13 @@ export default function ResultsPage() {
             position: "fixed",
             inset: 0,
             backgroundColor: "rgba(0, 0, 0, 0.5)",
+            backdropFilter: "blur(4px)",
             display: "flex",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "center",
+            padding: "32px 16px 64px 16px",
+            overflowY: "auto",
             zIndex: 1000,
-            padding: 20,
           }}
         >
           <div className="card" style={{ maxWidth: 500, width: "100%", padding: 24, borderRadius: 12, backgroundColor: "#FFFFFF" }}>

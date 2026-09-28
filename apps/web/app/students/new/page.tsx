@@ -816,19 +816,8 @@ export default function NewStudentPage() {
 
       {/* Created Credentials Modal */}
       {createdCredentials && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "color-mix(in srgb, var(--color-ink) 50%, transparent)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 70,
-            padding: 16,
-          }}
-        >
-          <div className="card" style={{ width: "100%", maxWidth: 440 }}>
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: 440, padding: 24 }}>
             <div style={{ textAlign: "center", marginBottom: 16 }}>
               <div
                 className="pill-success"
@@ -932,27 +921,12 @@ export default function NewStudentPage() {
 
       {/* Post-Enrollment Notice Modal (when portal account is not created) */}
       {enrollmentNotice && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-            padding: 20,
-          }}
-        >
+        <div className="modal-overlay">
           <div
+            className="modal-card"
             style={{
-              backgroundColor: "var(--color-surface, #FFFFFF)",
-              borderRadius: "var(--radius-card)",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
               maxWidth: 500,
-              width: "100%",
               padding: 24,
-              border: "1px solid var(--color-border)",
             }}
           >
             <div style={{ textAlign: "center", marginBottom: 18 }}>

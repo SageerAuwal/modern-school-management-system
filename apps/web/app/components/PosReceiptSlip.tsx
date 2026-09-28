@@ -84,12 +84,12 @@ export default function PosReceiptSlip({
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.65)",
+        backgroundColor: "rgba(0, 0, 0, 0.7)",
         zIndex: 99999,
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
-        padding: 16,
+        padding: "36px 16px 64px",
         overflowY: "auto",
       }}
     >
