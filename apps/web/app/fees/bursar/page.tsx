@@ -5,6 +5,8 @@ import ActionConfirmationModal from "../../components/ActionConfirmationModal";
 import RejectPaymentModal from "../../components/RejectPaymentModal";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
 interface StudentOption {
   id: string;
   firstName: string;
@@ -157,7 +159,7 @@ export default function BursarConsolePage() {
 
   const fetchStudents = async () => {
     try {
-      const res = await fetch("/api/v1/students?search=");
+      const res = await fetch(`${API}/api/v1/students?search=`, { credentials: "include" });
       if (res.ok) {
         const d = await res.json();
         setStudentsList(d || []);
@@ -170,7 +172,7 @@ export default function BursarConsolePage() {
   const fetchPending = async () => {
     try {
       setLoadingPending(true);
-      const res = await fetch("/api/v1/fees/invoices/payments/pending");
+      const res = await fetch(`${API}/api/v1/fees/invoices/payments/pending`, { credentials: "include" });
       if (res.ok) {
         const d = await res.json();
         setPendingPayments(d || []);
@@ -185,7 +187,7 @@ export default function BursarConsolePage() {
   const fetchDrawer = async () => {
     try {
       setLoadingDrawer(true);
-      const res = await fetch("/api/v1/bursar/drawer/today");
+      const res = await fetch(`${API}/api/v1/bursar/drawer/today`, { credentials: "include" });
       if (res.ok) {
         const d = await res.json();
         setDrawerData(d);
@@ -200,7 +202,7 @@ export default function BursarConsolePage() {
   const fetchDebtors = async () => {
     try {
       setLoadingDebtors(true);
-      const res = await fetch("/api/v1/bursar/debtors");
+      const res = await fetch(`${API}/api/v1/bursar/debtors`, { credentials: "include" });
       if (res.ok) {
         const d = await res.json();
         setDebtorsList(d.debtors || []);
@@ -247,8 +249,9 @@ export default function BursarConsolePage() {
       setErrorMsg(null);
       setSuccessMsg(null);
 
-      const res = await fetch("/api/v1/bursar/collect-fee", {
+      const res = await fetch(`${API}/api/v1/bursar/collect-fee`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           studentId: selectedStudent.id,
@@ -295,8 +298,9 @@ export default function BursarConsolePage() {
   const executeCloseDrawer = async () => {
     try {
       setClosingDrawer(true);
-      const res = await fetch("/api/v1/bursar/drawer/close", {
+      const res = await fetch(`${API}/api/v1/bursar/drawer/close`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           closingCash: countedCash,
@@ -324,8 +328,9 @@ export default function BursarConsolePage() {
     if (!confirmTargetPayment) return;
     setActionProcessing(true);
     try {
-      const res = await fetch(`/api/v1/fees/invoices/payments/${confirmTargetPayment.id}/confirm`, {
+      const res = await fetch(`${API}/api/v1/fees/invoices/payments/${confirmTargetPayment.id}/confirm`, {
         method: "POST",
+        credentials: "include",
       });
       if (res.ok) {
         setConfirmTargetPayment(null);
@@ -348,8 +353,9 @@ export default function BursarConsolePage() {
     if (!rejectTargetPayment) return;
     setActionProcessing(true);
     try {
-      const res = await fetch(`/api/v1/fees/invoices/payments/${rejectTargetPayment.id}/reject`, {
+      const res = await fetch(`${API}/api/v1/fees/invoices/payments/${rejectTargetPayment.id}/reject`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reason }),
       });
@@ -372,7 +378,7 @@ export default function BursarConsolePage() {
     if (!stId) return;
     try {
       setLoadingStatement(true);
-      const res = await fetch(`/api/v1/bursar/student/${stId}/statement`);
+      const res = await fetch(`${API}/api/v1/bursar/student/${stId}/statement`, { credentials: "include" });
       if (res.ok) {
         const d = await res.json();
         setStatementData(d);
@@ -893,7 +899,7 @@ export default function BursarConsolePage() {
                         </div>
                         <button
                           onClick={async () => {
-                            const res = await fetch(`/api/v1/bursar/receipt/${p.id}`);
+                            const res = await fetch(`${API}/api/v1/bursar/receipt/${p.id}`, { credentials: "include" });
                             if (res.ok) {
                               const r = await res.json();
                               setCurrentReceipt(r);
