@@ -546,7 +546,7 @@ function InvoiceDetailContent() {
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
               <rect x="6" y="14" width="12" height="8" />
             </svg>
-            Print Official Clearance Certificate
+            {isNotPaid ? "Print Provisional Bill / Invoice" : "Print Official Clearance Certificate"}
           </button>
 
           <button
@@ -591,7 +591,7 @@ function InvoiceDetailContent() {
                     className="btn btn-secondary"
                     onClick={openCashModal}
                   >
-                    Record counter payment
+                    Verify &amp; Clear Payment
                   </button>
                   <button
                     type="button"
@@ -616,6 +616,67 @@ function InvoiceDetailContent() {
           )}
         </div>
       </div>
+
+      {/* Institutional Admission Verification Alert */}
+      {isNotPaid && (
+        <div
+          style={{
+            marginBottom: 20,
+            padding: "14px 18px",
+            borderRadius: "var(--radius-control)",
+            backgroundColor: "#FFFBEB",
+            border: "1.5px solid #FCD34D",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: "50%",
+                backgroundColor: "#FEF3C7",
+                color: "#B45309",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 800, color: "#92400E" }}>
+                Admission Payment Awaiting Bursar / Admin Verification
+              </div>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: "#78350F" }}>
+                {canManage
+                  ? "This invoice is unverified. As Bursar or Admin, you can verify payment intake now to issue the official clearance certificate."
+                  : "This invoice has not yet been verified by the School Bursar. Please present your bank teller, POS slip, or transfer receipt to the Bursar Desk for verification."}
+              </p>
+            </div>
+          </div>
+
+          {canManage && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={openCashModal}
+              style={{ fontSize: 12, fontWeight: 700, backgroundColor: "#0B2545", borderColor: "#0B2545" }}
+            >
+              Verify &amp; Clear Payment Now
+            </button>
+          )}
+        </div>
+      )}
 
       {searchParams.get("paid") === "1" && (
         <div

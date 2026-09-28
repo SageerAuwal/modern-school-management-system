@@ -121,6 +121,11 @@ export default function NewStudentPage() {
     role: string;
     invoiceId?: string | null;
   } | null>(null);
+  const [enrollmentNotice, setEnrollmentNotice] = useState<{
+    studentName: string;
+    studentId: string;
+    invoiceId?: string | null;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const generateRandomPassword = () => {
@@ -290,6 +295,7 @@ export default function NewStudentPage() {
                 termId: selectedTermId || undefined,
                 academicYear: "2025/2026",
                 items: selectedItems,
+                notes: "ADMISSION_REGISTRATION",
               }),
             });
             if (invRes.ok) {
@@ -310,10 +316,12 @@ export default function NewStudentPage() {
           role: "STUDENT",
           invoiceId: createdInvoiceId,
         });
-      } else if (createdInvoiceId) {
-        router.push(`/fees/${createdInvoiceId}`);
       } else {
-        router.push("/students");
+        setEnrollmentNotice({
+          studentName: `${form.firstName} ${form.lastName}`,
+          studentId: data.id,
+          invoiceId: createdInvoiceId,
+        });
       }
     } catch {
       setError("Cannot reach the server.");
@@ -869,6 +877,24 @@ export default function NewStudentPage() {
               </div>
             </div>
 
+            {createdCredentials.invoiceId && (
+              <div
+                style={{
+                  marginBottom: 16,
+                  padding: "10px 14px",
+                  borderRadius: "var(--radius-control)",
+                  backgroundColor: "#FFFBEB",
+                  border: "1px solid #FCD34D",
+                  fontSize: 12,
+                  color: "#92400E",
+                  lineHeight: 1.5,
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: 2 }}>Admission Bill Sent to Bursar Desk</div>
+                An admission invoice was generated. In accordance with institutional policy, this payment remains unverified until approved and cleared by the School Bursar or an Administrator.
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 10 }}>
               <button
                 type="button"
@@ -897,7 +923,152 @@ export default function NewStudentPage() {
                   }
                 }}
               >
-                {createdCredentials.invoiceId ? "Proceed to Invoice" : "Done"}
+                {createdCredentials.invoiceId ? "View Admission Bill" : "Done"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Post-Enrollment Notice Modal (when portal account is not created) */}
+      {enrollmentNotice && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "var(--color-surface, #FFFFFF)",
+              borderRadius: "var(--radius-card)",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+              maxWidth: 500,
+              width: "100%",
+              padding: 24,
+              border: "1px solid var(--color-border)",
+            }}
+          >
+            <div style={{ textAlign: "center", marginBottom: 18 }}>
+              <div
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: "50%",
+                  backgroundColor: "#E6F4F2",
+                  color: "#0E7D75",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 10,
+                }}
+              >
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: "4px 0", color: "var(--color-ink)" }}>
+                Student Enrolled Successfully
+              </h2>
+              <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
+                {enrollmentNotice.studentName} has been registered in the student registry.
+              </p>
+            </div>
+
+            {enrollmentNotice.invoiceId ? (
+              <div
+                style={{
+                  backgroundColor: "#FFFBEB",
+                  border: "1px solid #FCD34D",
+                  borderRadius: "var(--radius-control)",
+                  padding: 14,
+                  marginBottom: 20,
+                  fontSize: 12.5,
+                  color: "#92400E",
+                  lineHeight: 1.5,
+                }}
+              >
+                <div style={{ fontWeight: 800, marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span>Admission Payment Awaiting Bursary Clearance</span>
+                  <span className="pill-warning" style={{ fontSize: 10 }}>UNVERIFIED</span>
+                </div>
+                <p style={{ margin: 0 }}>
+                  An admission invoice was generated and routed to the Bursary queue. By school regulation, this payment is unverified until approved by the School Bursar or Administrator.
+                </p>
+              </div>
+            ) : (
+              <div
+                style={{
+                  backgroundColor: "var(--color-surface-sunken, #F8FAFC)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-control)",
+                  padding: 12,
+                  marginBottom: 20,
+                  fontSize: 12.5,
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                Student record is active and ready for class attendance, scores, and timetable assignments.
+              </div>
+            )}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {enrollmentNotice.invoiceId && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ width: "100%", justifyContent: "center" }}
+                    onClick={() => {
+                      const invId = enrollmentNotice.invoiceId;
+                      setEnrollmentNotice(null);
+                      router.push("/fees/bursar");
+                    }}
+                  >
+                    Go to Bursar Verification Desk
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ width: "100%", justifyContent: "center" }}
+                    onClick={() => {
+                      const invId = enrollmentNotice.invoiceId;
+                      setEnrollmentNotice(null);
+                      router.push(`/fees/${invId}`);
+                    }}
+                  >
+                    View Admission Invoice
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ width: "100%", justifyContent: "center" }}
+                onClick={() => {
+                  const stId = enrollmentNotice.studentId;
+                  setEnrollmentNotice(null);
+                  router.push(`/students/${stId}`);
+                }}
+              >
+                View Student Profile
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{ width: "100%", justifyContent: "center", color: "var(--color-text-secondary)", fontSize: 12 }}
+                onClick={() => {
+                  setEnrollmentNotice(null);
+                  router.push("/students");
+                }}
+              >
+                Return to Students Directory
               </button>
             </div>
           </div>

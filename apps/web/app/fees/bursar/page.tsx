@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import ActionConfirmationModal from "../../components/ActionConfirmationModal";
 import RejectPaymentModal from "../../components/RejectPaymentModal";
+import OfficialBursaryInvoiceModal from "../../components/OfficialBursaryInvoiceModal";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -100,7 +101,7 @@ interface DebtorItem {
 
 export default function BursarConsolePage() {
   const { user, isAdmin, isBursar } = useCurrentUser();
-  const [activeTab, setActiveTab] = useState<"cashier" | "pending" | "drawer" | "debtors" | "statement">("cashier");
+  const [activeTab, setActiveTab] = useState<"cashier" | "admissions" | "pending" | "drawer" | "debtors" | "statement">("cashier");
 
   // Cashier state
   const [studentsList, setStudentsList] = useState<StudentOption[]>([]);
@@ -115,6 +116,18 @@ export default function BursarConsolePage() {
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Admission Clearances state
+  const [unpaidInvoices, setUnpaidInvoices] = useState<any[]>([]);
+  const [loadingUnpaid, setLoadingUnpaid] = useState(false);
+  const [admissionFilter, setAdmissionFilter] = useState<"all" | "admission">("all");
+  const [verifyTargetInvoice, setVerifyTargetInvoice] = useState<any | null>(null);
+  const [verifyMethod, setVerifyMethod] = useState<string>("CASH");
+  const [verifyAmount, setVerifyAmount] = useState<number>(0);
+  const [verifyReference, setVerifyReference] = useState<string>("");
+  const [verifyNotes, setVerifyNotes] = useState<string>("");
+  const [verifyingAdmission, setVerifyingAdmission] = useState<boolean>(false);
+  const [clearanceModalInvoice, setClearanceModalInvoice] = useState<any | null>(null);
 
   // Active Receipt Modal
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
@@ -149,12 +162,13 @@ export default function BursarConsolePage() {
   const [statementData, setStatementData] = useState<any | null>(null);
   const [loadingStatement, setLoadingStatement] = useState(false);
 
-  // Fetch initial students, drawer, debtors & pending
+  // Fetch initial students, drawer, debtors, pending & unpaid invoices
   useEffect(() => {
     fetchStudents();
     fetchDrawer();
     fetchDebtors();
     fetchPending();
+    fetchUnpaidInvoices();
   }, []);
 
   const fetchStudents = async () => {
@@ -212,6 +226,86 @@ export default function BursarConsolePage() {
       // ignore
     } finally {
       setLoadingDebtors(false);
+    }
+  };
+
+  const fetchUnpaidInvoices = async () => {
+    try {
+      setLoadingUnpaid(true);
+      const res = await fetch(`${API}/api/v1/fees/invoices?status=UNPAID`, { credentials: "include" });
+      if (res.ok) {
+        const d = await res.json();
+        setUnpaidInvoices(Array.isArray(d) ? d : []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingUnpaid(false);
+    }
+  };
+
+  const openVerifyAdmissionModal = (inv: any) => {
+    const bal = Math.max(0, Number(inv.totalAmount || 0) - Number(inv.paidAmount || 0));
+    setVerifyTargetInvoice(inv);
+    setVerifyMethod("CASH");
+    setVerifyAmount(bal);
+    setVerifyReference(`ADM-VER-${Date.now().toString().slice(-6)}`);
+    setVerifyNotes("Admission clearance payment verified and authorized by Bursary Desk");
+  };
+
+  const executeVerifyAdmission = async () => {
+    if (!verifyTargetInvoice || verifyAmount <= 0) return;
+    setVerifyingAdmission(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      let res;
+      if (verifyMethod === "CASH" || verifyMethod === "BANK_DEPOSIT") {
+        res = await fetch(`${API}/api/v1/fees/invoices/${verifyTargetInvoice.id}/pay/cash`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: verifyAmount,
+            method: verifyMethod,
+            notes: `${verifyNotes} [Ref: ${verifyReference}]`.trim(),
+          }),
+        });
+      } else {
+        res = await fetch(`${API}/api/v1/fees/invoices/${verifyTargetInvoice.id}/pay/online`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: verifyAmount,
+            method: verifyMethod,
+            notes: `${verifyNotes} [Ref: ${verifyReference}]`.trim(),
+          }),
+        });
+      }
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to verify admission payment");
+      }
+
+      const stName = `${verifyTargetInvoice.student?.firstName || ""} ${verifyTargetInvoice.student?.lastName || ""}`.trim();
+      setSuccessMsg(`Admission clearance for ${stName || "student"} verified and approved successfully.`);
+
+      const invDetailRes = await fetch(`${API}/api/v1/fees/invoices/${verifyTargetInvoice.id}`, { credentials: "include" });
+      if (invDetailRes.ok) {
+        const invDetail = await invDetailRes.json();
+        setClearanceModalInvoice(invDetail);
+      }
+
+      setVerifyTargetInvoice(null);
+      fetchUnpaidInvoices();
+      fetchDrawer();
+      fetchDebtors();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Error verifying admission payment");
+    } finally {
+      setVerifyingAdmission(false);
     }
   };
 
@@ -473,6 +567,39 @@ export default function BursarConsolePage() {
           }}
         >
           Counter Cashier Desk
+        </button>
+
+        <button
+          onClick={() => setActiveTab("admissions")}
+          style={{
+            padding: "8px 16px",
+            fontSize: 12.5,
+            fontWeight: 800,
+            border: "none",
+            backgroundColor: "transparent",
+            cursor: "pointer",
+            color: activeTab === "admissions" ? "var(--color-brand-navy, #0B2545)" : "var(--color-text-secondary)",
+            borderBottom: activeTab === "admissions" ? "2px solid var(--color-brand-navy, #0B2545)" : "2px solid transparent",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <span>Admission Clearances</span>
+          {unpaidInvoices.length > 0 && (
+            <span
+              style={{
+                backgroundColor: "#B45309",
+                color: "#FFFFFF",
+                fontSize: 10.5,
+                fontWeight: 800,
+                padding: "1px 6px",
+                borderRadius: 10,
+              }}
+            >
+              {unpaidInvoices.length}
+            </span>
+          )}
         </button>
 
         <button
@@ -928,6 +1055,184 @@ export default function BursarConsolePage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: ADMISSION CLEARANCES QUEUE ── */}
+      {activeTab === "admissions" && (
+        <div>
+          {/* Overview Cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginBottom: 20 }}>
+            <div style={{ padding: 16, borderRadius: 10, backgroundColor: "#FFFBEB", border: "1px solid #FCD34D" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#92400E", textTransform: "uppercase" }}>
+                Pending Admission Clearances
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: "#B45309", marginTop: 2 }}>
+                {unpaidInvoices.length} Students
+              </div>
+              <div style={{ fontSize: 11, color: "#78350F" }}>
+                Admission assessments awaiting payment &amp; bursary clearance
+              </div>
+            </div>
+
+            <div style={{ padding: 16, borderRadius: 10, backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>
+                Total Outstanding Intake
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: "var(--color-brand-navy, #0B2545)", marginTop: 2 }}>
+                ₦{unpaidInvoices.reduce((sum, inv) => sum + Math.max(0, Number(inv.totalAmount || 0) - Number(inv.paidAmount || 0)), 0).toLocaleString("en-NG")}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                Unverified admission fee balances
+              </div>
+            </div>
+
+            <div style={{ padding: 16, borderRadius: 10, backgroundColor: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <button
+                type="button"
+                onClick={fetchUnpaidInvoices}
+                className="btn btn-secondary"
+                style={{ fontSize: 12, fontWeight: 700, width: "100%" }}
+                disabled={loadingUnpaid}
+              >
+                {loadingUnpaid ? "Refreshing..." : "Refresh Clearances Queue"}
+              </button>
+            </div>
+          </div>
+
+          {/* Admission Clearances Table */}
+          <div style={{ backgroundColor: "#FFFFFF", borderRadius: 12, border: "1px solid #E2E8F0", padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800 }}>
+                  Admission Registration &amp; Fee Clearances
+                </h3>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                  Newly registered students must be verified and cleared by the Bursar before official exam eligibility slips and graduation dossiers are released.
+                </p>
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <select
+                  value={admissionFilter}
+                  onChange={(e) => setAdmissionFilter(e.target.value as any)}
+                  className="input"
+                  style={{ fontSize: 12, padding: "4px 8px", width: "auto" }}
+                >
+                  <option value="all">All Pending Invoices ({unpaidInvoices.length})</option>
+                  <option value="admission">Admission Assessments Only</option>
+                </select>
+              </div>
+            </div>
+
+            {(() => {
+              const displayInvoices = unpaidInvoices.filter((inv) => {
+                if (admissionFilter === "admission") {
+                  return (
+                    inv.notes?.includes("ADMISSION") ||
+                    (inv.items && inv.items.some((i: any) => i.name?.toLowerCase().includes("admission") || i.name?.toLowerCase().includes("registration")))
+                  );
+                }
+                return true;
+              });
+
+              if (displayInvoices.length === 0) {
+                return (
+                  <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--color-text-secondary)", fontSize: 13 }}>
+                    No pending admission invoices awaiting verification. All students are currently cleared.
+                  </div>
+                );
+              }
+
+              return (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ backgroundColor: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>
+                        <th style={{ textAlign: "left", padding: "10px 12px" }}>Student Biodata</th>
+                        <th style={{ textAlign: "left", padding: "10px 12px" }}>Term &amp; Session</th>
+                        <th style={{ textAlign: "left", padding: "10px 12px" }}>Assessment Breakdown</th>
+                        <th style={{ textAlign: "right", padding: "10px 12px" }}>Billed (₦)</th>
+                        <th style={{ textAlign: "right", padding: "10px 12px" }}>Balance (₦)</th>
+                        <th style={{ textAlign: "center", padding: "10px 12px" }}>Clearance Gate</th>
+                        <th style={{ textAlign: "right", padding: "10px 12px" }}>Bursary Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayInvoices.map((inv) => {
+                        const bal = Math.max(0, Number(inv.totalAmount || 0) - Number(inv.paidAmount || 0));
+                        const isAdm = inv.notes?.includes("ADMISSION") || (inv.items && inv.items.some((i: any) => i.name?.toLowerCase().includes("admission")));
+                        return (
+                          <tr key={inv.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                            <td style={{ padding: "10px 12px" }}>
+                              <div style={{ fontWeight: 800, color: "var(--color-ink)" }}>
+                                {inv.student ? `${inv.student.lastName}, ${inv.student.firstName}` : "Student"}
+                              </div>
+                              <div style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "monospace" }}>
+                                {inv.student?.admissionNumber || "PENDING"}
+                              </div>
+                              {isAdm && (
+                                <span className="pill-info" style={{ fontSize: 9.5, padding: "1px 5px", marginTop: 2, display: "inline-block" }}>
+                                  New Admission
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: "10px 12px" }}>
+                              <div>{inv.term?.name || "First Term"}</div>
+                              <div style={{ fontSize: 10.5, color: "var(--color-text-secondary)" }}>
+                                {inv.academicYear || "2025/2026"}
+                              </div>
+                            </td>
+                            <td style={{ padding: "10px 12px" }}>
+                              {inv.items && inv.items.length > 0 ? (
+                                <div style={{ fontSize: 11, color: "var(--color-text-secondary)", maxWidth: 220 }}>
+                                  {inv.items.map((it: any) => it.name).join(", ")}
+                                </div>
+                              ) : (
+                                <span style={{ color: "var(--color-text-secondary)", fontSize: 11 }}>Standard Tuition</span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: "right", padding: "10px 12px", fontWeight: 700 }}>
+                              ₦{Number(inv.totalAmount || 0).toLocaleString("en-NG")}
+                            </td>
+                            <td style={{ textAlign: "right", padding: "10px 12px", fontWeight: 800, color: "#B45309" }}>
+                              ₦{bal.toLocaleString("en-NG")}
+                            </td>
+                            <td style={{ textAlign: "center", padding: "10px 12px" }}>
+                              <span className="pill-warning" style={{ fontSize: 10.5 }}>
+                                Unverified / Pending
+                              </span>
+                            </td>
+                            <td style={{ textAlign: "right", padding: "10px 12px" }}>
+                              <div style={{ display: "inline-flex", gap: 6 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => openVerifyAdmissionModal(inv)}
+                                  className="btn btn-primary"
+                                  style={{ fontSize: 11.5, padding: "5px 10px" }}
+                                >
+                                  Verify &amp; Clear
+                                </button>
+                                <a
+                                  href={`/fees/${inv.id}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn btn-secondary"
+                                  style={{ fontSize: 11.5, padding: "5px 10px" }}
+                                >
+                                  View Bill
+                                </a>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -1723,6 +2028,171 @@ export default function BursarConsolePage() {
             : null
         }
       />
+
+      {/* ── MODAL: VERIFY ADMISSION PAYMENT & CLEARANCE ── */}
+      {verifyTargetInvoice && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderRadius: 12,
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+              maxWidth: 520,
+              width: "100%",
+              padding: 24,
+              border: "1px solid #E2E8F0",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 900, color: "#0B2545" }}>
+                  Verify &amp; Authorize Admission Clearance
+                </h3>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-secondary)" }}>
+                  Confirm payment intake and issue official clearance certificate.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVerifyTargetInvoice(null)}
+                style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer", color: "var(--color-text-secondary)" }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div style={{ backgroundColor: "#F8FAFC", borderRadius: 8, padding: 12, marginBottom: 16, border: "1px solid #E2E8F0", fontSize: 12.5 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ color: "var(--color-text-secondary)" }}>Student:</span>
+                <span style={{ fontWeight: 800, color: "var(--color-ink)" }}>
+                  {verifyTargetInvoice.student?.lastName}, {verifyTargetInvoice.student?.firstName}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ color: "var(--color-text-secondary)" }}>Admission No:</span>
+                <span style={{ fontFamily: "monospace", fontWeight: 700 }}>
+                  {verifyTargetInvoice.student?.admissionNumber || "PENDING"}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px dashed #CBD5E1", paddingTop: 4, marginTop: 4 }}>
+                <span style={{ color: "var(--color-text-secondary)" }}>Outstanding Balance:</span>
+                <span style={{ fontWeight: 900, color: "#B45309" }}>
+                  ₦{Math.max(0, Number(verifyTargetInvoice.totalAmount || 0) - Number(verifyTargetInvoice.paidAmount || 0)).toLocaleString("en-NG")}
+                </span>
+              </div>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                executeVerifyAdmission();
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 800, textTransform: "uppercase", marginBottom: 4 }}>
+                    Payment Channel / Verification Source
+                  </label>
+                  <select
+                    className="input"
+                    value={verifyMethod}
+                    onChange={(e) => setVerifyMethod(e.target.value)}
+                    style={{ width: "100%" }}
+                  >
+                    <option value="CASH">Counter Cash Handover</option>
+                    <option value="BANK_DEPOSIT">Bank Deposit Teller (Zenith / Access)</option>
+                    <option value="POS_TERMINAL">School POS Terminal Slip</option>
+                    <option value="BANK_TRANSFER">Bank Wire / Electronic Transfer</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 800, textTransform: "uppercase", marginBottom: 4 }}>
+                    Amount Received &amp; Cleared (₦)
+                  </label>
+                  <input
+                    type="number"
+                    className="input"
+                    value={verifyAmount}
+                    onChange={(e) => setVerifyAmount(Number(e.target.value))}
+                    min={1}
+                    required
+                    style={{ width: "100%", fontWeight: 700 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 800, textTransform: "uppercase", marginBottom: 4 }}>
+                    Teller No / POS Reference / Transfer RRN
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={verifyReference}
+                    onChange={(e) => setVerifyReference(e.target.value)}
+                    placeholder="e.g. TEL-883920 or POS-88192"
+                    required
+                    style={{ width: "100%", fontFamily: "monospace" }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: 11, fontWeight: 800, textTransform: "uppercase", marginBottom: 4 }}>
+                    Bursary Clearance Notes
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={verifyNotes}
+                    onChange={(e) => setVerifyNotes(e.target.value)}
+                    placeholder="e.g. Admission payment verified against bank statement"
+                    style={{ width: "100%" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setVerifyTargetInvoice(null)}
+                  className="btn btn-secondary"
+                  style={{ flex: 1 }}
+                  disabled={verifyingAdmission}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ flex: 2, justifyContent: "center" }}
+                  disabled={verifyingAdmission || verifyAmount <= 0}
+                >
+                  {verifyingAdmission ? "Verifying & Clearing..." : "Confirm & Issue Clearance"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: OFFICIAL BURSARY CLEARANCE CERTIFICATE MODAL ── */}
+      {clearanceModalInvoice && (
+        <OfficialBursaryInvoiceModal
+          invoice={clearanceModalInvoice}
+          onClose={() => setClearanceModalInvoice(null)}
+        />
+      )}
     </div>
   );
 }

@@ -414,13 +414,27 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
                 {student.firstName} {student.lastName} {student.otherNames || ""}
               </h1>
               <span className={student.enrollmentStatus === "ACTIVE" ? "pill-success" : "pill-danger"}>
                 {student.enrollmentStatus}
               </span>
+              {student.invoices.length > 0 && (
+                <span
+                  className={
+                    student.invoices.some((inv) => inv.status !== "PAID" && inv.status !== "CANCELLED" && inv.status !== "WAIVED")
+                      ? "pill-warning"
+                      : "pill-success"
+                  }
+                  style={{ fontSize: 11 }}
+                >
+                  {student.invoices.some((inv) => inv.status !== "PAID" && inv.status !== "CANCELLED" && inv.status !== "WAIVED")
+                    ? "Awaiting Bursary Clearance"
+                    : "Financially Cleared"}
+                </span>
+              )}
             </div>
 
             <div style={{ fontSize: 13, color: "var(--color-text-secondary)", marginTop: 4, display: "flex", gap: 16, flexWrap: "wrap" }}>
@@ -632,11 +646,42 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
       {/* Tab 3: Fees & Billing */}
       {activeTab === "fees" && (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-border)" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--color-border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
             <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
-              Invoices & Payment Receipts
+              Invoices &amp; Payment Receipts
             </h2>
+            {isAdmin && (
+              <Link href="/fees/bursar" className="btn btn-secondary" style={{ fontSize: 12, padding: "4px 10px" }}>
+                Bursary Clearance Desk
+              </Link>
+            )}
           </div>
+
+          {student.invoices.some((inv) => inv.status !== "PAID" && inv.status !== "CANCELLED" && inv.status !== "WAIVED") && (
+            <div
+              style={{
+                margin: 16,
+                padding: "12px 16px",
+                backgroundColor: "#FFFBEB",
+                border: "1px solid #FCD34D",
+                borderRadius: "var(--radius-control)",
+                fontSize: 12.5,
+                color: "#92400E",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 8,
+              }}
+            >
+              <div>
+                <strong>Awaiting Bursary Clearance:</strong> Unverified fee obligations remain pending on this student&apos;s account. Official examination entry slips remain provisional until verified by the School Bursar.
+              </div>
+              <Link href="/fees/bursar" className="btn btn-secondary" style={{ fontSize: 11.5, padding: "3px 8px" }}>
+                Verify at Bursary
+              </Link>
+            </div>
+          )}
 
           {student.invoices.length === 0 ? (
             <div style={{ padding: 32, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>

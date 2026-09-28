@@ -30,7 +30,7 @@ export class FeeStructuresController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.BURSAR)
   findAll(@Query('academicYear') year: string, @CurrentUser() actor: { schoolId: string }) {
     return this.feeStructuresService.findAll(actor.schoolId, year);
   }
@@ -71,7 +71,7 @@ export class InvoicesController {
 
   /** GET /api/v1/fees/invoices?studentId=&status=&academicYear= */
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.PARENT, UserRole.STUDENT)
+  @Roles(UserRole.ADMIN, UserRole.BURSAR, UserRole.PARENT, UserRole.STUDENT)
   findAll(
     @Query('studentId') studentId: string,
     @Query('status') status: string,
