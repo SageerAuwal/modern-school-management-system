@@ -63,6 +63,12 @@ export class ClassesService {
       where: { schoolId, ...(academicYear ? { academicYear } : {}) },
       include: {
         teacher: { select: { id: true, firstName: true, lastName: true } },
+        classSubjects: {
+          include: {
+            subject: { select: { id: true, name: true, code: true } },
+            teacher: { select: { id: true, firstName: true, lastName: true, email: true } },
+          },
+        },
         _count: {
           select: {
             enrollments: { where: { status: 'ACTIVE' } },
@@ -78,6 +84,12 @@ export class ClassesService {
       where: { id, schoolId },
       include: {
         teacher: { select: { id: true, firstName: true, lastName: true, email: true } },
+        classSubjects: {
+          include: {
+            subject: { select: { id: true, name: true, code: true } },
+            teacher: { select: { id: true, firstName: true, lastName: true, email: true } },
+          },
+        },
         enrollments: {
           where: { status: 'ACTIVE' },
           include: {

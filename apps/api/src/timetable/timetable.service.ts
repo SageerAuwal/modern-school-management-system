@@ -150,7 +150,7 @@ export class TimetableService {
               teacherId: assignedTeacher?.id,
             },
             update: {
-              teacherId: assignedTeacher?.id,
+              // Retain any existing teacher assigned to this subject
             },
           });
         }

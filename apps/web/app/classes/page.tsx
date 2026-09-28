@@ -9,6 +9,23 @@ interface Teacher {
   lastName: string;
 }
 
+interface ClassSubjectAssignment {
+  id: string;
+  subjectId: string;
+  subject: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  teacherId?: string | null;
+  teacher?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email?: string;
+  } | null;
+}
+
 interface ClassSection {
   id: string;
   name: string;
@@ -18,9 +35,16 @@ interface ClassSection {
   academicYear?: string;
   isActive: boolean;
   teacher: Teacher | null;
+  classSubjects?: ClassSubjectAssignment[];
   _count: {
     enrollments: number;
   };
+}
+
+interface SchoolSubject {
+  id: string;
+  name: string;
+  code: string;
 }
 
 interface UserTeacher {
@@ -37,6 +61,11 @@ export default function ClassesPage() {
   const [classes, setClasses] = useState<ClassSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // School subjects & teacher assignments
+  const [schoolSubjects, setSchoolSubjects] = useState<SchoolSubject[]>([]);
+  const [createSubjectTeachers, setCreateSubjectTeachers] = useState<Record<string, string>>({});
+  const [editSubjectTeachers, setEditSubjectTeachers] = useState<Record<string, string>>({});
 
   // Modal & form state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -101,9 +130,17 @@ export default function ClassesPage() {
           setTeachers(data.filter((u: UserTeacher) => u.role === "TEACHER"));
         }
       })
-      .catch(() => {
-        // Teacher assignment list is an optional enhancement
-      });
+      .catch(() => {});
+
+    // Load school curriculum subjects for per-subject teacher assignment
+    fetch(`${API}/api/v1/subjects`, { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setSchoolSubjects(data);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleOpenModal = () => {
@@ -114,6 +151,7 @@ export default function ClassesPage() {
     setStreamInput("");
     setCapacityInput("");
     setTeacherIdInput("");
+    setCreateSubjectTeachers({});
     setIsModalOpen(true);
   };
 
@@ -163,8 +201,29 @@ export default function ClassesPage() {
         return;
       }
 
+      // If subject teachers were assigned during creation, persist them
+      const subjectAssignEntries = Object.entries(createSubjectTeachers).filter(([, tId]) => Boolean(tId));
+      if (data?.id && subjectAssignEntries.length > 0) {
+        await Promise.all(
+          subjectAssignEntries.map(([subjectId, teacherId]) =>
+            fetch(`${API}/api/v1/subjects/assign`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                classSectionId: data.id,
+                subjectId,
+                teacherId,
+              }),
+            })
+          )
+        );
+      }
+
       setIsModalOpen(false);
+      setSuccessMsg(`Class "${classNameInput.trim()}" created successfully.`);
       fetchClasses();
+      setTimeout(() => setSuccessMsg(""), 4000);
     } catch {
       setCreateError("Network error. Please check your connection.");
     } finally {
@@ -182,6 +241,16 @@ export default function ClassesPage() {
     setEditStream(cls.stream || "");
     setEditCapacity(cls.capacity ? String(cls.capacity) : "");
     setEditTeacherId(cls.teacher?.id || "");
+
+    const initialMap: Record<string, string> = {};
+    if (Array.isArray(cls.classSubjects)) {
+      for (const cs of cls.classSubjects) {
+        if (cs.subjectId) {
+          initialMap[cs.subjectId] = cs.teacher?.id || cs.teacherId || "";
+        }
+      }
+    }
+    setEditSubjectTeachers(initialMap);
     setIsEditModalOpen(true);
   };
 
@@ -236,8 +305,27 @@ export default function ClassesPage() {
         return;
       }
 
+      // Persist subject-teacher assignments
+      const subjectAssignEntries = Object.entries(editSubjectTeachers);
+      if (subjectAssignEntries.length > 0) {
+        await Promise.all(
+          subjectAssignEntries.map(([subjectId, teacherId]) =>
+            fetch(`${API}/api/v1/subjects/assign`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({
+                classSectionId: editingClassId,
+                subjectId,
+                teacherId: teacherId || undefined,
+              }),
+            })
+          )
+        );
+      }
+
       setIsEditModalOpen(false);
-      setSuccessMsg(`Class "${editClassName.trim()}" updated successfully.`);
+      setSuccessMsg(`Class "${editClassName.trim()}" and assigned teachers updated successfully.`);
       fetchClasses();
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch {
@@ -563,6 +651,47 @@ export default function ClassesPage() {
                   </div>
                 </div>
 
+                {/* Subject Teachers Teaching This Class */}
+                {cls.classSubjects && cls.classSubjects.some((cs) => cs.teacher) && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-text-secondary)",
+                        lineHeight: 1.2,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Subject Teachers ({cls.classSubjects.filter((cs) => cs.teacher).length})
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                      {cls.classSubjects
+                        .filter((cs) => cs.teacher)
+                        .map((cs) => (
+                          <span
+                            key={cs.id}
+                            className="pill-neutral"
+                            style={{
+                              fontSize: "11px",
+                              padding: "2px 8px",
+                              borderRadius: "var(--radius-pill-badge, 9999px)",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <span style={{ fontWeight: 700, color: "var(--color-brand-teal)" }}>
+                              {cs.subject.code || cs.subject.name}:
+                            </span>
+                            <span>{cs.teacher?.firstName} {cs.teacher?.lastName}</span>
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
                 <div
                   style={{
                     marginTop: "auto",
@@ -805,6 +934,50 @@ export default function ClassesPage() {
                   </select>
                 </div>
 
+                {/* Multi-Teacher: Subject Teacher Assignments */}
+                {schoolSubjects.length > 0 && (
+                  <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "12px", marginTop: "4px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <label className="label" style={{ margin: 0, fontWeight: 700 }}>
+                        Subject Teachers (Multi-Teacher Assignment)
+                      </label>
+                      <span style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>
+                        Optional
+                      </span>
+                    </div>
+                    <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", margin: "0 0 10px 0" }}>
+                      Assign teachers to specific subjects for this class. Teachers can teach across multiple classes.
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "170px", overflowY: "auto", paddingRight: "4px" }}>
+                      {schoolSubjects.map((sub) => (
+                        <div key={sub.id} style={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: "8px", alignItems: "center" }}>
+                          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {sub.name}
+                          </span>
+                          <select
+                            className="input"
+                            style={{ padding: "4px 8px", fontSize: "12px", height: "32px" }}
+                            value={createSubjectTeachers[sub.id] || ""}
+                            onChange={(e) =>
+                              setCreateSubjectTeachers((prev) => ({
+                                ...prev,
+                                [sub.id]: e.target.value,
+                              }))
+                            }
+                          >
+                            <option value="">Unassigned</option>
+                            {teachers.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.firstName} {t.lastName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div
                   style={{
                     display: "flex",
@@ -1036,6 +1209,50 @@ export default function ClassesPage() {
                     ))}
                   </select>
                 </div>
+
+                {/* Multi-Teacher: Subject Teacher Assignments */}
+                {schoolSubjects.length > 0 && (
+                  <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "12px", marginTop: "4px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                      <label className="label" style={{ margin: 0, fontWeight: 700 }}>
+                        Subject Teachers (Multi-Teacher Assignment)
+                      </label>
+                      <span style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>
+                        Optional
+                      </span>
+                    </div>
+                    <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", margin: "0 0 10px 0" }}>
+                      Assign teachers to specific subjects for this class. Teachers can teach across multiple classes.
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "170px", overflowY: "auto", paddingRight: "4px" }}>
+                      {schoolSubjects.map((sub) => (
+                        <div key={sub.id} style={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: "8px", alignItems: "center" }}>
+                          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {sub.name}
+                          </span>
+                          <select
+                            className="input"
+                            style={{ padding: "4px 8px", fontSize: "12px", height: "32px" }}
+                            value={editSubjectTeachers[sub.id] || ""}
+                            onChange={(e) =>
+                              setEditSubjectTeachers((prev) => ({
+                                ...prev,
+                                [sub.id]: e.target.value,
+                              }))
+                            }
+                          >
+                            <option value="">Unassigned</option>
+                            {teachers.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.firstName} {t.lastName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div
                   style={{
