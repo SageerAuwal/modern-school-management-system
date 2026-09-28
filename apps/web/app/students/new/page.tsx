@@ -7,6 +7,63 @@ import PhotoCaptureInput from "../../components/PhotoCaptureInput";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
+// Field must be declared at module scope — NOT inside NewStudentPage.
+// If declared inside the page function, React creates a new component type on
+// every render (every keystroke), unmounts the old <input> DOM node, and
+// mounts a fresh one, destroying focus. Module scope gives a stable reference.
+function Field({
+  label,
+  k,
+  type = "text",
+  required,
+  opts,
+  placeholder,
+  form,
+  set,
+}: {
+  label: string;
+  k: string;
+  type?: string;
+  required?: boolean;
+  opts?: string[];
+  placeholder?: string;
+  form: Record<string, string>;
+  set: (k: string, v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="label">
+        {label}
+        {required && " *"}
+      </label>
+      {opts ? (
+        <select
+          value={form[k]}
+          onChange={(e) => set(k, e.target.value)}
+          className="input"
+          required={required}
+        >
+          <option value="">Select</option>
+          {opts.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={type}
+          value={form[k]}
+          onChange={(e) => set(k, e.target.value)}
+          className="input"
+          required={required}
+          placeholder={placeholder}
+        />
+      )}
+    </div>
+  );
+}
+
 interface ClassOption {
   id: string;
   name: string;
@@ -231,52 +288,7 @@ export default function NewStudentPage() {
     }
   }
 
-  const Field = ({
-    label,
-    k,
-    type = "text",
-    required,
-    opts,
-    placeholder,
-  }: {
-    label: string;
-    k: string;
-    type?: string;
-    required?: boolean;
-    opts?: string[];
-    placeholder?: string;
-  }) => (
-    <div>
-      <label className="label">
-        {label}
-        {required && " *"}
-      </label>
-      {opts ? (
-        <select
-          value={form[k as keyof typeof form]}
-          onChange={(e) => set(k, e.target.value)}
-          className="input"
-          required={required}
-        >
-          <option value="">Select</option>
-          {opts.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type={type}
-          value={form[k as keyof typeof form]}
-          onChange={(e) => set(k, e.target.value)}
-          className="input"
-          required={required}
-          placeholder={placeholder}
-        />
-      )}
-    </div>
-  );
+
 
   return (
     <div className="page" style={{ maxWidth: 680, margin: "0 auto" }}>
@@ -335,11 +347,11 @@ export default function NewStudentPage() {
           />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <Field label="First Name" k="firstName" required placeholder="e.g. Amina" />
-            <Field label="Last Name" k="lastName" required placeholder="e.g. Sageer" />
+            <Field label="First Name" k="firstName" required placeholder="e.g. Amina" form={form} set={set} />
+            <Field label="Last Name" k="lastName" required placeholder="e.g. Sageer" form={form} set={set} />
           </div>
 
-          <Field label="Other Names" k="otherNames" placeholder="e.g. Fatima" />
+          <Field label="Other Names" k="otherNames" placeholder="e.g. Fatima" form={form} set={set} />
 
           {/* Prominent Gender Selector with visual buttons */}
           <div>
@@ -387,11 +399,13 @@ export default function NewStudentPage() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <Field label="Date of Birth" k="dateOfBirth" type="date" />
+            <Field label="Date of Birth" k="dateOfBirth" type="date" form={form} set={set} />
             <Field
               label="Blood Group"
               k="bloodGroup"
               opts={["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]}
+              form={form}
+              set={set}
             />
           </div>
         </div>
@@ -446,8 +460,10 @@ export default function NewStudentPage() {
             label="Admission Number"
             k="admissionNumber"
             placeholder="e.g. SMS/2026/001 (auto-generated if empty)"
+            form={form}
+            set={set}
           />
-          <Field label="Religion" k="religion" placeholder="e.g. Islam, Christianity" />
+          <Field label="Religion" k="religion" placeholder="e.g. Islam, Christianity" form={form} set={set} />
         </div>
 
         {/* Address & Origin Card */}
@@ -463,10 +479,10 @@ export default function NewStudentPage() {
           <p className="stat-label" style={{ marginBottom: -4 }}>
             Address &amp; Origin
           </p>
-          <Field label="Home Address" k="address" placeholder="Residential address" />
+          <Field label="Home Address" k="address" placeholder="Residential address" form={form} set={set} />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <Field label="State of Origin" k="stateOfOrigin" placeholder="e.g. Kano" />
-            <Field label="LGA" k="lga" placeholder="e.g. Municipal" />
+            <Field label="State of Origin" k="stateOfOrigin" placeholder="e.g. Kano" form={form} set={set} />
+            <Field label="LGA" k="lga" placeholder="e.g. Municipal" form={form} set={set} />
           </div>
         </div>
 
@@ -492,15 +508,17 @@ export default function NewStudentPage() {
           />
 
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 16 }}>
-            <Field label="Parent / Guardian Name" k="guardianName" placeholder="e.g. Alhaji Ibrahim Auwal" />
+            <Field label="Parent / Guardian Name" k="guardianName" placeholder="e.g. Alhaji Ibrahim Auwal" form={form} set={set} />
             <Field
               label="Relationship"
               k="guardianRelationship"
               opts={["Father", "Mother", "Guardian", "Uncle", "Aunt", "Sibling", "Grandparent", "Other"]}
+              form={form}
+              set={set}
             />
           </div>
 
-          <Field label="Parent Phone Number" k="guardianPhone" placeholder="e.g. 08012345678" />
+          <Field label="Parent Phone Number" k="guardianPhone" placeholder="e.g. 08012345678" form={form} set={set} />
         </div>
 
         {/* Student Portal Login Account Card */}
