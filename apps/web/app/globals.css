@@ -525,6 +525,23 @@ a { color: inherit; text-decoration: none; }
   align-items: start;
 }
 
+/* ─── Notification & Profile Floating Dropdown Panels ──────────────────────── */
+.notif-dropdown-panel {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 350px;
+  max-width: calc(100vw - 28px);
+}
+
+.profile-dropdown-panel {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 290px;
+  max-width: calc(100vw - 28px);
+}
+
 /* ─── Responsive Media Breakpoints ─────────────────────────────────────────── */
 @media (max-width: 900px) {
   .app-canvas {
@@ -642,6 +659,30 @@ a { color: inherit; text-decoration: none; }
   .card {
     padding: 16px 14px;
     border-radius: 16px;
+  }
+
+  .notif-dropdown-panel {
+    position: fixed !important;
+    top: 60px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    border-radius: 16px !important;
+    box-shadow: 0 16px 40px rgba(10, 25, 47, 0.22) !important;
+    z-index: 99999 !important;
+  }
+
+  .profile-dropdown-panel {
+    position: fixed !important;
+    top: 60px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    border-radius: 16px !important;
+    box-shadow: 0 16px 40px rgba(10, 25, 47, 0.22) !important;
+    z-index: 99999 !important;
   }
 }
 

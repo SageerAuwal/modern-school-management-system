@@ -503,6 +503,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {/* Notification Dropdown Panel */}
                 {isNotificationsOpen && (
                   <div
+                    className="notif-dropdown-panel"
                     style={{
                       position: "absolute",
                       top: 48,
@@ -569,7 +570,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     </div>
 
                     {/* Alert Items List */}
-                    <div style={{ maxHeight: 320, overflowY: "auto", padding: "6px 0" }}>
+                    <div style={{ maxHeight: "min(340px, calc(100dvh - 160px))", overflowY: "auto", padding: "6px 0" }}>
                       {notifications.length === 0 ? (
                         <div style={{ padding: "24px 18px", textAlign: "center", color: "var(--color-text-secondary)", fontSize: 12 }}>
                           No active notifications.
@@ -709,6 +710,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 {/* Profile Floating Dropdown Menu */}
                 {isProfileOpen && (
                   <div
+                    className="profile-dropdown-panel"
                     style={{
                       position: "absolute",
                       top: 48,
