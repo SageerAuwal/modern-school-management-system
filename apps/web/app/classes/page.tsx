@@ -50,6 +50,19 @@ export default function ClassesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createError, setCreateError] = useState("");
 
+  // Edit modal & form state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingClassId, setEditingClassId] = useState("");
+  const [editClassName, setEditClassName] = useState("");
+  const [editLevel, setEditLevel] = useState("");
+  const [editAcademicYear, setEditAcademicYear] = useState("2025/2026");
+  const [editStream, setEditStream] = useState("");
+  const [editCapacity, setEditCapacity] = useState("");
+  const [editTeacherId, setEditTeacherId] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
+
   const fetchClasses = () => {
     setLoading(true);
     setError("");
@@ -159,6 +172,81 @@ export default function ClassesPage() {
     }
   };
 
+  const handleOpenEditModal = (cls: ClassSection) => {
+    if (!isAdmin) return;
+    setEditError("");
+    setEditingClassId(cls.id);
+    setEditClassName(cls.name || "");
+    setEditLevel(cls.level || "");
+    setEditAcademicYear(cls.academicYear || "2025/2026");
+    setEditStream(cls.stream || "");
+    setEditCapacity(cls.capacity ? String(cls.capacity) : "");
+    setEditTeacherId(cls.teacher?.id || "");
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseEditModal = () => {
+    if (!editSubmitting) {
+      setIsEditModalOpen(false);
+    }
+  };
+
+  const handleUpdateClass = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingClassId) return;
+    setEditError("");
+    setEditSubmitting(true);
+
+    try {
+      const payload: Record<string, unknown> = {
+        name: editClassName.trim(),
+        level: editLevel.trim(),
+        academicYear: editAcademicYear.trim(),
+      };
+
+      if (editStream.trim()) {
+        payload.stream = editStream.trim();
+      } else {
+        payload.stream = null;
+      }
+
+      if (editCapacity.trim()) {
+        const parsed = parseInt(editCapacity, 10);
+        if (!isNaN(parsed) && parsed > 0) {
+          payload.capacity = parsed;
+        } else {
+          payload.capacity = null;
+        }
+      } else {
+        payload.capacity = null;
+      }
+
+      payload.teacherId = editTeacherId ? editTeacherId : null;
+
+      const res = await fetch(`${API}/api/v1/classes/${editingClassId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setEditError(data.message ?? "Failed to update class");
+        return;
+      }
+
+      setIsEditModalOpen(false);
+      setSuccessMsg(`Class "${editClassName.trim()}" updated successfully.`);
+      fetchClasses();
+      setTimeout(() => setSuccessMsg(""), 4000);
+    } catch {
+      setEditError("Network error. Please check your connection.");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
   return (
     <div className="page">
       {/* 1. Page Header */}
@@ -194,6 +282,22 @@ export default function ClassesPage() {
           }}
         >
           {error}
+        </div>
+      )}
+
+      {/* Success Banner */}
+      {successMsg && (
+        <div
+          className="pill-success"
+          style={{
+            display: "inline-block",
+            marginBottom: "16px",
+            padding: "8px 14px",
+            borderRadius: "var(--radius-control)",
+            fontWeight: 600,
+          }}
+        >
+          {successMsg}
         </div>
       )}
 
@@ -360,9 +464,31 @@ export default function ClassesPage() {
                     >
                       {cls.name}
                     </h2>
-                    <span className="pill-neutral" style={{ flexShrink: 0 }}>
-                      {cls.level}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                      <span className="pill-neutral">
+                        {cls.level}
+                      </span>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditModal(cls)}
+                          title="Edit / Amend Class"
+                          style={{
+                            border: "1px solid var(--color-border)",
+                            background: "var(--color-surface-subtle)",
+                            padding: "3px 9px",
+                            borderRadius: "var(--radius-pill-badge, 9999px)",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            color: "var(--color-ink)",
+                            cursor: "pointer",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
                   </div>
                   {cls.stream && (
                     <div
@@ -701,6 +827,238 @@ export default function ClassesPage() {
                     disabled={submitting}
                   >
                     {submitting ? "Creating class…" : "Create class"}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit a Class */}
+      {isEditModalOpen && isAdmin && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "color-mix(in srgb, var(--color-ink) 45%, transparent)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+            zIndex: 50,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCloseEditModal();
+            }
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              width: "100%",
+              maxWidth: "480px",
+              padding: "24px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <h2
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: 600,
+                    color: "var(--color-ink)",
+                    margin: "0 0 2px 0",
+                  }}
+                >
+                  Edit Class Section
+                </h2>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "var(--color-text-secondary)",
+                    margin: 0,
+                  }}
+                >
+                  Amend class details, stream, capacity, or assigned teacher.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCloseEditModal}
+                disabled={editSubmitting}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--color-text-secondary)",
+                  padding: "4px",
+                  display: "inline-flex",
+                }}
+                aria-label="Close dialog"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            {editError && (
+              <div
+                className="pill-danger"
+                style={{
+                  display: "block",
+                  marginBottom: "16px",
+                  padding: "8px 12px",
+                  borderRadius: "var(--radius-control)",
+                  fontSize: "12px",
+                }}
+              >
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateClass}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <div>
+                  <label className="label" htmlFor="edit-class-name">
+                    Class Name *
+                  </label>
+                  <input
+                    id="edit-class-name"
+                    className="input"
+                    type="text"
+                    placeholder="e.g. JSS 1A or Grade 10B"
+                    value={editClassName}
+                    onChange={(e) => setEditClassName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label className="label" htmlFor="edit-class-level">
+                      Level *
+                    </label>
+                    <input
+                      id="edit-class-level"
+                      className="input"
+                      type="text"
+                      placeholder="e.g. JSS 1 or Grade 10"
+                      value={editLevel}
+                      onChange={(e) => setEditLevel(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="edit-academic-year">
+                      Academic Year *
+                    </label>
+                    <input
+                      id="edit-academic-year"
+                      className="input"
+                      type="text"
+                      placeholder="2025/2026"
+                      value={editAcademicYear}
+                      onChange={(e) => setEditAcademicYear(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label className="label" htmlFor="edit-class-stream">
+                      Stream (Optional)
+                    </label>
+                    <input
+                      id="edit-class-stream"
+                      className="input"
+                      type="text"
+                      placeholder="e.g. Science, Arts"
+                      value={editStream}
+                      onChange={(e) => setEditStream(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label" htmlFor="edit-class-capacity">
+                      Capacity (Optional)
+                    </label>
+                    <input
+                      id="edit-class-capacity"
+                      className="input"
+                      type="number"
+                      min="1"
+                      max="200"
+                      placeholder="e.g. 40"
+                      value={editCapacity}
+                      onChange={(e) => setEditCapacity(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label" htmlFor="edit-class-teacher">
+                    Class Teacher (Optional)
+                  </label>
+                  <select
+                    id="edit-class-teacher"
+                    className="input"
+                    value={editTeacherId}
+                    onChange={(e) => setEditTeacherId(e.target.value)}
+                  >
+                    <option value="">No teacher assigned</option>
+                    {teachers.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.firstName} {t.lastName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "8px",
+                    marginTop: "8px",
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleCloseEditModal}
+                    disabled={editSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={editSubmitting}
+                  >
+                    {editSubmitting ? "Saving changes…" : "Save changes"}
                   </button>
                 </div>
               </div>

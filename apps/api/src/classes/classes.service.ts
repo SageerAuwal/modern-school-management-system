@@ -116,9 +116,14 @@ export class ClassesService {
       if (!teacher) throw new NotFoundException('Teacher not found');
     }
 
+    const updateData: any = { ...dto };
+    if ('teacherId' in dto) {
+      updateData.teacherId = dto.teacherId ? dto.teacherId : null;
+    }
+
     const updated = await this.prisma.classSection.update({
       where: { id },
-      data: dto,
+      data: updateData,
       include: {
         teacher: { select: { id: true, firstName: true, lastName: true } },
       },
