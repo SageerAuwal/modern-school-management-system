@@ -774,7 +774,11 @@ export default function ClassesPage() {
           )}
           {filteredClasses.map((cls) => {
             const studentCount = cls._count?.enrollments ?? 0;
-            const studentLabel = `${studentCount} ${studentCount === 1 ? "student" : "students"}`;
+            const capacity = cls.capacity ?? null;
+            const capacityPercent = capacity ? Math.min(Math.round((studentCount / capacity) * 100), 100) : null;
+            const isFull = capacity ? studentCount >= capacity : false;
+            const isNearFull = capacity ? studentCount >= capacity * 0.85 && !isFull : false;
+
             const teacherName = cls.teacher
               ? `${cls.teacher.firstName} ${cls.teacher.lastName}`
               : "No teacher assigned";
@@ -783,7 +787,13 @@ export default function ClassesPage() {
               : "—";
 
             const divInfo = getDivisionInfo(cls.level);
+            const isPrimary = divInfo.isPrimary;
             const subjectCount = cls.classSubjects?.length ?? 0;
+
+            const accentColor = isPrimary ? "var(--color-brand-teal, #0E7D75)" : "var(--color-brand-navy, #0B2545)";
+            const badgeBg = isPrimary ? "#E6F4F2" : "#E8EEF5";
+            const badgeColor = isPrimary ? "#0E7D75" : "#0B2545";
+            const badgeBorder = isPrimary ? "#BCE5DF" : "#C4D3E6";
 
             return (
               <div
@@ -795,25 +805,28 @@ export default function ClassesPage() {
                   justifyContent: "space-between",
                   gap: "14px",
                   padding: "20px",
-                  borderRadius: "var(--radius-card, 12px)",
-                  transition: "box-shadow 0.2s ease",
+                  borderRadius: "14px",
+                  borderTop: `4px solid ${accentColor}`,
+                  boxShadow: "0 2px 8px -2px rgba(16, 24, 40, 0.06)",
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                  backgroundColor: "var(--color-surface, #FFFFFF)",
                 }}
               >
                 <div>
-                  {/* Card Top: Class Name, Level Pill & Division Pill */}
+                  {/* Card Top: Class Name, Level & Division Badges */}
                   <div
                     style={{
                       display: "flex",
                       alignItems: "flex-start",
                       justifyContent: "space-between",
                       gap: "8px",
-                      marginBottom: "6px",
+                      marginBottom: "8px",
                     }}
                   >
                     <h2
                       style={{
                         margin: 0,
-                        fontSize: "17px",
+                        fontSize: "17.5px",
                         fontWeight: 700,
                         color: "var(--color-ink)",
                         lineHeight: 1.3,
@@ -824,36 +837,56 @@ export default function ClassesPage() {
 
                     <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
                       <span
-                        className="pill-neutral"
                         style={{
                           fontSize: "11px",
                           fontWeight: 700,
-                          backgroundColor: divInfo.isPrimary ? "var(--color-surface-subtle)" : "var(--color-primary-subtle, #E6F4F2)",
-                          color: divInfo.isPrimary ? "var(--color-ink)" : "var(--color-brand-teal, #0E7D75)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.03em",
+                          padding: "3px 8px",
+                          borderRadius: 6,
+                          backgroundColor: badgeBg,
+                          color: badgeColor,
+                          border: `1px solid ${badgeBorder}`,
                         }}
                       >
                         {divInfo.label}
                       </span>
-                      <span className="pill-neutral" style={{ fontSize: "11px", fontWeight: 600 }}>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          padding: "3px 8px",
+                          borderRadius: 6,
+                          backgroundColor: "#F1F5F9",
+                          color: "#334155",
+                          border: "1px solid #E2E8F0",
+                        }}
+                      >
                         {cls.level}
                       </span>
                     </div>
                   </div>
 
-                  {/* Stream and Academic Session */}
+                  {/* Stream and Academic Session Meta Tags */}
                   <div
                     style={{
                       fontSize: "12px",
                       color: "var(--color-text-secondary)",
-                      marginBottom: "12px",
+                      marginBottom: "14px",
                       display: "flex",
                       gap: 8,
+                      alignItems: "center",
                       flexWrap: "wrap",
                     }}
                   >
-                    <span>Session: {cls.academicYear || "2025/2026"}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: accentColor, display: "inline-block" }} />
+                      Session: <strong style={{ color: "var(--color-ink)" }}>{cls.academicYear || "2025/2026"}</strong>
+                    </span>
                     {cls.stream && (
-                      <span>· Stream: <strong style={{ color: "var(--color-ink)" }}>{cls.stream}</strong></span>
+                      <span style={{ backgroundColor: "#F8FAFC", padding: "2px 8px", borderRadius: 4, border: "1px solid #E2E8F0" }}>
+                        Stream: <strong style={{ color: "var(--color-ink)" }}>{cls.stream}</strong>
+                      </span>
                     )}
                   </div>
 
@@ -865,16 +898,24 @@ export default function ClassesPage() {
                       gap: "10px",
                       padding: "10px 12px",
                       backgroundColor: "var(--color-surface-subtle)",
-                      borderRadius: "var(--radius-control)",
+                      borderRadius: "8px",
+                      border: "1px solid var(--color-border)",
                     }}
                   >
                     <div
-                      className="avatar"
                       style={{
-                        width: "32px",
-                        height: "32px",
-                        fontSize: "11px",
+                        width: "34px",
+                        height: "34px",
+                        borderRadius: "50%",
+                        backgroundColor: cls.teacher ? badgeBg : "#F1F5F9",
+                        color: cls.teacher ? badgeColor : "#64748B",
+                        fontWeight: 700,
+                        fontSize: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                         flexShrink: 0,
+                        border: `1px solid ${cls.teacher ? badgeBorder : "#CBD5E1"}`,
                       }}
                       aria-hidden="true"
                     >
@@ -885,13 +926,12 @@ export default function ClassesPage() {
                         style={{
                           fontSize: "10.5px",
                           color: "var(--color-text-secondary)",
-                          lineHeight: 1.2,
                           textTransform: "uppercase",
                           letterSpacing: "0.04em",
-                          fontWeight: 600,
+                          fontWeight: 700,
                         }}
                       >
-                        Class Teacher
+                        Form Master / Class Teacher
                       </div>
                       <div
                         style={{
@@ -909,40 +949,100 @@ export default function ClassesPage() {
                   </div>
                 </div>
 
-                {/* Metrics Summary Strip: Students & Subjects */}
+                {/* Metrics Summary Strip: Students, Subjects, & Capacity Bar */}
                 <div
                   style={{
                     display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
+                    flexDirection: "column",
+                    gap: 8,
+                    padding: "10px 12px",
                     backgroundColor: "var(--color-surface-subtle)",
-                    borderRadius: "var(--radius-control)",
-                    fontSize: "12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--color-border)",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ color: "var(--color-text-secondary)" }}>Students:</span>
-                    <strong style={{ color: "var(--color-ink)" }}>
-                      {studentCount}
-                      {cls.capacity ? ` / ${cls.capacity}` : ""}
-                    </strong>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ color: "var(--color-text-secondary)", fontWeight: 500 }}>Students:</span>
+                      <strong style={{ color: "var(--color-ink)", fontWeight: 700 }}>
+                        {studentCount} {capacity ? `/ ${capacity}` : "enrolled"}
+                      </strong>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ color: "var(--color-text-secondary)", fontWeight: 500 }}>Curriculum:</span>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color: badgeColor,
+                          backgroundColor: badgeBg,
+                          padding: "2px 8px",
+                          borderRadius: 6,
+                          fontSize: "11px",
+                          border: `1px solid ${badgeBorder}`,
+                        }}
+                      >
+                        {subjectCount} {subjectCount === 1 ? "subject" : "subjects"}
+                      </span>
+                    </div>
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ color: "var(--color-text-secondary)" }}>Subjects:</span>
-                    <strong style={{ color: "var(--color-brand-teal, #0E7D75)" }}>
-                      {subjectCount}
-                    </strong>
-                  </div>
+                  {/* Visual Capacity Progress Bar */}
+                  {capacity ? (
+                    <div>
+                      <div
+                        style={{
+                          width: "100%",
+                          height: 6,
+                          backgroundColor: "#E2E8F0",
+                          borderRadius: 999,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${capacityPercent}%`,
+                            height: "100%",
+                            backgroundColor: isFull ? "#DC2626" : isNearFull ? "#D97706" : accentColor,
+                            borderRadius: 999,
+                            transition: "width 0.3s ease",
+                          }}
+                        />
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          fontSize: "10.5px",
+                          color: isFull ? "#DC2626" : isNearFull ? "#D97706" : "var(--color-text-secondary)",
+                          marginTop: 3,
+                          fontWeight: isFull || isNearFull ? 600 : 400,
+                        }}
+                      >
+                        <span>{capacityPercent}% filled</span>
+                        <span>{isFull ? "Classroom Full" : `${Math.max(0, capacity - studentCount)} seats available`}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: "10.5px", color: "var(--color-text-secondary)", fontStyle: "italic" }}>
+                      Open capacity (no max limit set)
+                    </div>
+                  )}
                 </div>
 
-                {/* Card Actions: Clean Overview & Edit */}
+                {/* Card Actions: Primary Overview & Admin Edit */}
                 <div
                   style={{
                     marginTop: "auto",
                     paddingTop: "12px",
-                    borderTop: "var(--border-width) solid var(--color-border)",
+                    borderTop: "1px solid var(--color-border)",
                     display: "flex",
                     gap: "8px",
                     alignItems: "center",
@@ -950,15 +1050,17 @@ export default function ClassesPage() {
                 >
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="btn btn-primary"
                     onClick={() => handleOpenClassOverview(cls)}
                     style={{
                       flex: 1,
-                      padding: "7px 12px",
+                      padding: "8px 12px",
                       fontSize: "12.5px",
                       fontWeight: 600,
                       textAlign: "center",
                       justifyContent: "center",
+                      backgroundColor: accentColor,
+                      borderColor: accentColor,
                     }}
                   >
                     Class Overview
@@ -970,7 +1072,7 @@ export default function ClassesPage() {
                       className="btn btn-secondary"
                       onClick={() => handleOpenEditModal(cls)}
                       style={{
-                        padding: "7px 12px",
+                        padding: "8px 14px",
                         fontSize: "12.5px",
                         fontWeight: 600,
                       }}
