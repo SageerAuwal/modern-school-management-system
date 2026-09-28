@@ -64,3 +64,6 @@ credentials*
 ~$*
 *.doc
 *.docx
+
+# Agents / Skills
+.agents/

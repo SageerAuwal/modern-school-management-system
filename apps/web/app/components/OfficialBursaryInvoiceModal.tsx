@@ -383,6 +383,7 @@ export default function OfficialBursaryInvoiceModal({
                 <span>Currency: Nigerian Naira (NGN)</span>
               </div>
 
+              <div className="table-responsive" style={{ overflowX: "auto", width: "100%" }}>
               <table
                 style={{
                   width: "100%",
@@ -416,13 +417,14 @@ export default function OfficialBursaryInvoiceModal({
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* Financial Ledger Balance Summary */}
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1.4fr 1fr",
+                gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
                 gap: 16,
                 marginBottom: 20,
               }}

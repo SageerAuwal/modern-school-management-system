@@ -759,6 +759,8 @@ export default function ClassesPage() {
             style={{
               width: "100%",
               maxWidth: "480px",
+              maxHeight: "90vh",
+              overflowY: "auto",
               padding: "24px",
             }}
           >
@@ -1035,6 +1037,8 @@ export default function ClassesPage() {
             style={{
               width: "100%",
               maxWidth: "480px",
+              maxHeight: "90vh",
+              overflowY: "auto",
               padding: "24px",
             }}
           >

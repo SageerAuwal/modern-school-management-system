@@ -421,7 +421,7 @@ export default function ParentsPage() {
 
       {/* Table / Empty State */}
       {loading ? (
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card table-responsive" style={{ padding: 0, overflowX: "auto" }}>
           <table className="table">
             <thead>
               <tr>
@@ -468,7 +468,7 @@ export default function ParentsPage() {
           )}
         </div>
       ) : (
-        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+        <div className="card table-responsive" style={{ padding: 0, overflowX: "auto" }}>
           <table className="table">
             <thead>
               <tr>

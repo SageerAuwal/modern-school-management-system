@@ -243,7 +243,7 @@ export default function FeeStructuresPage() {
       )}
 
       {/* Structures Table */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      <div className="card table-responsive" style={{ padding: 0, overflowX: "auto" }}>
         <table className="table">
           <thead>
             <tr>

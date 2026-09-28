@@ -1372,6 +1372,7 @@ export default function ResultsPage() {
 
       {/* Elite Institutional A4 Academic Report Card Display */}
       {reportCard && !loading && reportCard.isReleased !== false && reportCard.scores && reportCard.summary && (
+        <div className="table-responsive" style={{ overflowX: "auto", width: "100%", WebkitOverflowScrolling: "touch" }}>
         <div
           id="official-academic-report-card"
           style={{
@@ -2080,6 +2081,7 @@ export default function ResultsPage() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       )}
       </>

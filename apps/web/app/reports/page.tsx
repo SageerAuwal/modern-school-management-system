@@ -463,37 +463,39 @@ export default function ReportsPage() {
               </div>
 
               {/* Subject Breakdown & Honor Roll */}
-              <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
-                <div style={{ backgroundColor: "var(--color-surface, #FFFFFF)", borderRadius: 14, border: "1px solid var(--color-border, #E8ECE9)", padding: 20 }}>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <div className="lg:col-span-2" style={{ backgroundColor: "var(--color-surface, #FFFFFF)", borderRadius: 14, border: "1px solid var(--color-border, #E8ECE9)", padding: 20 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 700, margin: "0 0 14px", color: "var(--color-ink)" }}>
                     Subject-by-Subject Academic Averages
                   </h3>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, textAlign: "left" }}>
-                    <thead>
-                      <tr style={{ backgroundColor: "var(--color-surface-subtle)", borderBottom: "1px solid var(--color-border)" }}>
-                        <th style={{ padding: "8px 10px", fontWeight: 700 }}>Subject</th>
-                        <th style={{ padding: "8px 10px", fontWeight: 700, textAlign: "center" }}>Avg CA</th>
-                        <th style={{ padding: "8px 10px", fontWeight: 700, textAlign: "center" }}>Avg Exam</th>
-                        <th style={{ padding: "8px 10px", fontWeight: 700, textAlign: "center" }}>Total Avg</th>
-                        <th style={{ padding: "8px 10px", fontWeight: 700, textAlign: "right" }}>Pass Rate</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.academics.subjectsSummary.map((sub) => (
-                        <tr key={sub.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
-                          <td style={{ padding: "8px 10px", fontWeight: 600 }}>{sub.name}</td>
-                          <td style={{ padding: "8px 10px", textAlign: "center", color: "var(--color-text-secondary)" }}>{sub.averageCa}</td>
-                          <td style={{ padding: "8px 10px", textAlign: "center", color: "var(--color-text-secondary)" }}>{sub.averageExam}</td>
-                          <td style={{ padding: "8px 10px", textAlign: "center", fontWeight: 700, color: "var(--color-ink)" }}>{sub.averageScore}</td>
-                          <td style={{ padding: "8px 10px", textAlign: "right" }}>
-                            <span style={{ fontWeight: 700, color: sub.passRate >= 70 ? "#1B6A45" : "#993C1D" }}>
-                              {sub.passRate}%
-                            </span>
-                          </td>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, textAlign: "left" }}>
+                      <thead>
+                        <tr style={{ backgroundColor: "var(--color-surface-subtle)", borderBottom: "1px solid var(--color-border)" }}>
+                          <th style={{ padding: "8px 10px", fontWeight: 700 }}>Subject</th>
+                          <th style={{ padding: "8px 10px", fontWeight: 700, textAlign: "center" }}>Avg CA</th>
+                          <th style={{ padding: "8px 10px", fontWeight: 700, textAlign: "center" }}>Avg Exam</th>
+                          <th style={{ padding: "8px 10px", fontWeight: 700, textAlign: "center" }}>Total Avg</th>
+                          <th style={{ padding: "8px 10px", fontWeight: 700, textAlign: "right" }}>Pass Rate</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {data.academics.subjectsSummary.map((sub) => (
+                          <tr key={sub.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
+                            <td style={{ padding: "8px 10px", fontWeight: 600 }}>{sub.name}</td>
+                            <td style={{ padding: "8px 10px", textAlign: "center", color: "var(--color-text-secondary)" }}>{sub.averageCa}</td>
+                            <td style={{ padding: "8px 10px", textAlign: "center", color: "var(--color-text-secondary)" }}>{sub.averageExam}</td>
+                            <td style={{ padding: "8px 10px", textAlign: "center", fontWeight: 700, color: "var(--color-ink)" }}>{sub.averageScore}</td>
+                            <td style={{ padding: "8px 10px", textAlign: "right" }}>
+                              <span style={{ fontWeight: 700, color: sub.passRate >= 70 ? "#1B6A45" : "#993C1D" }}>
+                                {sub.passRate}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 <div style={{ backgroundColor: "var(--color-surface, #FFFFFF)", borderRadius: 14, border: "1px solid var(--color-border, #E8ECE9)", padding: 20 }}>
