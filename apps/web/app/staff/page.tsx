@@ -842,14 +842,7 @@ export default function StaffPage() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: 20,
-              }}
-            >
+            <div className="modal-header">
               <div>
                 <h2
                   id="modal-add-title"
@@ -857,6 +850,7 @@ export default function StaffPage() {
                     fontSize: 18,
                     fontWeight: 700,
                     color: "var(--color-ink)",
+                    margin: 0,
                   }}
                 >
                   Add staff member
@@ -865,7 +859,7 @@ export default function StaffPage() {
                   style={{
                     fontSize: 13,
                     color: "var(--color-text-secondary)",
-                    marginTop: 2,
+                    margin: "2px 0 0",
                   }}
                 >
                   Enter details to record a new staff profile.
@@ -903,21 +897,24 @@ export default function StaffPage() {
               </button>
             </div>
 
-            {addFormError && (
-              <div
-                className="pill-danger"
-                style={{
-                  display: "block",
-                  marginBottom: 16,
-                  padding: "8px 12px",
-                  borderRadius: "var(--radius-control)",
-                }}
-              >
-                {addFormError}
-              </div>
-            )}
-
-            <form onSubmit={handleAddStaff}>
+            <form
+              onSubmit={handleAddStaff}
+              style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+            >
+              <div className="modal-body">
+                {addFormError && (
+                  <div
+                    className="pill-danger"
+                    style={{
+                      display: "block",
+                      marginBottom: 16,
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-control)",
+                    }}
+                  >
+                    {addFormError}
+                  </div>
+                )}
               {/* Photo Input (Camera or Upload) */}
               <PhotoCaptureInput
                 photoUrl={addFormData.photoUrl || null}
@@ -1061,10 +1058,10 @@ export default function StaffPage() {
               <div
                 style={{
                   border: "1px solid var(--color-border)",
-                  borderRadius: "var(--radius-control)",
+                  borderRadius: 10,
                   padding: "14px 16px",
                   backgroundColor: "var(--color-surface-sunken, #F8FAFC)",
-                  marginBottom: 20,
+                  marginBottom: 10,
                 }}
               >
                 <div
@@ -1189,31 +1186,26 @@ export default function StaffPage() {
                   </div>
                 )}
               </div>
+            </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 10,
-                }}
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsAddModalOpen(false)}
+                disabled={submittingAdd}
               >
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setIsAddModalOpen(false)}
-                  disabled={submittingAdd}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={submittingAdd}
-                >
-                  {submittingAdd ? "Adding…" : "Add staff member"}
-                </button>
-              </div>
-            </form>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={submittingAdd}
+              >
+                {submittingAdd ? "Adding…" : "Add staff member"}
+              </button>
+            </div>
+          </form>
           </div>
         </div>
       )}
@@ -1236,14 +1228,7 @@ export default function StaffPage() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: 20,
-              }}
-            >
+            <div className="modal-header">
               <div>
                 <h2
                   id="modal-edit-title"
@@ -1251,6 +1236,7 @@ export default function StaffPage() {
                     fontSize: 18,
                     fontWeight: 700,
                     color: "var(--color-ink)",
+                    margin: 0,
                   }}
                 >
                   Edit staff member
@@ -1259,7 +1245,7 @@ export default function StaffPage() {
                   style={{
                     fontSize: 13,
                     color: "var(--color-text-secondary)",
-                    marginTop: 2,
+                    margin: "2px 0 0",
                   }}
                 >
                   Modify information for {editingStaff.firstName} {editingStaff.lastName}.
@@ -1297,21 +1283,24 @@ export default function StaffPage() {
               </button>
             </div>
 
-            {editFormError && (
-              <div
-                className="pill-danger"
-                style={{
-                  display: "block",
-                  marginBottom: 16,
-                  padding: "8px 12px",
-                  borderRadius: "var(--radius-control)",
-                }}
-              >
-                {editFormError}
-              </div>
-            )}
-
-            <form onSubmit={handleSaveEdit}>
+            <form
+              onSubmit={handleSaveEdit}
+              style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+            >
+              <div className="modal-body">
+                {editFormError && (
+                  <div
+                    className="pill-danger"
+                    style={{
+                      display: "block",
+                      marginBottom: 16,
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-control)",
+                    }}
+                  >
+                    {editFormError}
+                  </div>
+                )}
               {/* Photo Input (Camera or Upload) */}
               <PhotoCaptureInput
                 photoUrl={editFormData.photoUrl || null}
@@ -1433,31 +1422,26 @@ export default function StaffPage() {
                   }
                 />
               </div>
+            </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 10,
-                }}
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setEditingStaff(null)}
+                disabled={submittingEdit}
               >
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setEditingStaff(null)}
-                  disabled={submittingEdit}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={submittingEdit}
-                >
-                  {submittingEdit ? "Saving…" : "Save changes"}
-                </button>
-              </div>
-            </form>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={submittingEdit}
+              >
+                {submittingEdit ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </form>
           </div>
         </div>
       )}
