@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent } from "react";
 import Link from "next/link";
+import DivisionSwitcher, { SchoolDivision, getDivisionForLevel } from "../components/DivisionSwitcher";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface Teacher {
@@ -731,67 +732,20 @@ export default function ClassesPage() {
 
       {/* 3.5 Division Switcher Bar */}
       {!loading && classes.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginBottom: 20,
-            flexWrap: "wrap",
-          }}
-        >
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em", marginRight: 4 }}>
-            Section:
-          </span>
-          {(["ALL", "PRIMARY", "SECONDARY"] as const).map((div) => {
-            const labels: Record<typeof div, string> = {
-              ALL: "All Divisions",
-              PRIMARY: "Nursery & Primary",
-              SECONDARY: "Secondary (JSS & SSS)",
-            };
-            const isActive = divisionFilter === div;
-            return (
-              <button
-                key={div}
-                type="button"
-                onClick={() => {
-                  setDivisionFilter(div);
-                  if (typeof window !== "undefined") sessionStorage.setItem("classesDiv", div);
-                }}
-                style={{
-                  padding: "6px 16px",
-                  borderRadius: 9999,
-                  border: isActive ? "none" : "1px solid var(--color-border, #E8ECE9)",
-                  backgroundColor: isActive
-                    ? div === "SECONDARY"
-                      ? "var(--color-brand-teal, #0E7D75)"
-                      : "var(--color-brand-navy, #0B2545)"
-                    : "#FFFFFF",
-                  color: isActive ? "#FFFFFF" : "var(--color-text-secondary)",
-                  fontSize: 13,
-                  fontWeight: isActive ? 700 : 500,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                {labels[div]}
-                {div !== "ALL" && (
-                  <span
-                    style={{
-                      marginLeft: 6,
-                      fontSize: 11,
-                      backgroundColor: isActive ? "rgba(255,255,255,0.2)" : "var(--color-surface-subtle)",
-                      color: isActive ? "#FFFFFF" : "var(--color-text-secondary)",
-                      padding: "1px 6px",
-                      borderRadius: 9999,
-                    }}
-                  >
-                    {classes.filter((c) => getDivisionInfo(c.level).label === (div === "PRIMARY" ? "Primary" : "Secondary")).length}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+        <div style={{ marginBottom: 20 }}>
+          <DivisionSwitcher
+            value={divisionFilter}
+            onChange={(div) => {
+              setDivisionFilter(div);
+              if (typeof window !== "undefined") sessionStorage.setItem("classesDiv", div);
+            }}
+            counts={{
+              ALL: classes.length,
+              PRIMARY: classes.filter((c) => getDivisionInfo(c.level).label === "Primary").length,
+              SECONDARY: classes.filter((c) => getDivisionInfo(c.level).label === "Secondary").length,
+            }}
+            storageKey="classesDiv"
+          />
         </div>
       )}
 
@@ -1811,6 +1765,27 @@ export default function ClassesPage() {
                       onChange={(e) => setLevelInput(e.target.value)}
                       required
                     />
+                    {/* Quick Presets */}
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 6 }}>
+                      {["Nursery 1", "Nursery 2", "Primary 1", "Primary 4", "JSS 1", "JSS 3", "SSS 1", "SSS 3"].map((lvl) => (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => setLevelInput(lvl)}
+                          style={{
+                            fontSize: 10,
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            border: "1px solid var(--color-border, #E8ECE9)",
+                            backgroundColor: levelInput === lvl ? "var(--color-brand-navy, #0B2545)" : "var(--color-surface-subtle)",
+                            color: levelInput === lvl ? "#FFFFFF" : "var(--color-text-secondary)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {lvl}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div>

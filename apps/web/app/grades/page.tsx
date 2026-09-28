@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import DivisionSwitcher, { SchoolDivision, getDivisionForLevel } from "../components/DivisionSwitcher";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface ClassItem {
@@ -496,38 +497,23 @@ export default function GradesPage() {
 
       {/* Class and Subject Selectors */}
       <div className="card" style={{ marginBottom: 20 }}>
-        {/* Division Pill Switcher */}
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-            Section:
-          </span>
-          {(["ALL", "PRIMARY", "SECONDARY"] as const).map((div) => {
-            const labels: Record<typeof div, string> = { ALL: "All", PRIMARY: "Nursery & Primary", SECONDARY: "Secondary (JSS & SSS)" };
-            const isActive = divisionFilter === div;
-            return (
-              <button
-                key={div}
-                type="button"
-                onClick={() => {
-                  setDivisionFilter(div);
-                  setSelectedClassId("");
-                  if (typeof window !== "undefined") sessionStorage.setItem("gradesDiv", div);
-                }}
-                style={{
-                  padding: "4px 14px",
-                  borderRadius: 9999,
-                  border: isActive ? "none" : "1px solid var(--color-border, #E8ECE9)",
-                  backgroundColor: isActive ? "var(--color-brand-navy, #0B2545)" : "#FFFFFF",
-                  color: isActive ? "#FFFFFF" : "var(--color-text-secondary)",
-                  fontSize: 12,
-                  fontWeight: isActive ? 700 : 500,
-                  cursor: "pointer",
-                }}
-              >
-                {labels[div]}
-              </button>
-            );
-          })}
+        {/* Division Switcher */}
+        <div style={{ marginBottom: 16 }}>
+          <DivisionSwitcher
+            value={divisionFilter}
+            onChange={(div) => {
+              setDivisionFilter(div);
+              setSelectedClassId("");
+              if (typeof window !== "undefined") sessionStorage.setItem("gradesDiv", div);
+            }}
+            counts={{
+              ALL: classes.length,
+              PRIMARY: classes.filter((c) => getDivisionForLevel(c.level) === "PRIMARY").length,
+              SECONDARY: classes.filter((c) => getDivisionForLevel(c.level) === "SECONDARY").length,
+            }}
+            storageKey="gradesDiv"
+            size="sm"
+          />
         </div>
 
         <div
@@ -555,9 +541,7 @@ export default function GradesPage() {
               {classes
                 .filter((cls) => {
                   if (divisionFilter === "ALL") return true;
-                  const l = (cls.level || "").toUpperCase().trim();
-                  const isSecondary = l.startsWith("JSS") || l.startsWith("SSS") || l.startsWith("SS");
-                  return divisionFilter === "SECONDARY" ? isSecondary : !isSecondary;
+                  return getDivisionForLevel(cls.level) === divisionFilter;
                 })
                 .map((cls) => (
                   <option key={cls.id} value={cls.id}>

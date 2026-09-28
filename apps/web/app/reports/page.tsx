@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import DivisionSwitcher, { SchoolDivision, getDivisionForLevel } from "../components/DivisionSwitcher";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -110,6 +111,42 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "demographics" | "academics" | "financials" | "operations">("overview");
 
+  // Institutional Division Filter
+  const [divisionFilter, setDivisionFilter] = useState<SchoolDivision>(() => {
+    if (typeof window !== "undefined") {
+      return (sessionStorage.getItem("reportsDiv") as SchoolDivision) || "ALL";
+    }
+    return "ALL";
+  });
+
+  const divisionCounts = useMemo(() => {
+    if (!data?.demographics?.classBreakdown) return undefined;
+    const classes = data.demographics.classBreakdown;
+    return {
+      ALL: classes.length,
+      PRIMARY: classes.filter((c) => getDivisionForLevel(c.level) === "PRIMARY").length,
+      SECONDARY: classes.filter((c) => getDivisionForLevel(c.level) === "SECONDARY").length,
+    };
+  }, [data]);
+
+  const filteredClassBreakdown = useMemo(() => {
+    if (!data?.demographics?.classBreakdown) return [];
+    if (divisionFilter === "ALL") return data.demographics.classBreakdown;
+    return data.demographics.classBreakdown.filter(
+      (c) => getDivisionForLevel(c.level) === divisionFilter
+    );
+  }, [data, divisionFilter]);
+
+  const filteredTopDebtors = useMemo(() => {
+    if (!data?.financials?.topDebtors) return [];
+    if (divisionFilter === "ALL") return data.financials.topDebtors;
+    // Map class names from filtered classes
+    const allowedClassNames = new Set(filteredClassBreakdown.map((c) => c.name.toLowerCase().trim()));
+    return data.financials.topDebtors.filter((d) =>
+      allowedClassNames.has((d.className || "").toLowerCase().trim())
+    );
+  }, [data, divisionFilter, filteredClassBreakdown]);
+
   useEffect(() => {
     async function loadReport() {
       try {
@@ -202,34 +239,47 @@ export default function ReportsPage() {
         </div>
 
         {/* Tab navigation */}
-        <div style={{ display: "flex", gap: 8, marginTop: 24 }}>
-          {[
-            { id: "overview", label: "Executive Overview" },
-            { id: "demographics", label: "Demographics & Enrollment" },
-            { id: "academics", label: "Academic Performance" },
-            { id: "financials", label: "Bursary & Collections" },
-            { id: "operations", label: "Facilities & Attendance" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setActiveTab(t.id as any)}
-              style={{
-                padding: "8px 16px",
-                fontSize: 13,
-                fontWeight: 700,
-                border: "none",
-                backgroundColor: activeTab === t.id ? "var(--color-surface-subtle, #F4F7F5)" : "transparent",
-                color: activeTab === t.id ? "var(--color-brand-teal, #0E7D75)" : "var(--color-text-secondary, #4A6B5D)",
-                borderRadius: 8,
-                borderBottom: activeTab === t.id ? "2px solid var(--color-brand-teal, #0E7D75)" : "2px solid transparent",
-                cursor: "pointer",
-                transition: "all 0.15s",
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 14, marginTop: 24 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[
+              { id: "overview", label: "Executive Overview" },
+              { id: "demographics", label: "Demographics & Enrollment" },
+              { id: "academics", label: "Academic Performance" },
+              { id: "financials", label: "Bursary & Collections" },
+              { id: "operations", label: "Facilities & Attendance" },
+            ].map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setActiveTab(t.id as any)}
+                style={{
+                  padding: "8px 16px",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  border: "none",
+                  backgroundColor: activeTab === t.id ? "var(--color-surface-subtle, #F4F7F5)" : "transparent",
+                  color: activeTab === t.id ? "var(--color-brand-teal, #0E7D75)" : "var(--color-text-secondary, #4A6B5D)",
+                  borderRadius: 8,
+                  borderBottom: activeTab === t.id ? "2px solid var(--color-brand-teal, #0E7D75)" : "2px solid transparent",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Division Switcher */}
+          {data && (
+            <DivisionSwitcher
+              value={divisionFilter}
+              onChange={setDivisionFilter}
+              counts={divisionCounts}
+              storageKey="reportsDiv"
+              size="sm"
+            />
+          )}
         </div>
       </div>
 
@@ -403,29 +453,37 @@ export default function ReportsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {data.demographics.classBreakdown.map((cls) => (
-                        <tr key={cls.id} style={{ borderBottom: "1px solid var(--color-border, #E8ECE9)" }}>
-                          <td style={{ padding: "10px 14px", fontWeight: 600, color: "var(--color-ink)" }}>{cls.name}</td>
-                          <td style={{ padding: "10px 14px", color: "var(--color-text-secondary)" }}>{cls.level}</td>
-                          <td style={{ padding: "10px 14px", color: "var(--color-ink)" }}>{cls.teacherName}</td>
-                          <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700 }}>{cls.enrolled}</td>
-                          <td style={{ padding: "10px 14px", textAlign: "center", color: "var(--color-text-secondary)" }}>{cls.capacity}</td>
-                          <td style={{ padding: "10px 14px", textAlign: "right" }}>
-                            <span
-                              style={{
-                                padding: "2px 8px",
-                                borderRadius: 6,
-                                fontWeight: 700,
-                                fontSize: 11,
-                                backgroundColor: cls.occupancyRate > 90 ? "#FAECE7" : "#EAF6F0",
-                                color: cls.occupancyRate > 90 ? "#993C1D" : "#1B6A45",
-                              }}
-                            >
-                              {cls.occupancyRate}%
-                            </span>
+                      {filteredClassBreakdown.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ padding: "32px 14px", textAlign: "center", color: "var(--color-text-secondary)" }}>
+                            No classes found in the {divisionFilter === "PRIMARY" ? "Nursery & Primary" : "Secondary"} section.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        filteredClassBreakdown.map((cls) => (
+                          <tr key={cls.id} style={{ borderBottom: "1px solid var(--color-border, #E8ECE9)" }}>
+                            <td style={{ padding: "10px 14px", fontWeight: 600, color: "var(--color-ink)" }}>{cls.name}</td>
+                            <td style={{ padding: "10px 14px", color: "var(--color-text-secondary)" }}>{cls.level}</td>
+                            <td style={{ padding: "10px 14px", color: "var(--color-ink)" }}>{cls.teacherName}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700 }}>{cls.enrolled}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "center", color: "var(--color-text-secondary)" }}>{cls.capacity}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "right" }}>
+                              <span
+                                style={{
+                                  padding: "2px 8px",
+                                  borderRadius: 6,
+                                  fontWeight: 700,
+                                  fontSize: 11,
+                                  backgroundColor: cls.occupancyRate > 90 ? "#FAECE7" : "#EAF6F0",
+                                  color: cls.occupancyRate > 90 ? "#993C1D" : "#1B6A45",
+                                }}
+                              >
+                                {cls.occupancyRate}%
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -555,18 +613,26 @@ export default function ReportsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {data.financials.topDebtors.map((d) => (
-                        <tr key={d.admissionNumber} style={{ borderBottom: "1px solid var(--color-border)" }}>
-                          <td style={{ padding: "10px 12px", fontWeight: 600 }}>{d.studentName}</td>
-                          <td style={{ padding: "10px 12px", color: "var(--color-text-secondary)" }}>{d.admissionNumber}</td>
-                          <td style={{ padding: "10px 12px" }}>{d.className}</td>
-                          <td style={{ padding: "10px 12px", textAlign: "right" }}>{formatNaira(d.totalInvoiced)}</td>
-                          <td style={{ padding: "10px 12px", textAlign: "right", color: "#1B6A45" }}>{formatNaira(d.paidAmount)}</td>
-                          <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 800, color: "var(--color-danger-text)" }}>
-                            {formatNaira(d.balance)}
+                      {filteredTopDebtors.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} style={{ padding: "32px 14px", textAlign: "center", color: "var(--color-text-secondary)" }}>
+                            No outstanding debtors in the {divisionFilter === "PRIMARY" ? "Nursery & Primary" : "Secondary"} section.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        filteredTopDebtors.map((d) => (
+                          <tr key={d.admissionNumber} style={{ borderBottom: "1px solid var(--color-border)" }}>
+                            <td style={{ padding: "10px 12px", fontWeight: 600 }}>{d.studentName}</td>
+                            <td style={{ padding: "10px 12px", color: "var(--color-text-secondary)" }}>{d.admissionNumber}</td>
+                            <td style={{ padding: "10px 12px" }}>{d.className}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right" }}>{formatNaira(d.totalInvoiced)}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right", color: "#1B6A45" }}>{formatNaira(d.paidAmount)}</td>
+                            <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 800, color: "var(--color-danger-text)" }}>
+                              {formatNaira(d.balance)}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>

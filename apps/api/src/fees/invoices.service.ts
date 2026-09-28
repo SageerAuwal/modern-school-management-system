@@ -215,7 +215,23 @@ export class InvoicesService {
         ...(filters.termId ? { termId: filters.termId } : {}),
       },
       include: {
-        student: { select: { id: true, firstName: true, lastName: true, admissionNumber: true } },
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            admissionNumber: true,
+            enrollments: {
+              where: { status: EnrollmentStatus.ACTIVE },
+              select: {
+                classSection: {
+                  select: { id: true, name: true, level: true },
+                },
+              },
+              take: 1,
+            },
+          },
+        },
         term: { select: { id: true, name: true } },
         items: true,
         _count: { select: { payments: true } },

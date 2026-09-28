@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import ActionConfirmationModal from "../components/ActionConfirmationModal";
+import DivisionSwitcher, { SchoolDivision, getDivisionForLevel } from "../components/DivisionSwitcher";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -641,7 +642,7 @@ export default function ResultsPage() {
       ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "approval" && !isParent && !isStudent ? (
         <div className="no-print" style={{ display: "flex", flexDirection: "column", gap: 20, marginBottom: 40 }}>
-          {/* Top Control Bar with Term Selector and Refresh */}
+          {/* Top Control Bar with Term Selector, Division Switcher, and Refresh */}
           <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <label style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)" }}>Select Term for Audit:</label>
@@ -662,7 +663,24 @@ export default function ResultsPage() {
               </select>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              {auditData && (
+                <DivisionSwitcher
+                  value={divisionFilter}
+                  onChange={(div) => {
+                    setDivisionFilter(div);
+                    if (typeof window !== "undefined") sessionStorage.setItem("resultsDiv", div);
+                  }}
+                  counts={{
+                    ALL: auditData.classes.length,
+                    PRIMARY: auditData.classes.filter((c) => getDivisionForLevel(c.classSection.level) === "PRIMARY").length,
+                    SECONDARY: auditData.classes.filter((c) => getDivisionForLevel(c.classSection.level) === "SECONDARY").length,
+                  }}
+                  storageKey="resultsDiv"
+                  size="sm"
+                />
+              )}
+
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -708,18 +726,24 @@ export default function ResultsPage() {
             </div>
           )}
 
-          {/* Stats Overview */}
-          {auditData && (
+          {/* Stats Overview (Filtered by Division) */}
+          {auditData && (() => {
+            const filteredAuditClasses = auditData.classes.filter((cls) => {
+              if (divisionFilter === "ALL") return true;
+              return getDivisionForLevel(cls.classSection.level) === divisionFilter;
+            });
+
+            return (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
               <div className="card" style={{ padding: 16 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase" }}>
                   Active Classes
                 </div>
                 <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4, color: "var(--color-ink)" }}>
-                  {auditData.classes.length}
+                  {filteredAuditClasses.length}
                 </div>
                 <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
-                  Enrolled streams in school
+                  {divisionFilter === "PRIMARY" ? "Nursery & Primary streams" : divisionFilter === "SECONDARY" ? "Secondary streams (JSS & SSS)" : "All enrolled streams"}
                 </div>
               </div>
 
@@ -728,7 +752,7 @@ export default function ResultsPage() {
                   Fully Graded (100%)
                 </div>
                 <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4, color: "var(--color-brand-teal, #0E7D75)" }}>
-                  {auditData.classes.filter((c) => c.completionPercent >= 100).length} of {auditData.classes.length}
+                  {filteredAuditClasses.filter((c) => c.completionPercent >= 100).length} of {filteredAuditClasses.length}
                 </div>
                 <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
                   All subject scores entered
@@ -740,7 +764,7 @@ export default function ResultsPage() {
                   Approved by Principal
                 </div>
                 <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4, color: "#1E40AF" }}>
-                  {auditData.classes.filter((c) => c.status === "APPROVED" || c.status === "PUBLISHED").length} of {auditData.classes.length}
+                  {filteredAuditClasses.filter((c) => c.status === "APPROVED" || c.status === "PUBLISHED").length} of {filteredAuditClasses.length}
                 </div>
                 <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
                   Signed off with official remarks
@@ -752,14 +776,15 @@ export default function ResultsPage() {
                   Released to Parents
                 </div>
                 <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4, color: "var(--color-success-text, #166E4E)" }}>
-                  {auditData.classes.filter((c) => c.status === "PUBLISHED").length} of {auditData.classes.length}
+                  {filteredAuditClasses.filter((c) => c.status === "PUBLISHED").length} of {filteredAuditClasses.length}
                 </div>
                 <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>
                   Live &amp; accessible on portals
                 </div>
               </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* Audit Master Table */}
           <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -796,10 +821,25 @@ export default function ResultsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {auditData.classes.map((cls) => {
-                      const isComplete = cls.completionPercent >= 100;
-                      return (
-                        <tr key={cls.classSection.id}>
+                    {auditData.classes.filter((cls) => {
+                      if (divisionFilter === "ALL") return true;
+                      return getDivisionForLevel(cls.classSection.level) === divisionFilter;
+                    }).length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ padding: 32, textAlign: "center", color: "var(--color-text-secondary)" }}>
+                          No classes found in the {divisionFilter === "PRIMARY" ? "Nursery & Primary" : "Secondary"} section for this audit.
+                        </td>
+                      </tr>
+                    ) : (
+                      auditData.classes
+                        .filter((cls) => {
+                          if (divisionFilter === "ALL") return true;
+                          return getDivisionForLevel(cls.classSection.level) === divisionFilter;
+                        })
+                        .map((cls) => {
+                          const isComplete = cls.completionPercent >= 100;
+                          return (
+                            <tr key={cls.classSection.id}>
                           <td style={{ padding: "14px 16px" }}>
                             <div style={{ fontWeight: 800, fontSize: 14, color: "var(--color-ink)" }}>
                               {cls.classSection.name}
@@ -959,7 +999,7 @@ export default function ResultsPage() {
                           </td>
                         </tr>
                       );
-                    })}
+                    }))}
                   </tbody>
                 </table>
               </div>
@@ -1110,38 +1150,23 @@ export default function ResultsPage() {
         ) : (
           // Staff Mode: Class -> Term -> Student Selector
           <form onSubmit={handleCheckResult}>
-            {/* Division Pill Switcher */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                Section:
-              </span>
-              {(["ALL", "PRIMARY", "SECONDARY"] as const).map((div) => {
-                const labels: Record<typeof div, string> = { ALL: "All Sections", PRIMARY: "Nursery & Primary", SECONDARY: "Secondary (JSS & SSS)" };
-                const isActive = divisionFilter === div;
-                return (
-                  <button
-                    key={div}
-                    type="button"
-                    onClick={() => {
-                      setDivisionFilter(div);
-                      setSelectedClassId("");
-                      if (typeof window !== "undefined") sessionStorage.setItem("resultsDiv", div);
-                    }}
-                    style={{
-                      padding: "4px 14px",
-                      borderRadius: 9999,
-                      border: isActive ? "none" : "1px solid var(--color-border, #E8ECE9)",
-                      backgroundColor: isActive ? "var(--color-brand-navy, #0B2545)" : "#FFFFFF",
-                      color: isActive ? "#FFFFFF" : "var(--color-text-secondary)",
-                      fontSize: 12,
-                      fontWeight: isActive ? 700 : 500,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {labels[div]}
-                  </button>
-                );
-              })}
+            {/* Division Switcher */}
+            <div style={{ marginBottom: 16 }}>
+              <DivisionSwitcher
+                value={divisionFilter}
+                onChange={(div) => {
+                  setDivisionFilter(div);
+                  setSelectedClassId("");
+                  if (typeof window !== "undefined") sessionStorage.setItem("resultsDiv", div);
+                }}
+                counts={{
+                  ALL: classes.length,
+                  PRIMARY: classes.filter((c) => getDivisionForLevel(c.level) === "PRIMARY").length,
+                  SECONDARY: classes.filter((c) => getDivisionForLevel(c.level) === "SECONDARY").length,
+                }}
+                storageKey="resultsDiv"
+                size="sm"
+              />
             </div>
 
             <div
@@ -1164,9 +1189,7 @@ export default function ResultsPage() {
                   {classes
                     .filter((c) => {
                       if (divisionFilter === "ALL") return true;
-                      const l = (c.level || "").toUpperCase().trim();
-                      const isSecondary = l.startsWith("JSS") || l.startsWith("SSS") || l.startsWith("SS");
-                      return divisionFilter === "SECONDARY" ? isSecondary : !isSecondary;
+                      return getDivisionForLevel(c.level) === divisionFilter;
                     })
                     .map((c) => (
                       <option key={c.id} value={c.id}>

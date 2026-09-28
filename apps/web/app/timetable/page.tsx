@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import DivisionSwitcher, { SchoolDivision, getDivisionForLevel } from "../components/DivisionSwitcher";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface ClassSection {
@@ -126,15 +127,6 @@ function getSubjectShortName(name: string = ""): string {
   if (lower.includes("agric")) return "Agric Sci";
   if (lower.includes("phe") || lower.includes("physical")) return "PHE";
   return n.slice(0, 10) + ".";
-}
-
-/* ── Division Helper ─────────────────────────────────────────────────────── */
-function getDivisionForLevel(level: string): "PRIMARY" | "SECONDARY" {
-  const l = (level || "").toUpperCase().trim();
-  if (l.startsWith("JSS") || l.startsWith("SSS") || l.startsWith("SS") || l.startsWith("BASIC 7") || l.startsWith("BASIC 8") || l.startsWith("BASIC 9")) {
-    return "SECONDARY";
-  }
-  return "PRIMARY";
 }
 
 /* ── Realistic Faculty Non-Teaching Duties (Zero Empty Dashes) ───────────── */
@@ -516,6 +508,12 @@ export default function TimetablePage() {
 
   /* ── Division-Filtered Classes for Dropdown ──────────────────────────────── */
   const filteredClassesForDropdown = useMemo(() => {
+    if (divisionFilter === "ALL") return classes;
+    return classes.filter((c) => getDivisionForLevel(c.level) === divisionFilter);
+  }, [classes, divisionFilter]);
+
+  /* ── Classes for Master Sheet (Filtered by Active Division) ──────────────── */
+  const masterClasses = useMemo(() => {
     if (divisionFilter === "ALL") return classes;
     return classes.filter((c) => getDivisionForLevel(c.level) === divisionFilter);
   }, [classes, divisionFilter]);
@@ -1081,66 +1079,39 @@ export default function TimetablePage() {
             </div>
 
             {/* Right: Dropdowns & Print Actions */}
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {activeView === "class" && (
-                <>
-                  {/* Division Pill Switcher */}
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
-                      padding: 3,
-                      borderRadius: 9999,
-                      border: "1px solid var(--color-border, #E8ECE9)",
-                    }}
-                  >
-                    {(["ALL", "PRIMARY", "SECONDARY"] as const).map((div) => {
-                      const shortLabels: Record<typeof div, string> = { ALL: "All", PRIMARY: "Primary", SECONDARY: "Secondary" };
-                      const isActive = divisionFilter === div;
-                      return (
-                        <button
-                          key={div}
-                          type="button"
-                          onClick={() => {
-                            setDivisionFilter(div);
-                            if (typeof window !== "undefined") sessionStorage.setItem("timetableDiv", div);
-                          }}
-                          style={{
-                            border: "none",
-                            background: isActive ? "#FFFFFF" : "transparent",
-                            color: isActive ? "var(--color-ink, #182220)" : "var(--color-text-secondary, #70817B)",
-                            padding: "5px 13px",
-                            borderRadius: 9999,
-                            fontSize: 12,
-                            fontWeight: isActive ? 700 : 500,
-                            boxShadow: isActive ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
-                            cursor: "pointer",
-                            transition: "all 0.15s",
-                          }}
-                        >
-                          {shortLabels[div]}
-                        </button>
-                      );
-                    })}
-                  </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              {/* Institutional Division Switcher */}
+              <DivisionSwitcher
+                value={divisionFilter}
+                onChange={(div) => {
+                  setDivisionFilter(div);
+                  if (typeof window !== "undefined") sessionStorage.setItem("timetableDiv", div);
+                }}
+                counts={{
+                  ALL: classes.length,
+                  PRIMARY: classes.filter((c) => getDivisionForLevel(c.level) === "PRIMARY").length,
+                  SECONDARY: classes.filter((c) => getDivisionForLevel(c.level) === "SECONDARY").length,
+                }}
+                storageKey="timetableDiv"
+                size="sm"
+              />
 
-                  {/* Class Dropdown (filtered by division) */}
-                  <select
-                    className="input"
-                    style={{ width: "auto", minWidth: 170, height: 38, padding: "6px 14px", borderRadius: 9999 }}
-                    value={selectedClassId}
-                    onChange={(e) => setSelectedClassId(e.target.value)}
-                  >
-                    {filteredClassesForDropdown.length === 0 && (
-                      <option value="">No classes in this section</option>
-                    )}
-                    {filteredClassesForDropdown.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.level})
-                      </option>
-                    ))}
-                  </select>
-                </>
+              {activeView === "class" && (
+                <select
+                  className="input"
+                  style={{ width: "auto", minWidth: 170, height: 38, padding: "6px 14px", borderRadius: 9999 }}
+                  value={selectedClassId}
+                  onChange={(e) => setSelectedClassId(e.target.value)}
+                >
+                  {filteredClassesForDropdown.length === 0 && (
+                    <option value="">No classes in this section</option>
+                  )}
+                  {filteredClassesForDropdown.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.level})
+                    </option>
+                  ))}
+                </select>
               )}
 
               {activeView === "teacher" && (
@@ -1307,7 +1278,7 @@ export default function TimetablePage() {
                             BRIGHT FUTURE ACADEMY
                           </div>
                           <div style={{ fontSize: 9.5, color: "var(--color-text-secondary)", fontWeight: 700 }}>
-                            Official Master Weekly Academic Routine · {timetable.academicYear} Academic Session · All Classes
+                            Official Master Weekly Academic Routine · {timetable.academicYear} Academic Session · {divisionFilter === "PRIMARY" ? "Primary & Nursery Section" : divisionFilter === "SECONDARY" ? "Secondary Section (JSS & SSS)" : "All Classes"}
                           </div>
                           <div style={{ fontSize: 8.5, fontStyle: "italic", color: "var(--color-text-secondary)" }}>
                             &quot;Guided By Principles, Driven By Purpose&quot; · Behind L.E.A Primary School Tumburu Kashere, Akko LGA, Gombe State
@@ -1316,10 +1287,10 @@ export default function TimetablePage() {
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 10.5, fontWeight: 800, color: "var(--color-brand-teal, #0E7D75)", textTransform: "uppercase" }}>
-                          Institutional Master Schedule
+                          {divisionFilter === "PRIMARY" ? "Primary Master Schedule" : divisionFilter === "SECONDARY" ? "Secondary Master Schedule" : "Institutional Master Schedule"}
                         </div>
                         <div style={{ fontSize: 8.5, color: "var(--color-text-secondary)" }}>
-                          5 Days · {classes.length} Class Sections · Constraint Satisfaction Verified
+                          5 Days · {masterClasses.length} Class Sections · Constraint Satisfaction Verified
                         </div>
                       </div>
                     </div>
@@ -1363,63 +1334,70 @@ export default function TimetablePage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {DAYS_OF_WEEK.map((day) => {
-                          return classes.map((cls, cIdx) => {
-                            const classLessonsMap = getLessonsMapForClass(cls.id);
-                            const isFirstClass = cIdx === 0;
-                            const isLastClass = cIdx === classes.length - 1;
+                        {masterClasses.length === 0 ? (
+                          <tr>
+                            <td colSpan={periodSlots.length + 2} style={{ padding: "30px 10px", textAlign: "center", color: "var(--color-text-secondary)", fontSize: 12 }}>
+                              No classes found in the {divisionFilter === "PRIMARY" ? "Nursery & Primary" : "Secondary"} section.
+                            </td>
+                          </tr>
+                        ) : (
+                          DAYS_OF_WEEK.map((day) => {
+                            return masterClasses.map((cls, cIdx) => {
+                              const classLessonsMap = getLessonsMapForClass(cls.id);
+                              const isFirstClass = cIdx === 0;
+                              const isLastClass = cIdx === masterClasses.length - 1;
 
-                            return (
-                              <tr
-                                key={`${day.key}_${cls.id}`}
-                                style={{
-                                  borderTop: isFirstClass ? "2px solid #182220" : "1px solid var(--color-border, #E8ECE9)",
-                                  borderBottom: isLastClass ? "2px solid #182220" : undefined,
-                                }}
-                              >
-                                {/* Day Header Column with rowSpan */}
-                                {isFirstClass && (
-                                  <td
-                                    rowSpan={classes.length}
-                                    style={{
-                                      textAlign: "center",
-                                      verticalAlign: "middle",
-                                      backgroundColor: "#182220",
-                                      color: "#FFFFFF",
-                                      fontWeight: 900,
-                                      fontSize: 10,
-                                      letterSpacing: "0.08em",
-                                      border: "1px solid #182220",
-                                      padding: "2px 0",
-                                    }}
-                                  >
-                                    <div style={{ textTransform: "uppercase" }}>{day.short}</div>
-                                  </td>
-                                )}
-
-                                {/* Class Name */}
-                                <td
+                              return (
+                                <tr
+                                  key={`${day.key}_${cls.id}`}
                                   style={{
-                                    padding: "2px 4px",
-                                    fontSize: 8.5,
-                                    fontWeight: 800,
-                                    backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
-                                    border: "1px solid #182220",
-                                    whiteSpace: "nowrap",
-                                    color: "var(--color-ink)",
+                                    borderTop: isFirstClass ? "2px solid #182220" : "1px solid var(--color-border, #E8ECE9)",
+                                    borderBottom: isLastClass ? "2px solid #182220" : undefined,
                                   }}
                                 >
-                                  {cls.name}
-                                </td>
+                                  {/* Day Header Column with rowSpan */}
+                                  {isFirstClass && (
+                                    <td
+                                      rowSpan={masterClasses.length}
+                                      style={{
+                                        textAlign: "center",
+                                        verticalAlign: "middle",
+                                        backgroundColor: "#182220",
+                                        color: "#FFFFFF",
+                                        fontWeight: 900,
+                                        fontSize: 10,
+                                        letterSpacing: "0.08em",
+                                        border: "1px solid #182220",
+                                        padding: "2px 0",
+                                      }}
+                                    >
+                                      <div style={{ textTransform: "uppercase" }}>{day.short}</div>
+                                    </td>
+                                  )}
 
-                                {/* Periods */}
-                                {periodSlots.map((slot, pIdx) => {
-                                  if (slot.isBreak) {
-                                    if (!isFirstClass) return null; // Handled by rowSpan
-                                    return (
-                                      <td
-                                        key={pIdx}
-                                        rowSpan={classes.length}
+                                  {/* Class Name */}
+                                  <td
+                                    style={{
+                                      padding: "2px 4px",
+                                      fontSize: 8.5,
+                                      fontWeight: 800,
+                                      backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                                      border: "1px solid #182220",
+                                      whiteSpace: "nowrap",
+                                      color: "var(--color-ink)",
+                                    }}
+                                  >
+                                    {cls.name}
+                                  </td>
+
+                                  {/* Periods */}
+                                  {periodSlots.map((slot, pIdx) => {
+                                    if (slot.isBreak) {
+                                      if (!isFirstClass) return null; // Handled by rowSpan
+                                      return (
+                                        <td
+                                          key={pIdx}
+                                          rowSpan={masterClasses.length}
                                         style={{
                                           backgroundColor: "var(--color-warning-bg, #FEF3C7)",
                                           color: "var(--color-warning-text, #92400E)",
@@ -1475,7 +1453,7 @@ export default function TimetablePage() {
                               </tr>
                             );
                           });
-                        })}
+                        }))}
                       </tbody>
                     </table>
 

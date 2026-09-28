@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import PosReceiptSlip from "../components/PosReceiptSlip";
 import ActionConfirmationModal from "../components/ActionConfirmationModal";
 import RejectPaymentModal from "../components/RejectPaymentModal";
+import DivisionSwitcher, { SchoolDivision, getDivisionForLevel } from "../components/DivisionSwitcher";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface PendingPaymentItem {
@@ -34,6 +35,13 @@ interface Student {
   firstName: string;
   lastName: string;
   admissionNumber?: string | null;
+  enrollments?: Array<{
+    classSection?: {
+      id: string;
+      name: string;
+      level: string;
+    } | null;
+  }>;
 }
 
 interface Term {
@@ -195,19 +203,43 @@ export default function FeesPage() {
     }
   };
 
-  const totalInvoiced = invoices.reduce(
+  // Institutional Division Filter
+  const [divisionFilter, setDivisionFilter] = useState<SchoolDivision>(() => {
+    if (typeof window !== "undefined") {
+      return (sessionStorage.getItem("feesDiv") as SchoolDivision) || "ALL";
+    }
+    return "ALL";
+  });
+
+  const getInvoiceDivision = useCallback((inv: Invoice): "PRIMARY" | "SECONDARY" => {
+    const level = inv.student?.enrollments?.[0]?.classSection?.level;
+    return getDivisionForLevel(level);
+  }, []);
+
+  const filteredInvoices = invoices.filter((inv) => {
+    if (divisionFilter === "ALL") return true;
+    return getInvoiceDivision(inv) === divisionFilter;
+  });
+
+  const divisionCounts = {
+    ALL: invoices.length,
+    PRIMARY: invoices.filter((inv) => getInvoiceDivision(inv) === "PRIMARY").length,
+    SECONDARY: invoices.filter((inv) => getInvoiceDivision(inv) === "SECONDARY").length,
+  };
+
+  const totalInvoiced = filteredInvoices.reduce(
     (sum, inv) => sum + (inv.totalAmount || 0),
     0
   );
-  const totalCollected = invoices.reduce(
+  const totalCollected = filteredInvoices.reduce(
     (sum, inv) => sum + (inv.paidAmount || 0),
     0
   );
-  const totalOutstanding = invoices.reduce((sum, inv) => {
+  const totalOutstanding = filteredInvoices.reduce((sum, inv) => {
     const bal = (inv.totalAmount || 0) - (inv.paidAmount || 0);
     return sum + (bal > 0 ? bal : 0);
   }, 0);
-  const overdueCount = invoices.filter((inv) => {
+  const overdueCount = filteredInvoices.filter((inv) => {
     const normalized = (inv.status || "").toUpperCase();
     if (
       normalized === "PAID" ||
@@ -334,6 +366,18 @@ export default function FeesPage() {
         </div>
       )}
 
+      {/* Institutional Division Switcher */}
+      {!loading && invoices.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <DivisionSwitcher
+            value={divisionFilter}
+            onChange={setDivisionFilter}
+            counts={divisionCounts}
+            storageKey="feesDiv"
+          />
+        </div>
+      )}
+
       {/* Table / Skeleton / Empty State */}
       {loading ? (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -342,6 +386,7 @@ export default function FeesPage() {
               <thead>
                 <tr>
                   <th>Student</th>
+                  <th>Class / Section</th>
                   <th>Term</th>
                   <th>Fee Type</th>
                   <th>Amount</th>
@@ -358,6 +403,12 @@ export default function FeesPage() {
                       <div
                         className="skeleton"
                         style={{ height: 16, width: "70%" }}
+                      />
+                    </td>
+                    <td>
+                      <div
+                        className="skeleton"
+                        style={{ height: 16, width: "60%" }}
                       />
                     </td>
                     <td>
@@ -417,7 +468,7 @@ export default function FeesPage() {
             </table>
           </div>
         </div>
-      ) : invoices.length === 0 ? (
+      ) : filteredInvoices.length === 0 ? (
         <div className="card empty-state">
           <div
             className="empty-state-icon"
@@ -437,13 +488,29 @@ export default function FeesPage() {
               <line x1="2" y1="10" x2="22" y2="10" />
             </svg>
           </div>
-          <h3 className="empty-state-title">{isParent ? "No fee records yet" : "No invoices yet"}</h3>
+          <h3 className="empty-state-title">
+            {invoices.length > 0
+              ? `No invoices in ${divisionFilter === "PRIMARY" ? "Nursery & Primary" : "Secondary"} section`
+              : isParent
+              ? "No fee records yet"
+              : "No invoices yet"}
+          </h3>
           <p className="empty-state-text">
-            {isParent
+            {invoices.length > 0
+              ? `No fee invoices match the active division filter (${divisionFilter === "PRIMARY" ? "Nursery & Primary" : "Secondary"}). Switch to All Divisions to view all records.`
+              : isParent
               ? "No fee invoices have been issued for your registered wards."
               : "Create fee structures first, then generate invoices for students."}
           </p>
-          {isAdmin && (
+          {invoices.length > 0 && divisionFilter !== "ALL" ? (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setDivisionFilter("ALL")}
+            >
+              View All Divisions
+            </button>
+          ) : isAdmin && (
             <div
               style={{
                 display: "inline-flex",
@@ -468,6 +535,7 @@ export default function FeesPage() {
               <thead>
                 <tr>
                   <th>Student</th>
+                  <th>Class / Section</th>
                   <th>Term</th>
                   <th>Fee Type</th>
                   <th>Amount</th>
@@ -478,10 +546,16 @@ export default function FeesPage() {
                 </tr>
               </thead>
               <tbody>
-                {invoices.map((invoice) => {
+                {filteredInvoices.map((invoice) => {
                   const studentName = invoice.student
                     ? `${invoice.student.firstName} ${invoice.student.lastName}`.trim()
                     : "—";
+                  const studentClass =
+                    invoice.student?.enrollments?.[0]?.classSection?.name ||
+                    invoice.student?.enrollments?.[0]?.classSection?.level ||
+                    "—";
+                  const classLevel = invoice.student?.enrollments?.[0]?.classSection?.level;
+                  const isPrimary = getDivisionForLevel(classLevel) === "PRIMARY";
                   const balance =
                     (invoice.totalAmount || 0) - (invoice.paidAmount || 0);
 
@@ -503,6 +577,19 @@ export default function FeesPage() {
                         >
                           {studentName}
                         </Link>
+                      </td>
+                      <td>
+                        <span
+                          className="pill-neutral"
+                          style={{
+                            fontSize: "11px",
+                            backgroundColor: isPrimary ? "var(--color-surface-subtle)" : "var(--color-primary-subtle, #E6F4F2)",
+                            color: isPrimary ? "var(--color-ink)" : "var(--color-brand-teal, #0E7D75)",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {studentClass}
+                        </span>
                       </td>
                       <td style={{ color: "var(--color-text-secondary)" }}>
                         {invoice.term?.name ?? "—"}
