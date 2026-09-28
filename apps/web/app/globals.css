@@ -505,9 +505,24 @@ a { color: inherit; text-decoration: none; }
   -webkit-overflow-scrolling: touch;
 }
 
-.table th,
-.table td {
+.table-responsive .table th,
+.table-responsive .table td {
   white-space: nowrap;
+}
+
+/* ─── Dashboard & Timetable Grid Layouts (Desktop Defaults) ────────────────── */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.timetable-grid-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 28px;
+  align-items: start;
 }
 
 /* ─── Responsive Media Breakpoints ─────────────────────────────────────────── */

@@ -135,9 +135,17 @@ export default function DashboardPage() {
   const maxEnrollment = enrollment?.reduce((max, item) => Math.max(max, item.count), 0) || 1;
 
   return (
-    <div className="page" style={{ backgroundColor: "#FFFFFF", minHeight: "100%" }}>
+    <div className="page" style={{ backgroundColor: "#FFFFFF", minHeight: "100%", padding: "24px 28px" }}>
       {/* ── Two-Column Main Layout ─────────────────────────────────────────── */}
-      <div className="dashboard-grid">
+      <div
+        className="dashboard-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "300px 1fr",
+          gap: 28,
+          alignItems: "start",
+        }}
+      >
         {/* ════ LEFT COLUMN: Live Mini Calendar, Radar Card, Filters ══════════ */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {/* Card 1: Real-Time Mini Calendar */}
@@ -148,6 +156,8 @@ export default function DashboardPage() {
               borderRadius: "var(--radius-card, 20px)",
               border: "1px solid var(--color-border, #E8ECE9)",
               backgroundColor: "#FFFFFF",
+              maxWidth: 360,
+              width: "100%",
             }}
           >
             {/* Month Header and Arrow Controls */}
