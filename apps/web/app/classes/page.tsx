@@ -1254,16 +1254,15 @@ export default function ClassesPage() {
           <div
             className="modal-card"
             style={{
-              maxWidth: 660,
-              padding: 24,
+              maxWidth: 680,
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+            <div className="modal-header">
               <div>
                 <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
                   School Subjects Catalog
                 </h2>
-                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>
+                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "2px 0 0" }}>
                   Curriculum subjects taught across Bright Future Academy. Classes select from this catalog.
                 </p>
               </div>
@@ -1282,6 +1281,8 @@ export default function ClassesPage() {
                 &times;
               </button>
             </div>
+
+            <div className="modal-body">
 
             {subjectSuccess && (
               <div
@@ -1565,8 +1566,9 @@ export default function ClassesPage() {
                 );
               })()}
             </div>
+            </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--color-border)" }}>
+            <div className="modal-footer">
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -1593,11 +1595,10 @@ export default function ClassesPage() {
             className="modal-card"
             style={{
               maxWidth: 760,
-              padding: 24,
             }}
           >
             {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+            <div className="modal-header">
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
@@ -1640,6 +1641,8 @@ export default function ClassesPage() {
                 &times;
               </button>
             </div>
+
+            <div className="modal-body">
 
             {/* Tabs */}
             <div
@@ -2082,8 +2085,10 @@ export default function ClassesPage() {
               </div>
             )}
 
+            </div>
+
             {/* Footer */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--color-border)" }}>
+            <div className="modal-footer">
               <button
                 type="button"
                 className="btn btn-secondary"
@@ -2112,19 +2117,12 @@ export default function ClassesPage() {
               maxWidth: "560px",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: "16px",
-              }}
-            >
+            <div className="modal-header">
               <div>
                 <h2
                   style={{
                     fontSize: "18px",
-                    fontWeight: 600,
+                    fontWeight: 700,
                     color: "var(--color-ink)",
                     margin: "0 0 2px 0",
                   }}
@@ -2159,28 +2157,32 @@ export default function ClassesPage() {
               </button>
             </div>
 
-            {createError && (
-              <div
-                className="pill-danger"
-                style={{
-                  display: "block",
-                  marginBottom: "16px",
-                  padding: "8px 12px",
-                  borderRadius: "var(--radius-control)",
-                }}
-              >
-                {createError}
-              </div>
-            )}
+            <form
+              onSubmit={handleCreateClass}
+              style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+            >
+              <div className="modal-body">
+                {createError && (
+                  <div
+                    className="pill-danger"
+                    style={{
+                      display: "block",
+                      marginBottom: "16px",
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-control)",
+                    }}
+                  >
+                    {createError}
+                  </div>
+                )}
 
-            <form onSubmit={handleCreateClass}>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "14px",
-                }}
-              >
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "14px",
+                  }}
+                >
                 <div>
                   <label className="label" htmlFor="class-name">
                     Class Name *
@@ -2400,30 +2402,25 @@ export default function ClassesPage() {
                   </div>
                 )}
 
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    gap: "8px",
-                    marginTop: "8px",
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={handleCloseModal}
-                    disabled={submitting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={submitting}
-                  >
-                    {submitting ? "Creating class..." : "Create class"}
-                  </button>
                 </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleCloseModal}
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={submitting}
+                >
+                  {submitting ? "Creating class..." : "Create class"}
+                </button>
               </div>
             </form>
           </div>
@@ -2446,19 +2443,12 @@ export default function ClassesPage() {
               maxWidth: "560px",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: "16px",
-              }}
-            >
+            <div className="modal-header">
               <div>
                 <h2
                   style={{
                     fontSize: "18px",
-                    fontWeight: 600,
+                    fontWeight: 700,
                     color: "var(--color-ink)",
                     margin: "0 0 2px 0",
                   }}
@@ -2493,28 +2483,32 @@ export default function ClassesPage() {
               </button>
             </div>
 
-            {editError && (
-              <div
-                className="pill-danger"
-                style={{
-                  display: "block",
-                  marginBottom: "16px",
-                  padding: "8px 12px",
-                  borderRadius: "var(--radius-control)",
-                }}
-              >
-                {editError}
-              </div>
-            )}
+            <form
+              onSubmit={handleEditClass}
+              style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+            >
+              <div className="modal-body">
+                {editError && (
+                  <div
+                    className="pill-danger"
+                    style={{
+                      display: "block",
+                      marginBottom: "16px",
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-control)",
+                    }}
+                  >
+                    {editError}
+                  </div>
+                )}
 
-            <form onSubmit={handleEditClass}>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "14px",
-                }}
-              >
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "14px",
+                  }}
+                >
                 <div>
                   <label className="label" htmlFor="edit-class-name">
                     Class Name *
@@ -2712,30 +2706,25 @@ export default function ClassesPage() {
                   </div>
                 )}
 
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "flex-end",
-                    gap: "8px",
-                    marginTop: "8px",
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={handleCloseEditModal}
-                    disabled={editSubmitting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={editSubmitting}
-                  >
-                    {editSubmitting ? "Saving..." : "Save changes"}
-                  </button>
                 </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleCloseEditModal}
+                  disabled={editSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={editSubmitting}
+                >
+                  {editSubmitting ? "Saving..." : "Save changes"}
+                </button>
               </div>
             </form>
           </div>
