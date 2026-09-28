@@ -83,6 +83,14 @@ interface FeeStructureItem {
   level?: string | null;
 }
 
+interface ParentOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string | null;
+}
+
 export default function NewStudentPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -96,6 +104,11 @@ export default function NewStudentPage() {
   const [selectedTermId, setSelectedTermId] = useState("");
   const [feeStructures, setFeeStructures] = useState<FeeStructureItem[]>([]);
   const [selectedStructureIds, setSelectedStructureIds] = useState<string[]>([]);
+
+  // Parent / Guardian linking states
+  const [existingParents, setExistingParents] = useState<ParentOption[]>([]);
+  const [selectedParentId, setSelectedParentId] = useState("");
+  const [selectedParentRelationship, setSelectedParentRelationship] = useState("Mother");
 
   // Student Portal Account states
   const [createPortalAccount, setCreatePortalAccount] = useState(false);
@@ -133,10 +146,6 @@ export default function NewStudentPage() {
     religion: "",
     bloodGroup: "",
     photoUrl: "",
-    guardianName: "",
-    guardianRelationship: "Mother",
-    guardianPhone: "",
-    guardianPhotoUrl: "",
   });
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -145,10 +154,11 @@ export default function NewStudentPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [resClasses, resTerms, resFees] = await Promise.all([
+        const [resClasses, resTerms, resFees, resParents] = await Promise.all([
           fetch(`${API}/api/v1/classes`, { credentials: "include" }),
           fetch(`${API}/api/v1/terms`, { credentials: "include" }),
           fetch(`${API}/api/v1/fees/structures`, { credentials: "include" }),
+          fetch(`${API}/api/v1/parents`, { credentials: "include" }),
         ]);
 
         if (resClasses.ok) {
@@ -158,6 +168,13 @@ export default function NewStudentPage() {
             if (data.length > 0) {
               setForm((f) => ({ ...f, classSectionId: data[0].id }));
             }
+          }
+        }
+
+        if (resParents.ok) {
+          const pData = await resParents.json();
+          if (Array.isArray(pData)) {
+            setExistingParents(pData);
           }
         }
 
@@ -180,7 +197,7 @@ export default function NewStudentPage() {
           }
         }
       } catch (err) {
-        console.error("Failed to load classes or fee structures", err);
+        console.error("Failed to load classes, parents, or fee structures", err);
       } finally {
         setLoadingClasses(false);
       }
@@ -236,6 +253,23 @@ export default function NewStudentPage() {
       if (!res.ok) {
         setError(data.message ?? "Could not add student. Check required fields.");
         return;
+      }
+
+      // If a parent was selected, link this student to the parent
+      if (selectedParentId && data?.id) {
+        try {
+          await fetch(`${API}/api/v1/parents/${selectedParentId}/link-student`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              studentId: data.id,
+              relationship: selectedParentRelationship || "Parent",
+            }),
+          });
+        } catch (linkErr) {
+          console.error("Auto-link parent error", linkErr);
+        }
       }
 
       // If auto-generate invoice is enabled, create invoice
@@ -486,39 +520,65 @@ export default function NewStudentPage() {
           </div>
         </div>
 
-        {/* Parent / Guardian Card */}
+        {/* Parent / Guardian Link Card (Optional) */}
         <div
           className="card"
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: 18,
+            gap: 16,
             marginBottom: 24,
           }}
         >
-          <p className="stat-label" style={{ marginBottom: -4 }}>
-            Parent / Guardian Details &amp; Photo
-          </p>
-
-          {/* Parent Photo Upload / Live Camera */}
-          <PhotoCaptureInput
-            photoUrl={form.guardianPhotoUrl || null}
-            onChange={(url) => set("guardianPhotoUrl", url || "")}
-            label="Parent / Guardian Photo (Camera or Upload)"
-          />
-
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 16 }}>
-            <Field label="Parent / Guardian Name" k="guardianName" placeholder="e.g. Alhaji Ibrahim Auwal" form={form} set={set} />
-            <Field
-              label="Relationship"
-              k="guardianRelationship"
-              opts={["Father", "Mother", "Guardian", "Uncle", "Aunt", "Sibling", "Grandparent", "Other"]}
-              form={form}
-              set={set}
-            />
+          <div>
+            <p className="stat-label" style={{ marginBottom: 4, color: "var(--color-ink)", fontWeight: 700 }}>
+              Parent / Guardian Assignment (Optional)
+            </p>
+            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
+              Link this student to an existing registered parent or guardian. Parents and siblings are officially managed in the Parents Directory.
+            </p>
           </div>
 
-          <Field label="Parent Phone Number" k="guardianPhone" placeholder="e.g. 08012345678" form={form} set={set} />
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 16 }}>
+            <div>
+              <label className="label">Registered Parent / Guardian</label>
+              <select
+                value={selectedParentId}
+                onChange={(e) => setSelectedParentId(e.target.value)}
+                className="input"
+              >
+                <option value="">-- No Parent Linked Yet (Link Later) --</option>
+                {existingParents.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.firstName} {p.lastName} ({p.phone || p.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Relationship</label>
+              <select
+                value={selectedParentRelationship}
+                onChange={(e) => setSelectedParentRelationship(e.target.value)}
+                className="input"
+                disabled={!selectedParentId}
+              >
+                <option value="Mother">Mother</option>
+                <option value="Father">Father</option>
+                <option value="Guardian">Guardian</option>
+                <option value="Uncle">Uncle</option>
+                <option value="Aunt">Aunt</option>
+                <option value="Sibling">Sibling</option>
+                <option value="Grandparent">Grandparent</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ fontSize: 12, color: "var(--color-text-secondary)", backgroundColor: "var(--color-surface-subtle)", padding: "10px 12px", borderRadius: "var(--radius-control)" }}>
+            Tip: If the parent is not yet registered in the school, you can complete student admission now and create/link the parent anytime under <strong>Parents Directory</strong> or from the student&apos;s profile.
+          </div>
         </div>
 
         {/* Student Portal Login Account Card */}

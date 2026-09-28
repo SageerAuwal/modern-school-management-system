@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
@@ -159,6 +159,86 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
   const [newPassword, setNewPassword] = useState("");
   const [submittingReset, setSubmittingReset] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
+
+  // Link Guardian Modal state
+  const [showLinkGuardianModal, setShowLinkGuardianModal] = useState(false);
+  const [availableParents, setAvailableParents] = useState<Array<{ id: string; firstName: string; lastName: string; email: string; phone?: string | null }>>([]);
+  const [loadingParents, setLoadingParents] = useState(false);
+  const [selectedGuardianParentId, setSelectedGuardianParentId] = useState("");
+  const [selectedGuardianRelationship, setSelectedGuardianRelationship] = useState("Mother");
+  const [submittingGuardianLink, setSubmittingGuardianLink] = useState(false);
+  const [guardianLinkError, setGuardianLinkError] = useState<string | null>(null);
+  const [unlinkingGuardianId, setUnlinkingGuardianId] = useState<string | null>(null);
+
+  const handleOpenLinkGuardianModal = async () => {
+    setSelectedGuardianParentId("");
+    setSelectedGuardianRelationship("Mother");
+    setGuardianLinkError(null);
+    setShowLinkGuardianModal(true);
+    if (availableParents.length === 0) {
+      setLoadingParents(true);
+      try {
+        const res = await fetch(`${API}/api/v1/parents`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) setAvailableParents(data);
+        }
+      } catch (err) {
+        console.error("Failed to load parents", err);
+      } finally {
+        setLoadingParents(false);
+      }
+    }
+  };
+
+  const handleLinkGuardian = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selectedGuardianParentId) return;
+    setSubmittingGuardianLink(true);
+    setGuardianLinkError(null);
+
+    try {
+      const res = await fetch(`${API}/api/v1/parents/${selectedGuardianParentId}/link-student`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentId,
+          relationship: selectedGuardianRelationship || "Parent",
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message ?? "Failed to link parent.");
+
+      setActionSuccess("Parent linked to student successfully.");
+      setShowLinkGuardianModal(false);
+      fetchStudent();
+    } catch (err: unknown) {
+      setGuardianLinkError(err instanceof Error ? err.message : "Failed to link parent.");
+    } finally {
+      setSubmittingGuardianLink(false);
+    }
+  };
+
+  const handleUnlinkGuardian = async (parentId: string) => {
+    if (!confirm("Are you sure you want to unlink this parent from this student?")) return;
+    setUnlinkingGuardianId(parentId);
+    try {
+      const res = await fetch(`${API}/api/v1/parents/${parentId}/unlink-student/${studentId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        setActionSuccess("Parent unlinked successfully.");
+        fetchStudent();
+      }
+    } catch (err) {
+      console.error("Failed to unlink parent", err);
+    } finally {
+      setUnlinkingGuardianId(null);
+    }
+  };
 
   const fetchStudent = async () => {
     setLoading(true);
@@ -657,9 +737,21 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
 
           {/* Right: Linked Guardians */}
           <div className="card">
-            <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 14px 0", color: "var(--color-ink)" }}>
-              Linked Parents & Guardians ({student.guardians.length})
-            </h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
+                Linked Parents &amp; Guardians ({student.guardians.length})
+              </h2>
+              {isAdmin && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleOpenLinkGuardianModal}
+                  style={{ fontSize: 12, padding: "4px 10px" }}
+                >
+                  Link a Parent
+                </button>
+              )}
+            </div>
 
             {student.guardians.length === 0 ? (
               <div>
@@ -667,9 +759,19 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                   No registered portal parents linked yet.
                 </p>
                 {student.guardianName && (
-                  <div style={{ fontSize: 13, color: "var(--color-ink)" }}>
+                  <div style={{ fontSize: 13, color: "var(--color-ink)", marginBottom: 10 }}>
                     Paper Record: <strong>{student.guardianName}</strong> ({student.guardianRelationship || "Guardian"}) &middot; {student.guardianPhone || "No phone"}
                   </div>
+                )}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleOpenLinkGuardianModal}
+                    style={{ fontSize: 12, padding: "6px 12px" }}
+                  >
+                    Link a Registered Parent
+                  </button>
                 )}
               </div>
             ) : (
@@ -684,6 +786,7 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
+                      gap: 12,
                     }}
                   >
                     <div>
@@ -695,15 +798,36 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                       </div>
                     </div>
 
-                    {g.user && (
-                      <Link
-                        href={`/parents/${g.user.id}`}
-                        className="btn btn-secondary"
-                        style={{ fontSize: 12, padding: "4px 8px" }}
-                      >
-                        Parent Account
-                      </Link>
-                    )}
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      {g.user && (
+                        <Link
+                          href={`/parents/${g.user.id}`}
+                          className="btn btn-secondary"
+                          style={{ fontSize: 12, padding: "4px 8px" }}
+                        >
+                          Parent Account
+                        </Link>
+                      )}
+                      {isAdmin && g.user && (
+                        <button
+                          type="button"
+                          onClick={() => handleUnlinkGuardian(g.user!.id)}
+                          disabled={unlinkingGuardianId === g.user.id}
+                          style={{
+                            border: "1px solid var(--color-danger-border, #FECACA)",
+                            backgroundColor: "var(--color-danger-bg, #FEF2F2)",
+                            color: "var(--color-danger-text, #991B1B)",
+                            padding: "4px 8px",
+                            borderRadius: "var(--radius-control)",
+                            fontSize: 11,
+                            cursor: "pointer",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {unlinkingGuardianId === g.user.id ? "Unlinking..." : "Unlink"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -779,6 +903,113 @@ export default function StudentDetailPage({ params }: { params: Promise<{ id: st
                   disabled={submittingReset}
                 >
                   {submittingReset ? "Updating..." : "Update Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Modal: Link Parent / Guardian */}
+      {showLinkGuardianModal && isAdmin && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "color-mix(in srgb, var(--color-ink) 50%, transparent)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 60,
+            padding: 16,
+          }}
+          onClick={() => setShowLinkGuardianModal(false)}
+        >
+          <div className="card" style={{ width: "100%", maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
+                Link Parent / Guardian
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowLinkGuardianModal(false)}
+                style={{ border: "none", background: "none", fontSize: 18, cursor: "pointer", color: "var(--color-text-secondary)" }}
+              >
+                &times;
+              </button>
+            </div>
+
+            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 14 }}>
+              Select a registered parent to link to {student.firstName} {student.lastName}.
+            </p>
+
+            {guardianLinkError && (
+              <div className="pill-danger" style={{ marginBottom: 14, padding: "6px 10px", fontSize: 12 }}>
+                {guardianLinkError}
+              </div>
+            )}
+
+            <form onSubmit={handleLinkGuardian}>
+              <div style={{ marginBottom: 14 }}>
+                <label className="label">Registered Parent / Guardian *</label>
+                {loadingParents ? (
+                  <div className="skeleton" style={{ height: 38 }} />
+                ) : availableParents.length === 0 ? (
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                    No registered parents found. Register a parent under <Link href="/parents" style={{ textDecoration: "underline" }}>Parents Directory</Link> first.
+                  </div>
+                ) : (
+                  <select
+                    className="input"
+                    value={selectedGuardianParentId}
+                    onChange={(e) => setSelectedGuardianParentId(e.target.value)}
+                    required
+                  >
+                    <option value="">-- Select Parent / Guardian --</option>
+                    {availableParents
+                      .filter((p) => !student.guardians.some((g) => g.user?.id === p.id))
+                      .map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.firstName} {p.lastName} ({p.phone || p.email})
+                        </option>
+                      ))}
+                  </select>
+                )}
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label className="label">Relationship *</label>
+                <select
+                  className="input"
+                  value={selectedGuardianRelationship}
+                  onChange={(e) => setSelectedGuardianRelationship(e.target.value)}
+                  required
+                >
+                  <option value="Mother">Mother</option>
+                  <option value="Father">Father</option>
+                  <option value="Guardian">Guardian</option>
+                  <option value="Uncle">Uncle</option>
+                  <option value="Aunt">Aunt</option>
+                  <option value="Sibling">Sibling</option>
+                  <option value="Grandparent">Grandparent</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowLinkGuardianModal(false)}
+                  disabled={submittingGuardianLink}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={submittingGuardianLink || !selectedGuardianParentId}
+                >
+                  {submittingGuardianLink ? "Linking..." : "Link Parent"}
                 </button>
               </div>
             </form>
