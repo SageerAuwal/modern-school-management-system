@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, FormEvent } from "react";
+import Link from "next/link";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
 interface Teacher {
@@ -26,6 +27,17 @@ interface ClassSubjectAssignment {
   } | null;
 }
 
+interface EnrolledStudentItem {
+  id: string;
+  student: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    admissionNumber: string;
+    gender: string;
+  };
+}
+
 interface ClassSection {
   id: string;
   name: string;
@@ -36,6 +48,7 @@ interface ClassSection {
   isActive: boolean;
   teacher: Teacher | null;
   classSubjects?: ClassSubjectAssignment[];
+  enrollments?: EnrolledStudentItem[];
   _count: {
     enrollments: number;
   };
@@ -45,6 +58,7 @@ interface SchoolSubject {
   id: string;
   name: string;
   code: string;
+  description?: string | null;
 }
 
 interface UserTeacher {
@@ -55,6 +69,17 @@ interface UserTeacher {
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+
+function getDivisionInfo(level: string): { label: string; isPrimary: boolean } {
+  const l = (level || "").toUpperCase().trim();
+  if (l.startsWith("NUR") || l.startsWith("CRE") || l.startsWith("PRI") || l.startsWith("KG") || l.startsWith("BASIC 1") || l.startsWith("BASIC 2") || l.startsWith("BASIC 3") || l.startsWith("BASIC 4") || l.startsWith("BASIC 5") || l.startsWith("BASIC 6")) {
+    return { label: "Primary", isPrimary: true };
+  }
+  if (l.startsWith("JSS") || l.startsWith("SSS") || l.startsWith("SS") || l.startsWith("BASIC 7") || l.startsWith("BASIC 8") || l.startsWith("BASIC 9")) {
+    return { label: "Secondary", isPrimary: false };
+  }
+  return { label: "All School", isPrimary: true };
+}
 
 export default function ClassesPage() {
   const { isAdmin } = useCurrentUser();
@@ -67,7 +92,7 @@ export default function ClassesPage() {
   const [createSubjectTeachers, setCreateSubjectTeachers] = useState<Record<string, string>>({});
   const [editSubjectTeachers, setEditSubjectTeachers] = useState<Record<string, string>>({});
 
-  // Modal & form state
+  // Modal & form state: Create Class
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [teachers, setTeachers] = useState<UserTeacher[]>([]);
   const [classNameInput, setClassNameInput] = useState("");
@@ -79,7 +104,7 @@ export default function ClassesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [createError, setCreateError] = useState("");
 
-  // Edit modal & form state
+  // Modal & form state: Edit Class
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingClassId, setEditingClassId] = useState("");
   const [editClassName, setEditClassName] = useState("");
@@ -91,6 +116,28 @@ export default function ClassesPage() {
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  // Modal & state: Subjects Catalog
+  const [isSubjectsModalOpen, setIsSubjectsModalOpen] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState("");
+  const [newSubjectCode, setNewSubjectCode] = useState("");
+  const [newSubjectDesc, setNewSubjectDesc] = useState("");
+  const [submittingSubject, setSubmittingSubject] = useState(false);
+  const [subjectError, setSubjectError] = useState("");
+  const [subjectSuccess, setSubjectSuccess] = useState("");
+
+  // Modal & state: Class Overview Drawer
+  const [overviewClassId, setOverviewClassId] = useState<string | null>(null);
+  const [overviewClassData, setOverviewClassData] = useState<ClassSection | null>(null);
+  const [overviewLoading, setOverviewLoading] = useState(false);
+  const [overviewTab, setOverviewTab] = useState<"subjects" | "students" | "details">("subjects");
+
+  // In-Overview Subject Assignment
+  const [assignSubjectId, setAssignSubjectId] = useState("");
+  const [assignTeacherId, setAssignTeacherId] = useState("");
+  const [assigningSubject, setAssigningSubject] = useState(false);
+  const [assignError, setAssignError] = useState("");
+  const [assignSuccess, setAssignSuccess] = useState("");
 
   const fetchClasses = () => {
     setLoading(true);
@@ -117,27 +164,27 @@ export default function ClassesPage() {
       });
   };
 
-  useEffect(() => {
-    fetchClasses();
-  }, []);
-
-  useEffect(() => {
-    // Attempt to load teachers for assignment dropdown
-    fetch(`${API}/api/v1/users`, { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setTeachers(data.filter((u: UserTeacher) => u.role === "TEACHER"));
-        }
-      })
-      .catch(() => {});
-
-    // Load school curriculum subjects for per-subject teacher assignment
+  const fetchSubjects = () => {
     fetch(`${API}/api/v1/subjects`, { credentials: "include" })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (Array.isArray(data)) {
           setSchoolSubjects(data);
+        }
+      })
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchClasses();
+    fetchSubjects();
+
+    // Load teachers for assignment dropdown
+    fetch(`${API}/api/v1/users`, { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setTeachers(data.filter((u: UserTeacher) => u.role === "TEACHER"));
         }
       })
       .catch(() => {});
@@ -260,7 +307,7 @@ export default function ClassesPage() {
     }
   };
 
-  const handleUpdateClass = async (e: FormEvent) => {
+  const handleEditClass = async (e: FormEvent) => {
     e.preventDefault();
     if (!editingClassId) return;
     setEditError("");
@@ -290,7 +337,11 @@ export default function ClassesPage() {
         payload.capacity = null;
       }
 
-      payload.teacherId = editTeacherId ? editTeacherId : null;
+      if (editTeacherId) {
+        payload.teacherId = editTeacherId;
+      } else {
+        payload.teacherId = null;
+      }
 
       const res = await fetch(`${API}/api/v1/classes/${editingClassId}`, {
         method: "PATCH",
@@ -307,7 +358,7 @@ export default function ClassesPage() {
 
       // Persist subject-teacher assignments
       const subjectAssignEntries = Object.entries(editSubjectTeachers);
-      if (subjectAssignEntries.length > 0) {
+      if (editingClassId && subjectAssignEntries.length > 0) {
         await Promise.all(
           subjectAssignEntries.map(([subjectId, teacherId]) =>
             fetch(`${API}/api/v1/subjects/assign`, {
@@ -325,8 +376,11 @@ export default function ClassesPage() {
       }
 
       setIsEditModalOpen(false);
-      setSuccessMsg(`Class "${editClassName.trim()}" and assigned teachers updated successfully.`);
+      setSuccessMsg(`Class "${editClassName.trim()}" updated successfully.`);
       fetchClasses();
+      if (overviewClassId === editingClassId) {
+        refreshClassOverview(editingClassId);
+      }
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch {
       setEditError("Network error. Please check your connection.");
@@ -335,30 +389,195 @@ export default function ClassesPage() {
     }
   };
 
+  // ── Subjects Catalog Actions ───────────────────────────────────────────────
+  const handleCreateSubject = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin || !newSubjectName.trim()) return;
+    setSubmittingSubject(true);
+    setSubjectError("");
+    setSubjectSuccess("");
+
+    try {
+      const res = await fetch(`${API}/api/v1/subjects`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: newSubjectName.trim(),
+          code: newSubjectCode.trim() ? newSubjectCode.trim().toUpperCase() : undefined,
+          description: newSubjectDesc.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to create subject");
+      }
+
+      setSubjectSuccess(`Subject "${newSubjectName.trim()}" created successfully.`);
+      setNewSubjectName("");
+      setNewSubjectCode("");
+      setNewSubjectDesc("");
+      fetchSubjects();
+      setTimeout(() => setSubjectSuccess(""), 4000);
+    } catch (err: unknown) {
+      setSubjectError(err instanceof Error ? err.message : "Failed to create subject");
+    } finally {
+      setSubmittingSubject(false);
+    }
+  };
+
+  // ── Class Overview Actions ─────────────────────────────────────────────────
+  const handleOpenClassOverview = async (cls: ClassSection) => {
+    setOverviewClassId(cls.id);
+    setOverviewClassData(null);
+    setOverviewTab("subjects");
+    setAssignSubjectId("");
+    setAssignTeacherId("");
+    setAssignError("");
+    setAssignSuccess("");
+    setOverviewLoading(true);
+
+    try {
+      const res = await fetch(`${API}/api/v1/classes/${cls.id}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setOverviewClassData(data);
+      } else {
+        setOverviewClassData(cls);
+      }
+    } catch {
+      setOverviewClassData(cls);
+    } finally {
+      setOverviewLoading(false);
+    }
+  };
+
+  const handleCloseClassOverview = () => {
+    setOverviewClassId(null);
+    setOverviewClassData(null);
+  };
+
+  const refreshClassOverview = async (classId: string) => {
+    try {
+      const res = await fetch(`${API}/api/v1/classes/${classId}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setOverviewClassData(data);
+      }
+    } catch {
+      // ignore
+    }
+    fetchClasses();
+  };
+
+  const handleAssignSubjectInOverview = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!overviewClassId || !assignSubjectId) return;
+    setAssigningSubject(true);
+    setAssignError("");
+    setAssignSuccess("");
+
+    try {
+      const res = await fetch(`${API}/api/v1/subjects/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          classSectionId: overviewClassId,
+          subjectId: assignSubjectId,
+          teacherId: assignTeacherId || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to assign subject");
+      }
+
+      setAssignSuccess("Subject assigned successfully.");
+      setAssignSubjectId("");
+      setAssignTeacherId("");
+      await refreshClassOverview(overviewClassId);
+      setTimeout(() => setAssignSuccess(""), 3000);
+    } catch (err: unknown) {
+      setAssignError(err instanceof Error ? err.message : "Failed to assign subject");
+    } finally {
+      setAssigningSubject(false);
+    }
+  };
+
+  const handleUpdateTeacherInOverview = async (subjectId: string, teacherId: string) => {
+    if (!overviewClassId) return;
+    try {
+      const res = await fetch(`${API}/api/v1/subjects/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          classSectionId: overviewClassId,
+          subjectId,
+          teacherId: teacherId || undefined,
+        }),
+      });
+      if (res.ok) {
+        await refreshClassOverview(overviewClassId);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleRemoveSubjectInOverview = async (subjectId: string) => {
+    if (!overviewClassId) return;
+    if (!confirm("Are you sure you want to remove this subject from this class?")) return;
+    try {
+      const res = await fetch(`${API}/api/v1/subjects/class/${overviewClassId}/subject/${subjectId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) {
+        await refreshClassOverview(overviewClassId);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
   return (
     <div className="page">
       {/* 1. Page Header */}
-      <div className="page-header">
+      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
         <div>
           <h1 className="page-title">Classes</h1>
           <p className="page-subtitle">
-            {loading
-              ? "Loading classes…"
-              : `${classes.length} ${classes.length === 1 ? "class" : "classes"} configured`}
+            {loading ? "Loading classes..." : `${classes.length} active classes across Primary & Secondary sections`}
           </p>
         </div>
-        {isAdmin && (
+
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button
             type="button"
-            className="btn btn-primary"
-            onClick={handleOpenModal}
+            className="btn btn-secondary"
+            onClick={() => setIsSubjectsModalOpen(true)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
-            Create a class
+            Manage Subjects Catalog ({schoolSubjects.length})
           </button>
-        )}
+
+          {isAdmin && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleOpenModal}
+            >
+              Create a class
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Error Banner */}
+      {/* 2. Global Error Display */}
       {error && (
         <div
           className="pill-danger"
@@ -373,7 +592,7 @@ export default function ClassesPage() {
         </div>
       )}
 
-      {/* Success Banner */}
+      {/* 3. Global Success Message */}
       {successMsg && (
         <div
           className="pill-success"
@@ -394,8 +613,8 @@ export default function ClassesPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: "16px",
+            gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))",
+            gap: "18px",
           }}
         >
           {Array.from({ length: 6 }).map((_, index) => (
@@ -405,8 +624,8 @@ export default function ClassesPage() {
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: "12px",
-                minHeight: "170px",
+                gap: "14px",
+                minHeight: "180px",
               }}
             >
               <div
@@ -420,24 +639,24 @@ export default function ClassesPage() {
                 <div
                   className="skeleton"
                   style={{
-                    width: "20%",
+                    width: "25%",
                     height: "18px",
                     borderRadius: "var(--radius-pill-badge)",
                   }}
                 />
               </div>
-              <div className="skeleton" style={{ width: "35%", height: "14px" }} />
+              <div className="skeleton" style={{ width: "40%", height: "14px" }} />
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "10px",
-                  marginTop: "8px",
+                  marginTop: "6px",
                 }}
               >
                 <div
                   className="skeleton"
-                  style={{ width: "34px", height: "34px", borderRadius: "50%" }}
+                  style={{ width: "32px", height: "32px", borderRadius: "50%" }}
                 />
                 <div
                   style={{
@@ -447,8 +666,8 @@ export default function ClassesPage() {
                     gap: "6px",
                   }}
                 >
-                  <div className="skeleton" style={{ width: "40%", height: "11px" }} />
-                  <div className="skeleton" style={{ width: "70%", height: "14px" }} />
+                  <div className="skeleton" style={{ width: "45%", height: "11px" }} />
+                  <div className="skeleton" style={{ width: "70%", height: "13px" }} />
                 </div>
               </div>
               <div
@@ -456,38 +675,40 @@ export default function ClassesPage() {
                   marginTop: "auto",
                   paddingTop: "12px",
                   borderTop: "var(--border-width) solid var(--color-border)",
+                  display: "flex",
+                  justifyContent: "space-between",
                 }}
               >
                 <div className="skeleton" style={{ width: "30%", height: "14px" }} />
+                <div className="skeleton" style={{ width: "25%", height: "14px" }} />
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* 3. Empty State */}
+      {/* 5. Empty State */}
       {!loading && !error && classes.length === 0 && (
         <div className="card empty-state">
-          <div className="empty-state-icon">
+          <div className="empty-state-icon" style={{ display: "inline-flex", justifyContent: "center" }}>
             <svg
               width="40"
               height="40"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="1.8"
+              strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
-              aria-hidden="true"
             >
-              <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
-              <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
             </svg>
           </div>
-          <div className="empty-state-title">No classes yet</div>
-          <div className="empty-state-text">
-            Create your first class to organize students.
-          </div>
+          <h2 className="empty-state-title">No classes yet</h2>
+          <p className="empty-state-text">
+            Create your first class to organize students, assign class teachers, and set up subjects.
+          </p>
           {isAdmin && (
             <button
               type="button"
@@ -500,13 +721,13 @@ export default function ClassesPage() {
         </div>
       )}
 
-      {/* 2. Grid of cards (one per class) */}
+      {/* 6. Decluttered Scannable Class Cards Grid */}
       {!loading && !error && classes.length > 0 && (
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: "16px",
+            gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))",
+            gap: "18px",
           }}
         >
           {classes.map((cls) => {
@@ -516,8 +737,11 @@ export default function ClassesPage() {
               ? `${cls.teacher.firstName} ${cls.teacher.lastName}`
               : "No teacher assigned";
             const initials = cls.teacher
-              ? `${cls.teacher.firstName[0] ?? ""}${cls.teacher.lastName[0] ?? ""}`
+              ? `${cls.teacher.firstName[0]}${cls.teacher.lastName[0]}`
               : "—";
+
+            const divInfo = getDivisionInfo(cls.level);
+            const subjectCount = cls.classSubjects?.length ?? 0;
 
             return (
               <div
@@ -527,11 +751,14 @@ export default function ClassesPage() {
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
-                  gap: "16px",
+                  gap: "14px",
                   padding: "20px",
+                  borderRadius: "var(--radius-card, 12px)",
+                  transition: "box-shadow 0.2s ease",
                 }}
               >
                 <div>
+                  {/* Card Top: Class Name, Level Pill & Division Pill */}
                   <div
                     style={{
                       display: "flex",
@@ -545,185 +772,169 @@ export default function ClassesPage() {
                       style={{
                         margin: 0,
                         fontSize: "17px",
-                        fontWeight: 600,
+                        fontWeight: 700,
                         color: "var(--color-ink)",
                         lineHeight: 1.3,
                       }}
                     >
                       {cls.name}
                     </h2>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                      <span className="pill-neutral">
+
+                    <div style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                      <span
+                        className="pill-neutral"
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          backgroundColor: divInfo.isPrimary ? "var(--color-surface-subtle)" : "var(--color-primary-subtle, #E6F4F2)",
+                          color: divInfo.isPrimary ? "var(--color-ink)" : "var(--color-brand-teal, #0E7D75)",
+                        }}
+                      >
+                        {divInfo.label}
+                      </span>
+                      <span className="pill-neutral" style={{ fontSize: "11px", fontWeight: 600 }}>
                         {cls.level}
                       </span>
-                      {isAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEditModal(cls)}
-                          title="Edit / Amend Class"
-                          style={{
-                            border: "1px solid var(--color-border)",
-                            background: "var(--color-surface-subtle)",
-                            padding: "3px 9px",
-                            borderRadius: "var(--radius-pill-badge, 9999px)",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            color: "var(--color-ink)",
-                            cursor: "pointer",
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          Edit
-                        </button>
-                      )}
                     </div>
                   </div>
-                  {cls.stream && (
+
+                  {/* Stream and Academic Session */}
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "var(--color-text-secondary)",
+                      marginBottom: "12px",
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span>Session: {cls.academicYear || "2025/2026"}</span>
+                    {cls.stream && (
+                      <span>· Stream: <strong style={{ color: "var(--color-ink)" }}>{cls.stream}</strong></span>
+                    )}
+                  </div>
+
+                  {/* Class Teacher Strip */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "10px 12px",
+                      backgroundColor: "var(--color-surface-subtle)",
+                      borderRadius: "var(--radius-control)",
+                    }}
+                  >
                     <div
+                      className="avatar"
                       style={{
-                        fontSize: "12px",
-                        color: "var(--color-text-secondary)",
-                        marginBottom: "4px",
+                        width: "32px",
+                        height: "32px",
+                        fontSize: "11px",
+                        flexShrink: 0,
                       }}
+                      aria-hidden="true"
                     >
-                      Stream: {cls.stream}
+                      {initials}
                     </div>
-                  )}
-                  {cls.academicYear && (
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "var(--color-text-secondary)",
-                      }}
-                    >
-                      Session: {cls.academicYear}
+                    <div style={{ minWidth: 0, overflow: "hidden" }}>
+                      <div
+                        style={{
+                          fontSize: "10.5px",
+                          color: "var(--color-text-secondary)",
+                          lineHeight: 1.2,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.04em",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Class Teacher
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          color: cls.teacher ? "var(--color-ink)" : "var(--color-text-secondary)",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {teacherName}
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
 
+                {/* Metrics Summary Strip: Students & Subjects */}
                 <div
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "10px",
-                    padding: "10px 12px",
+                    justifyContent: "space-between",
+                    padding: "8px 12px",
                     backgroundColor: "var(--color-surface-subtle)",
                     borderRadius: "var(--radius-control)",
+                    fontSize: "12px",
                   }}
                 >
-                  <div
-                    className="avatar"
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      fontSize: "11px",
-                      flexShrink: 0,
-                    }}
-                    aria-hidden="true"
-                  >
-                    {initials}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: "var(--color-text-secondary)" }}>Students:</span>
+                    <strong style={{ color: "var(--color-ink)" }}>
+                      {studentCount}
+                      {cls.capacity ? ` / ${cls.capacity}` : ""}
+                    </strong>
                   </div>
-                  <div style={{ minWidth: 0, overflow: "hidden" }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--color-text-secondary)",
-                        lineHeight: 1.2,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Class Teacher
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: 500,
-                        color: cls.teacher ? "var(--color-ink)" : "var(--color-text-secondary)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {teacherName}
-                    </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ color: "var(--color-text-secondary)" }}>Subjects:</span>
+                    <strong style={{ color: "var(--color-brand-teal, #0E7D75)" }}>
+                      {subjectCount}
+                    </strong>
                   </div>
                 </div>
 
-                {/* Subject Teachers Teaching This Class */}
-                {cls.classSubjects && cls.classSubjects.some((cs) => cs.teacher) && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <div
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--color-text-secondary)",
-                        lineHeight: 1.2,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.04em",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Subject Teachers ({cls.classSubjects.filter((cs) => cs.teacher).length})
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
-                      {cls.classSubjects
-                        .filter((cs) => cs.teacher)
-                        .map((cs) => (
-                          <span
-                            key={cs.id}
-                            className="pill-neutral"
-                            style={{
-                              fontSize: "11px",
-                              padding: "2px 8px",
-                              borderRadius: "var(--radius-pill-badge, 9999px)",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                            }}
-                          >
-                            <span style={{ fontWeight: 700, color: "var(--color-brand-teal)" }}>
-                              {cs.subject.code || cs.subject.name}:
-                            </span>
-                            <span>{cs.teacher?.firstName} {cs.teacher?.lastName}</span>
-                          </span>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
+                {/* Card Actions: Clean Overview & Edit */}
                 <div
                   style={{
                     marginTop: "auto",
                     paddingTop: "12px",
                     borderTop: "var(--border-width) solid var(--color-border)",
                     display: "flex",
-                    justifyContent: "space-between",
+                    gap: "8px",
                     alignItems: "center",
                   }}
                 >
-                  <span
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => handleOpenClassOverview(cls)}
                     style={{
-                      fontSize: "13px",
-                      color: "var(--color-text-secondary)",
-                      fontWeight: 500,
+                      flex: 1,
+                      padding: "7px 12px",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      textAlign: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    {studentLabel}
-                  </span>
-                  {cls.capacity && (
-                    <span
+                    Class Overview
+                  </button>
+
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => handleOpenEditModal(cls)}
                       style={{
-                        fontSize: "12px",
-                        color:
-                          studentCount >= cls.capacity
-                            ? "var(--color-danger-text)"
-                            : "var(--color-text-secondary)",
-                        fontWeight: 500,
+                        padding: "7px 12px",
+                        fontSize: "12.5px",
+                        fontWeight: 600,
                       }}
                     >
-                      Capacity: {studentCount}/{cls.capacity}
-                    </span>
+                      Edit
+                    </button>
                   )}
                 </div>
               </div>
@@ -732,7 +943,650 @@ export default function ClassesPage() {
         </div>
       )}
 
-      {/* Modal: Create a Class */}
+      {/* ── SCHOOL SUBJECTS CATALOG MODAL ── */}
+      {isSubjectsModalOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(11, 25, 44, 0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 60,
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !submittingSubject) {
+              setIsSubjectsModalOpen(false);
+            }
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              width: "100%",
+              maxWidth: 640,
+              maxHeight: "90vh",
+              overflowY: "auto",
+              padding: 24,
+              borderRadius: 12,
+              backgroundColor: "#FFFFFF",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
+                  School Subjects Catalog
+                </h2>
+                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>
+                  Curriculum subjects taught across Bright Future Academy. Classes select from this catalog.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSubjectsModalOpen(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: 22,
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {subjectSuccess && (
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "var(--radius-control)",
+                  backgroundColor: "var(--color-success-bg, #DCFCE7)",
+                  color: "var(--color-success-text, #166534)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  marginBottom: 16,
+                }}
+              >
+                {subjectSuccess}
+              </div>
+            )}
+
+            {subjectError && (
+              <div
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "var(--radius-control)",
+                  backgroundColor: "var(--color-danger-bg)",
+                  color: "var(--color-danger-text)",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  marginBottom: 16,
+                }}
+              >
+                {subjectError}
+              </div>
+            )}
+
+            {/* If Admin: Form to add new subject */}
+            {isAdmin && (
+              <form
+                onSubmit={handleCreateSubject}
+                style={{
+                  padding: 16,
+                  backgroundColor: "var(--color-surface-subtle, #F8FAFC)",
+                  borderRadius: 8,
+                  border: "1px solid var(--color-border)",
+                  marginBottom: 20,
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)", marginBottom: 12 }}>
+                  Add New Subject to Curriculum
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 12, marginBottom: 12 }}>
+                  <div>
+                    <label className="label" style={{ fontSize: 12 }}>Subject Name *</label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="e.g. Technical Drawing"
+                      value={newSubjectName}
+                      onChange={(e) => setNewSubjectName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="label" style={{ fontSize: 12 }}>Short Code</label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="e.g. TD"
+                      value={newSubjectCode}
+                      onChange={(e) => setNewSubjectCode(e.target.value)}
+                      maxLength={10}
+                    />
+                  </div>
+                </div>
+                <div style={{ marginBottom: 14 }}>
+                  <label className="label" style={{ fontSize: 12 }}>Description (Optional)</label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="e.g. Senior Secondary vocational elective"
+                    value={newSubjectDesc}
+                    onChange={(e) => setNewSubjectDesc(e.target.value)}
+                  />
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={submittingSubject || !newSubjectName.trim()}
+                    style={{ fontSize: 13, padding: "7px 16px" }}
+                  >
+                    {submittingSubject ? "Adding Subject..." : "Add Subject"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* List of existing subjects */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)" }}>
+                  Current Subjects ({schoolSubjects.length})
+                </span>
+              </div>
+
+              {schoolSubjects.length === 0 ? (
+                <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
+                  No subjects defined yet. Add your first subject above.
+                </div>
+              ) : (
+                <div className="table-responsive" style={{ overflowX: "auto" }}>
+                  <table className="table" style={{ width: "100%", fontSize: 13 }}>
+                    <thead>
+                      <tr>
+                        <th>Subject Name</th>
+                        <th style={{ width: 100 }}>Code</th>
+                        <th style={{ textAlign: "right", width: 140 }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {schoolSubjects.map((sub) => (
+                        <tr key={sub.id}>
+                          <td>
+                            <strong style={{ color: "var(--color-ink)" }}>{sub.name}</strong>
+                          </td>
+                          <td>
+                            <span className="pill-neutral" style={{ fontFamily: "monospace", fontSize: 11 }}>
+                              {sub.code || "—"}
+                            </span>
+                          </td>
+                          <td style={{ textAlign: "right" }}>
+                            <span className="pill-success" style={{ fontSize: 11 }}>
+                              Active
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--color-border)" }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsSubjectsModalOpen(false)}
+              >
+                Close Catalog
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CLASS OVERVIEW & DETAILS MODAL ── */}
+      {overviewClassId && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(11, 25, 44, 0.65)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 60,
+            padding: 16,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              handleCloseClassOverview();
+            }
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              width: "100%",
+              maxWidth: 740,
+              maxHeight: "92vh",
+              overflowY: "auto",
+              padding: 24,
+              borderRadius: 12,
+              backgroundColor: "#FFFFFF",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "var(--color-ink)" }}>
+                    {overviewClassData?.name || "Class Overview"}
+                  </h2>
+                  {overviewClassData?.level && (
+                    <span className="pill-neutral" style={{ fontWeight: 700 }}>
+                      {overviewClassData.level}
+                    </span>
+                  )}
+                  {overviewClassData?.stream && (
+                    <span className="pill-neutral">
+                      {overviewClassData.stream}
+                    </span>
+                  )}
+                </div>
+                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: "4px 0 0" }}>
+                  Academic Session: {overviewClassData?.academicYear || "2025/2026"} ·{" "}
+                  Class Teacher:{" "}
+                  <strong>
+                    {overviewClassData?.teacher
+                      ? `${overviewClassData.teacher.firstName} ${overviewClassData.teacher.lastName}`
+                      : "Unassigned"}
+                  </strong>
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCloseClassOverview}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: 22,
+                  lineHeight: 1,
+                  cursor: "pointer",
+                  color: "var(--color-text-secondary)",
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                borderBottom: "1px solid var(--color-border)",
+                paddingBottom: 10,
+                marginBottom: 16,
+              }}
+            >
+              <button
+                type="button"
+                className={overviewTab === "subjects" ? "btn btn-primary" : "btn btn-secondary"}
+                onClick={() => setOverviewTab("subjects")}
+                style={{ fontSize: 12.5, padding: "6px 14px" }}
+              >
+                Assigned Subjects ({overviewClassData?.classSubjects?.length || 0})
+              </button>
+              <button
+                type="button"
+                className={overviewTab === "students" ? "btn btn-primary" : "btn btn-secondary"}
+                onClick={() => setOverviewTab("students")}
+                style={{ fontSize: 12.5, padding: "6px 14px" }}
+              >
+                Enrolled Students ({overviewClassData?.enrollments?.length ?? overviewClassData?._count?.enrollments ?? 0})
+              </button>
+              <button
+                type="button"
+                className={overviewTab === "details" ? "btn btn-primary" : "btn btn-secondary"}
+                onClick={() => setOverviewTab("details")}
+                style={{ fontSize: 12.5, padding: "6px 14px" }}
+              >
+                Class Details
+              </button>
+            </div>
+
+            {/* TAB 1: Assigned Subjects & Teachers */}
+            {overviewTab === "subjects" && (
+              <div>
+                {assignSuccess && (
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-control)",
+                      backgroundColor: "var(--color-success-bg, #DCFCE7)",
+                      color: "var(--color-success-text, #166534)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      marginBottom: 14,
+                    }}
+                  >
+                    {assignSuccess}
+                  </div>
+                )}
+                {assignError && (
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-control)",
+                      backgroundColor: "var(--color-danger-bg)",
+                      color: "var(--color-danger-text)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      marginBottom: 14,
+                    }}
+                  >
+                    {assignError}
+                  </div>
+                )}
+
+                {/* If Admin: Quick Assign Form */}
+                {isAdmin && (
+                  <form
+                    onSubmit={handleAssignSubjectInOverview}
+                    style={{
+                      padding: 14,
+                      backgroundColor: "var(--color-surface-subtle, #F8FAFC)",
+                      borderRadius: 8,
+                      border: "1px solid var(--color-border)",
+                      marginBottom: 16,
+                    }}
+                  >
+                    <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--color-ink)", marginBottom: 10 }}>
+                      Assign a Subject to this Class
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.2fr auto", gap: 10, alignItems: "flex-end" }}>
+                      <div>
+                        <label className="label" style={{ fontSize: 11.5 }}>Select Subject *</label>
+                        <select
+                          className="input"
+                          style={{ fontSize: 12.5 }}
+                          value={assignSubjectId}
+                          onChange={(e) => setAssignSubjectId(e.target.value)}
+                          required
+                        >
+                          <option value="">-- Choose Subject --</option>
+                          {schoolSubjects
+                            .filter(
+                              (s) =>
+                                !overviewClassData?.classSubjects?.some(
+                                  (cs) => cs.subjectId === s.id || cs.subject?.id === s.id
+                                )
+                            )
+                            .map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.name} {s.code ? `(${s.code})` : ""}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="label" style={{ fontSize: 11.5 }}>Assign Subject Teacher</label>
+                        <select
+                          className="input"
+                          style={{ fontSize: 12.5 }}
+                          value={assignTeacherId}
+                          onChange={(e) => setAssignTeacherId(e.target.value)}
+                        >
+                          <option value="">-- Unassigned (Set Later) --</option>
+                          {teachers.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.firstName} {t.lastName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={assigningSubject || !assignSubjectId}
+                        style={{ fontSize: 12.5, padding: "8px 16px", whiteSpace: "nowrap" }}
+                      >
+                        {assigningSubject ? "Assigning..." : "Assign Subject"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Table of Assigned Subjects */}
+                {overviewClassData?.classSubjects && overviewClassData.classSubjects.length > 0 ? (
+                  <div className="table-responsive" style={{ overflowX: "auto" }}>
+                    <table className="table" style={{ width: "100%", fontSize: 13 }}>
+                      <thead>
+                        <tr>
+                          <th>Subject</th>
+                          <th style={{ width: 80 }}>Code</th>
+                          <th>Assigned Teacher</th>
+                          {isAdmin && <th style={{ textAlign: "right", width: 100 }}>Actions</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {overviewClassData.classSubjects.map((cs) => (
+                          <tr key={cs.id}>
+                            <td>
+                              <strong style={{ color: "var(--color-ink)" }}>
+                                {cs.subject.name}
+                              </strong>
+                            </td>
+                            <td>
+                              <span className="pill-neutral" style={{ fontFamily: "monospace", fontSize: 11 }}>
+                                {cs.subject.code || "—"}
+                              </span>
+                            </td>
+                            <td>
+                              {isAdmin ? (
+                                <select
+                                  value={cs.teacherId || cs.teacher?.id || ""}
+                                  onChange={(e) =>
+                                    handleUpdateTeacherInOverview(cs.subjectId, e.target.value)
+                                  }
+                                  className="input"
+                                  style={{ padding: "4px 8px", fontSize: 12, height: "auto" }}
+                                >
+                                  <option value="">-- Unassigned --</option>
+                                  {teachers.map((t) => (
+                                    <option key={t.id} value={t.id}>
+                                      {t.firstName} {t.lastName}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : cs.teacher ? (
+                                <span>{cs.teacher.firstName} {cs.teacher.lastName}</span>
+                              ) : (
+                                <span style={{ color: "var(--color-text-secondary)", fontStyle: "italic" }}>
+                                  Unassigned
+                                </span>
+                              )}
+                            </td>
+                            {isAdmin && (
+                              <td style={{ textAlign: "right" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveSubjectInOverview(cs.subjectId)}
+                                  style={{
+                                    border: "1px solid var(--color-danger-border, #FECACA)",
+                                    backgroundColor: "var(--color-danger-bg, #FEF2F2)",
+                                    color: "var(--color-danger-text, #991B1B)",
+                                    padding: "3px 8px",
+                                    borderRadius: 4,
+                                    fontSize: 11,
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ padding: 32, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
+                    No subjects assigned to this class yet. Use the form above to assign subjects.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: Enrolled Students Roster */}
+            {overviewTab === "students" && (
+              <div>
+                {overviewLoading ? (
+                  <div style={{ padding: 24, textAlign: "center", color: "var(--color-text-secondary)" }}>
+                    Loading student roster...
+                  </div>
+                ) : overviewClassData?.enrollments && overviewClassData.enrollments.length > 0 ? (
+                  <div className="table-responsive" style={{ overflowX: "auto" }}>
+                    <table className="table" style={{ width: "100%", fontSize: 13 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: 44 }}>#</th>
+                          <th>Student Name</th>
+                          <th>Admission No</th>
+                          <th>Gender</th>
+                          <th style={{ textAlign: "right" }}>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {overviewClassData.enrollments.map((enr, idx) => (
+                          <tr key={enr.id}>
+                            <td style={{ color: "var(--color-text-secondary)" }}>{idx + 1}</td>
+                            <td>
+                              <strong style={{ color: "var(--color-ink)" }}>
+                                {enr.student.firstName} {enr.student.lastName}
+                              </strong>
+                            </td>
+                            <td>
+                              <span style={{ fontFamily: "monospace", fontSize: 12 }}>
+                                {enr.student.admissionNumber || "—"}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="pill-neutral" style={{ fontSize: 11 }}>
+                                {enr.student.gender}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: "right" }}>
+                              <Link
+                                href={`/students/${enr.student.id}`}
+                                style={{
+                                  fontSize: 12,
+                                  color: "var(--color-brand-teal, #0E7D75)",
+                                  fontWeight: 600,
+                                  textDecoration: "underline",
+                                }}
+                              >
+                                View Profile
+                              </Link>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div style={{ padding: 32, textAlign: "center", color: "var(--color-text-secondary)", fontSize: 13 }}>
+                    No active students enrolled in this class for the active session.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: Class Details & Timetable Shortcut */}
+            {overviewTab === "details" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div style={{ padding: 12, backgroundColor: "var(--color-surface-subtle)", borderRadius: 8 }}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase", fontWeight: 700 }}>
+                      Class Section Name
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-ink)", marginTop: 4 }}>
+                      {overviewClassData?.name}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: 12, backgroundColor: "var(--color-surface-subtle)", borderRadius: 8 }}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase", fontWeight: 700 }}>
+                      Academic Level / Stream
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-ink)", marginTop: 4 }}>
+                      {overviewClassData?.level} {overviewClassData?.stream ? `(${overviewClassData.stream})` : ""}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: 12, backgroundColor: "var(--color-surface-subtle)", borderRadius: 8 }}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase", fontWeight: 700 }}>
+                      Classroom Capacity
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-ink)", marginTop: 4 }}>
+                      {overviewClassData?.capacity ? `${overviewClassData.capacity} students max` : "Unspecified"}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: 12, backgroundColor: "var(--color-surface-subtle)", borderRadius: 8 }}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)", textTransform: "uppercase", fontWeight: 700 }}>
+                      Assigned Class Teacher
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--color-ink)", marginTop: 4 }}>
+                      {overviewClassData?.teacher ? `${overviewClassData.teacher.firstName} ${overviewClassData.teacher.lastName}` : "No teacher assigned"}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 8, padding: 14, border: "1px solid var(--color-border)", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)" }}>
+                      Class Timetable Routine
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                      View or edit scheduled weekly periods for {overviewClassData?.name}.
+                    </div>
+                  </div>
+                  <Link href="/timetable" className="btn btn-secondary" style={{ fontSize: 12 }}>
+                    Open Timetable
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20, paddingTop: 16, borderTop: "1px solid var(--color-border)" }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleCloseClassOverview}
+              >
+                Close Overview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: CREATE A CLASS ── */}
       {isModalOpen && isAdmin && (
         <div
           style={{
@@ -758,7 +1612,7 @@ export default function ClassesPage() {
             className="card"
             style={{
               width: "100%",
-              maxWidth: "480px",
+              maxWidth: "520px",
               maxHeight: "90vh",
               overflowY: "auto",
               padding: "24px",
@@ -781,7 +1635,7 @@ export default function ClassesPage() {
                     margin: "0 0 2px 0",
                   }}
                 >
-                  Create a Class
+                  Create a class
                 </h2>
                 <p
                   style={{
@@ -790,36 +1644,24 @@ export default function ClassesPage() {
                     margin: 0,
                   }}
                 >
-                  Add a new class section for student enrollment.
+                  Add a new class section to organize students.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleCloseModal}
-                disabled={submitting}
                 style={{
                   background: "none",
                   border: "none",
                   cursor: "pointer",
                   color: "var(--color-text-secondary)",
                   padding: "4px",
-                  display: "inline-flex",
+                  fontSize: "18px",
+                  lineHeight: 1,
                 }}
-                aria-label="Close dialog"
+                aria-label="Close modal"
               >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                &times;
               </button>
             </div>
 
@@ -831,7 +1673,6 @@ export default function ClassesPage() {
                   marginBottom: "16px",
                   padding: "8px 12px",
                   borderRadius: "var(--radius-control)",
-                  fontSize: "12px",
                 }}
               >
                 {createError}
@@ -839,7 +1680,13 @@ export default function ClassesPage() {
             )}
 
             <form onSubmit={handleCreateClass}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "14px",
+                }}
+              >
                 <div>
                   <label className="label" htmlFor="class-name">
                     Class Name *
@@ -848,14 +1695,20 @@ export default function ClassesPage() {
                     id="class-name"
                     className="input"
                     type="text"
-                    placeholder="e.g. JSS 1A or Grade 10B"
+                    placeholder="e.g. Primary 4A, JSS 1 Gold"
                     value={classNameInput}
                     onChange={(e) => setClassNameInput(e.target.value)}
                     required
                   />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px",
+                  }}
+                >
                   <div>
                     <label className="label" htmlFor="class-level">
                       Level *
@@ -864,12 +1717,13 @@ export default function ClassesPage() {
                       id="class-level"
                       className="input"
                       type="text"
-                      placeholder="e.g. JSS 1 or Grade 10"
+                      placeholder="e.g. Primary 4, JSS 1"
                       value={levelInput}
                       onChange={(e) => setLevelInput(e.target.value)}
                       required
                     />
                   </div>
+
                   <div>
                     <label className="label" htmlFor="academic-year">
                       Academic Year *
@@ -878,7 +1732,7 @@ export default function ClassesPage() {
                       id="academic-year"
                       className="input"
                       type="text"
-                      placeholder="2025/2026"
+                      placeholder="e.g. 2025/2026"
                       value={academicYearInput}
                       onChange={(e) => setAcademicYearInput(e.target.value)}
                       required
@@ -886,10 +1740,16 @@ export default function ClassesPage() {
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px",
+                  }}
+                >
                   <div>
                     <label className="label" htmlFor="class-stream">
-                      Stream (Optional)
+                      Stream (optional)
                     </label>
                     <input
                       id="class-stream"
@@ -900,17 +1760,17 @@ export default function ClassesPage() {
                       onChange={(e) => setStreamInput(e.target.value)}
                     />
                   </div>
+
                   <div>
                     <label className="label" htmlFor="class-capacity">
-                      Capacity (Optional)
+                      Capacity (optional)
                     </label>
                     <input
                       id="class-capacity"
                       className="input"
                       type="number"
                       min="1"
-                      max="200"
-                      placeholder="e.g. 40"
+                      placeholder="e.g. 35"
                       value={capacityInput}
                       onChange={(e) => setCapacityInput(e.target.value)}
                     />
@@ -919,7 +1779,7 @@ export default function ClassesPage() {
 
                 <div>
                   <label className="label" htmlFor="class-teacher">
-                    Class Teacher (Optional)
+                    Class Teacher (optional)
                   </label>
                   <select
                     id="class-teacher"
@@ -936,29 +1796,54 @@ export default function ClassesPage() {
                   </select>
                 </div>
 
-                {/* Multi-Teacher: Subject Teacher Assignments */}
+                {/* Per-Subject Teacher Assignments (Optional during creation) */}
                 {schoolSubjects.length > 0 && (
-                  <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "12px", marginTop: "4px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                      <label className="label" style={{ margin: 0, fontWeight: 700 }}>
-                        Subject Teachers (Multi-Teacher Assignment)
+                  <div
+                    style={{
+                      borderTop: "1px solid var(--color-border)",
+                      paddingTop: "12px",
+                      marginTop: "4px",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <label className="label" style={{ margin: 0, fontWeight: 700, color: "var(--color-ink)" }}>
+                        Assign Subject Teachers (Optional)
                       </label>
                       <span style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>
-                        Optional
+                        You can also assign anytime via Class Overview
                       </span>
                     </div>
-                    <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", margin: "0 0 10px 0" }}>
-                      Assign teachers to specific subjects for this class. Teachers can teach across multiple classes.
-                    </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "170px", overflowY: "auto", paddingRight: "4px" }}>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                        maxHeight: "180px",
+                        overflowY: "auto",
+                        paddingRight: "4px",
+                      }}
+                    >
                       {schoolSubjects.map((sub) => (
-                        <div key={sub.id} style={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: "8px", alignItems: "center" }}>
-                          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {sub.name}
+                        <div
+                          key={sub.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "8px",
+                            fontSize: "12px",
+                            padding: "4px 8px",
+                            backgroundColor: "var(--color-surface-subtle)",
+                            borderRadius: "var(--radius-control)",
+                          }}
+                        >
+                          <span style={{ fontWeight: 600, color: "var(--color-ink)", minWidth: "120px" }}>
+                            {sub.name} {sub.code ? `(${sub.code})` : ""}
                           </span>
                           <select
                             className="input"
-                            style={{ padding: "4px 8px", fontSize: "12px", height: "32px" }}
+                            style={{ padding: "4px 8px", fontSize: "12px", flex: 1, height: "auto" }}
                             value={createSubjectTeachers[sub.id] || ""}
                             onChange={(e) =>
                               setCreateSubjectTeachers((prev) => ({
@@ -967,7 +1852,7 @@ export default function ClassesPage() {
                               }))
                             }
                           >
-                            <option value="">Unassigned</option>
+                            <option value="">-- No Teacher Assigned --</option>
                             {teachers.map((t) => (
                               <option key={t.id} value={t.id}>
                                 {t.firstName} {t.lastName}
@@ -1001,7 +1886,7 @@ export default function ClassesPage() {
                     className="btn btn-primary"
                     disabled={submitting}
                   >
-                    {submitting ? "Creating class…" : "Create class"}
+                    {submitting ? "Creating class..." : "Create class"}
                   </button>
                 </div>
               </div>
@@ -1010,7 +1895,7 @@ export default function ClassesPage() {
         </div>
       )}
 
-      {/* Modal: Edit a Class */}
+      {/* ── MODAL: EDIT A CLASS ── */}
       {isEditModalOpen && isAdmin && (
         <div
           style={{
@@ -1036,7 +1921,7 @@ export default function ClassesPage() {
             className="card"
             style={{
               width: "100%",
-              maxWidth: "480px",
+              maxWidth: "520px",
               maxHeight: "90vh",
               overflowY: "auto",
               padding: "24px",
@@ -1059,7 +1944,7 @@ export default function ClassesPage() {
                     margin: "0 0 2px 0",
                   }}
                 >
-                  Edit Class Section
+                  Edit / Amend Class
                 </h2>
                 <p
                   style={{
@@ -1068,36 +1953,24 @@ export default function ClassesPage() {
                     margin: 0,
                   }}
                 >
-                  Amend class details, stream, capacity, or assigned teacher.
+                  Update class information and assigned teachers.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={handleCloseEditModal}
-                disabled={editSubmitting}
                 style={{
                   background: "none",
                   border: "none",
                   cursor: "pointer",
                   color: "var(--color-text-secondary)",
                   padding: "4px",
-                  display: "inline-flex",
+                  fontSize: "18px",
+                  lineHeight: 1,
                 }}
-                aria-label="Close dialog"
+                aria-label="Close modal"
               >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                &times;
               </button>
             </div>
 
@@ -1109,15 +1982,20 @@ export default function ClassesPage() {
                   marginBottom: "16px",
                   padding: "8px 12px",
                   borderRadius: "var(--radius-control)",
-                  fontSize: "12px",
                 }}
               >
                 {editError}
               </div>
             )}
 
-            <form onSubmit={handleUpdateClass}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <form onSubmit={handleEditClass}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "14px",
+                }}
+              >
                 <div>
                   <label className="label" htmlFor="edit-class-name">
                     Class Name *
@@ -1126,14 +2004,20 @@ export default function ClassesPage() {
                     id="edit-class-name"
                     className="input"
                     type="text"
-                    placeholder="e.g. JSS 1A or Grade 10B"
+                    placeholder="e.g. Primary 4A, JSS 1 Gold"
                     value={editClassName}
                     onChange={(e) => setEditClassName(e.target.value)}
                     required
                   />
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px",
+                  }}
+                >
                   <div>
                     <label className="label" htmlFor="edit-class-level">
                       Level *
@@ -1142,12 +2026,13 @@ export default function ClassesPage() {
                       id="edit-class-level"
                       className="input"
                       type="text"
-                      placeholder="e.g. JSS 1 or Grade 10"
+                      placeholder="e.g. Primary 4, JSS 1"
                       value={editLevel}
                       onChange={(e) => setEditLevel(e.target.value)}
                       required
                     />
                   </div>
+
                   <div>
                     <label className="label" htmlFor="edit-academic-year">
                       Academic Year *
@@ -1156,7 +2041,7 @@ export default function ClassesPage() {
                       id="edit-academic-year"
                       className="input"
                       type="text"
-                      placeholder="2025/2026"
+                      placeholder="e.g. 2025/2026"
                       value={editAcademicYear}
                       onChange={(e) => setEditAcademicYear(e.target.value)}
                       required
@@ -1164,10 +2049,16 @@ export default function ClassesPage() {
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px",
+                  }}
+                >
                   <div>
                     <label className="label" htmlFor="edit-class-stream">
-                      Stream (Optional)
+                      Stream (optional)
                     </label>
                     <input
                       id="edit-class-stream"
@@ -1178,17 +2069,17 @@ export default function ClassesPage() {
                       onChange={(e) => setEditStream(e.target.value)}
                     />
                   </div>
+
                   <div>
                     <label className="label" htmlFor="edit-class-capacity">
-                      Capacity (Optional)
+                      Capacity (optional)
                     </label>
                     <input
                       id="edit-class-capacity"
                       className="input"
                       type="number"
                       min="1"
-                      max="200"
-                      placeholder="e.g. 40"
+                      placeholder="e.g. 35"
                       value={editCapacity}
                       onChange={(e) => setEditCapacity(e.target.value)}
                     />
@@ -1197,7 +2088,7 @@ export default function ClassesPage() {
 
                 <div>
                   <label className="label" htmlFor="edit-class-teacher">
-                    Class Teacher (Optional)
+                    Class Teacher (optional)
                   </label>
                   <select
                     id="edit-class-teacher"
@@ -1214,29 +2105,54 @@ export default function ClassesPage() {
                   </select>
                 </div>
 
-                {/* Multi-Teacher: Subject Teacher Assignments */}
+                {/* Per-Subject Teacher Assignments */}
                 {schoolSubjects.length > 0 && (
-                  <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "12px", marginTop: "4px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                      <label className="label" style={{ margin: 0, fontWeight: 700 }}>
-                        Subject Teachers (Multi-Teacher Assignment)
+                  <div
+                    style={{
+                      borderTop: "1px solid var(--color-border)",
+                      paddingTop: "12px",
+                      marginTop: "4px",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <label className="label" style={{ margin: 0, fontWeight: 700, color: "var(--color-ink)" }}>
+                        Subject Teachers Assignment
                       </label>
                       <span style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>
-                        Optional
+                        Assign teachers to specific subjects
                       </span>
                     </div>
-                    <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", margin: "0 0 10px 0" }}>
-                      Assign teachers to specific subjects for this class. Teachers can teach across multiple classes.
-                    </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "170px", overflowY: "auto", paddingRight: "4px" }}>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "8px",
+                        maxHeight: "180px",
+                        overflowY: "auto",
+                        paddingRight: "4px",
+                      }}
+                    >
                       {schoolSubjects.map((sub) => (
-                        <div key={sub.id} style={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: "8px", alignItems: "center" }}>
-                          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {sub.name}
+                        <div
+                          key={sub.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: "8px",
+                            fontSize: "12px",
+                            padding: "4px 8px",
+                            backgroundColor: "var(--color-surface-subtle)",
+                            borderRadius: "var(--radius-control)",
+                          }}
+                        >
+                          <span style={{ fontWeight: 600, color: "var(--color-ink)", minWidth: "120px" }}>
+                            {sub.name} {sub.code ? `(${sub.code})` : ""}
                           </span>
                           <select
                             className="input"
-                            style={{ padding: "4px 8px", fontSize: "12px", height: "32px" }}
+                            style={{ padding: "4px 8px", fontSize: "12px", flex: 1, height: "auto" }}
                             value={editSubjectTeachers[sub.id] || ""}
                             onChange={(e) =>
                               setEditSubjectTeachers((prev) => ({
@@ -1245,7 +2161,7 @@ export default function ClassesPage() {
                               }))
                             }
                           >
-                            <option value="">Unassigned</option>
+                            <option value="">-- No Teacher Assigned --</option>
                             {teachers.map((t) => (
                               <option key={t.id} value={t.id}>
                                 {t.firstName} {t.lastName}
@@ -1279,7 +2195,7 @@ export default function ClassesPage() {
                     className="btn btn-primary"
                     disabled={editSubmitting}
                   >
-                    {editSubmitting ? "Saving changes…" : "Save changes"}
+                    {editSubmitting ? "Saving..." : "Save changes"}
                   </button>
                 </div>
               </div>
