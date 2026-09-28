@@ -139,6 +139,14 @@ export default function ClassesPage() {
   const [assignError, setAssignError] = useState("");
   const [assignSuccess, setAssignSuccess] = useState("");
 
+  // Division filter: ALL | PRIMARY | SECONDARY (persisted in sessionStorage)
+  const [divisionFilter, setDivisionFilter] = useState<"ALL" | "PRIMARY" | "SECONDARY">(() => {
+    if (typeof window !== "undefined") {
+      return (sessionStorage.getItem("classesDiv") as "ALL" | "PRIMARY" | "SECONDARY") || "ALL";
+    }
+    return "ALL";
+  });
+
   const fetchClasses = () => {
     setLoading(true);
     setError("");
@@ -721,8 +729,83 @@ export default function ClassesPage() {
         </div>
       )}
 
+      {/* 3.5 Division Switcher Bar */}
+      {!loading && classes.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 20,
+            flexWrap: "wrap",
+          }}
+        >
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em", marginRight: 4 }}>
+            Section:
+          </span>
+          {(["ALL", "PRIMARY", "SECONDARY"] as const).map((div) => {
+            const labels: Record<typeof div, string> = {
+              ALL: "All Divisions",
+              PRIMARY: "Nursery & Primary",
+              SECONDARY: "Secondary (JSS & SSS)",
+            };
+            const isActive = divisionFilter === div;
+            return (
+              <button
+                key={div}
+                type="button"
+                onClick={() => {
+                  setDivisionFilter(div);
+                  if (typeof window !== "undefined") sessionStorage.setItem("classesDiv", div);
+                }}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 9999,
+                  border: isActive ? "none" : "1px solid var(--color-border, #E8ECE9)",
+                  backgroundColor: isActive
+                    ? div === "SECONDARY"
+                      ? "var(--color-brand-teal, #0E7D75)"
+                      : "var(--color-brand-navy, #0B2545)"
+                    : "#FFFFFF",
+                  color: isActive ? "#FFFFFF" : "var(--color-text-secondary)",
+                  fontSize: 13,
+                  fontWeight: isActive ? 700 : 500,
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+              >
+                {labels[div]}
+                {div !== "ALL" && (
+                  <span
+                    style={{
+                      marginLeft: 6,
+                      fontSize: 11,
+                      backgroundColor: isActive ? "rgba(255,255,255,0.2)" : "var(--color-surface-subtle)",
+                      color: isActive ? "#FFFFFF" : "var(--color-text-secondary)",
+                      padding: "1px 6px",
+                      borderRadius: 9999,
+                    }}
+                  >
+                    {classes.filter((c) => getDivisionInfo(c.level).label === (div === "PRIMARY" ? "Primary" : "Secondary")).length}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* 6. Decluttered Scannable Class Cards Grid */}
-      {!loading && !error && classes.length > 0 && (
+      {!loading && !error && classes.length > 0 && (() => {
+        const filteredClasses = divisionFilter === "ALL"
+          ? classes
+          : classes.filter((c) => {
+              const div = getDivisionInfo(c.level);
+              if (divisionFilter === "PRIMARY") return div.label === "Primary";
+              if (divisionFilter === "SECONDARY") return div.label === "Secondary";
+              return true;
+            });
+        return (
         <div
           style={{
             display: "grid",
@@ -730,7 +813,12 @@ export default function ClassesPage() {
             gap: "18px",
           }}
         >
-          {classes.map((cls) => {
+          {filteredClasses.length === 0 && (
+            <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "32px 0", color: "var(--color-text-secondary)", fontSize: 14 }}>
+              No classes in the {divisionFilter === "PRIMARY" ? "Nursery & Primary" : "Secondary"} section yet.
+            </div>
+          )}
+          {filteredClasses.map((cls) => {
             const studentCount = cls._count?.enrollments ?? 0;
             const studentLabel = `${studentCount} ${studentCount === 1 ? "student" : "students"}`;
             const teacherName = cls.teacher
@@ -941,7 +1029,8 @@ export default function ClassesPage() {
             );
           })}
         </div>
-      )}
+        );
+      })()}
 
       {/* ── SCHOOL SUBJECTS CATALOG MODAL ── */}
       {isSubjectsModalOpen && (

@@ -128,6 +128,15 @@ function getSubjectShortName(name: string = ""): string {
   return n.slice(0, 10) + ".";
 }
 
+/* ── Division Helper ─────────────────────────────────────────────────────── */
+function getDivisionForLevel(level: string): "PRIMARY" | "SECONDARY" {
+  const l = (level || "").toUpperCase().trim();
+  if (l.startsWith("JSS") || l.startsWith("SSS") || l.startsWith("SS") || l.startsWith("BASIC 7") || l.startsWith("BASIC 8") || l.startsWith("BASIC 9")) {
+    return "SECONDARY";
+  }
+  return "PRIMARY";
+}
+
 /* ── Realistic Faculty Non-Teaching Duties (Zero Empty Dashes) ───────────── */
 function getTeacherNonTeachingDuty(periodNumber: number): {
   title: string;
@@ -237,6 +246,14 @@ export default function TimetablePage() {
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [selectedTeacherId, setSelectedTeacherId] = useState<string>("");
   const [studentClassId, setStudentClassId] = useState<string>("");
+
+  // Division filter for class dropdown and master grid
+  const [divisionFilter, setDivisionFilter] = useState<"ALL" | "PRIMARY" | "SECONDARY">(() => {
+    if (typeof window !== "undefined") {
+      return (sessionStorage.getItem("timetableDiv") as "ALL" | "PRIMARY" | "SECONDARY") || "ALL";
+    }
+    return "ALL";
+  });
 
   // Filters Checklist State
   const [filters, setFilters] = useState({
@@ -496,6 +513,12 @@ export default function TimetablePage() {
     () => classes.find((c) => c.id === selectedClassId) || classes[0],
     [classes, selectedClassId]
   );
+
+  /* ── Division-Filtered Classes for Dropdown ──────────────────────────────── */
+  const filteredClassesForDropdown = useMemo(() => {
+    if (divisionFilter === "ALL") return classes;
+    return classes.filter((c) => getDivisionForLevel(c.level) === divisionFilter);
+  }, [classes, divisionFilter]);
 
   /* ── Helper to build Lesson Map for any specific Class ───────────────────── */
   const getLessonsMapForClass = (classId: string) => {
@@ -1060,18 +1083,64 @@ export default function TimetablePage() {
             {/* Right: Dropdowns & Print Actions */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               {activeView === "class" && (
-                <select
-                  className="input"
-                  style={{ width: "auto", minWidth: 170, height: 38, padding: "6px 14px", borderRadius: 9999 }}
-                  value={selectedClassId}
-                  onChange={(e) => setSelectedClassId(e.target.value)}
-                >
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.level})
-                    </option>
-                  ))}
-                </select>
+                <>
+                  {/* Division Pill Switcher */}
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                      padding: 3,
+                      borderRadius: 9999,
+                      border: "1px solid var(--color-border, #E8ECE9)",
+                    }}
+                  >
+                    {(["ALL", "PRIMARY", "SECONDARY"] as const).map((div) => {
+                      const shortLabels: Record<typeof div, string> = { ALL: "All", PRIMARY: "Primary", SECONDARY: "Secondary" };
+                      const isActive = divisionFilter === div;
+                      return (
+                        <button
+                          key={div}
+                          type="button"
+                          onClick={() => {
+                            setDivisionFilter(div);
+                            if (typeof window !== "undefined") sessionStorage.setItem("timetableDiv", div);
+                          }}
+                          style={{
+                            border: "none",
+                            background: isActive ? "#FFFFFF" : "transparent",
+                            color: isActive ? "var(--color-ink, #182220)" : "var(--color-text-secondary, #70817B)",
+                            padding: "5px 13px",
+                            borderRadius: 9999,
+                            fontSize: 12,
+                            fontWeight: isActive ? 700 : 500,
+                            boxShadow: isActive ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+                            cursor: "pointer",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          {shortLabels[div]}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Class Dropdown (filtered by division) */}
+                  <select
+                    className="input"
+                    style={{ width: "auto", minWidth: 170, height: 38, padding: "6px 14px", borderRadius: 9999 }}
+                    value={selectedClassId}
+                    onChange={(e) => setSelectedClassId(e.target.value)}
+                  >
+                    {filteredClassesForDropdown.length === 0 && (
+                      <option value="">No classes in this section</option>
+                    )}
+                    {filteredClassesForDropdown.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.level})
+                      </option>
+                    ))}
+                  </select>
+                </>
               )}
 
               {activeView === "teacher" && (
@@ -2055,6 +2124,59 @@ export default function TimetablePage() {
 
             <form onSubmit={handleAutoGenerate}>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* Division Preset Selector */}
+                <div>
+                  <label className="label">Division Preset</label>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {[
+                      {
+                        key: "PRIMARY",
+                        label: "Nursery & Primary",
+                        sub: "6 periods · 35 min each",
+                        periods: 6,
+                        duration: 35,
+                        breakAfter: 3,
+                        breakDuration: 20,
+                        title: "Primary & Nursery Academic Routine",
+                      },
+                      {
+                        key: "SECONDARY",
+                        label: "Secondary (JSS & SSS)",
+                        sub: "8 periods · 40 min each",
+                        periods: 8,
+                        duration: 40,
+                        breakAfter: 4,
+                        breakDuration: 40,
+                        title: "Secondary Section Academic Routine (JSS & SSS)",
+                      },
+                    ].map((preset) => (
+                      <button
+                        key={preset.key}
+                        type="button"
+                        onClick={() => {
+                          setGenPeriodsPerDay(preset.periods);
+                          setGenLessonDuration(preset.duration);
+                          setGenBreakAfter(preset.breakAfter);
+                          setGenBreakDuration(preset.breakDuration);
+                          setGenTitle(preset.title);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: "10px 14px",
+                          borderRadius: 12,
+                          border: "1px solid var(--color-border, #E8ECE9)",
+                          backgroundColor: "var(--color-surface-subtle, #F4F7F5)",
+                          cursor: "pointer",
+                          textAlign: "left",
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-ink)" }}>{preset.label}</div>
+                        <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2 }}>{preset.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div>
                   <label className="label">Routine Title *</label>
                   <input

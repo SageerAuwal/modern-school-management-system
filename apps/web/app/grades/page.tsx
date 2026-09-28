@@ -78,6 +78,12 @@ export default function GradesPage() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [selectedClassId, setSelectedClassId] = useState("");
+  const [divisionFilter, setDivisionFilter] = useState<"ALL" | "PRIMARY" | "SECONDARY">(() => {
+    if (typeof window !== "undefined") {
+      return (sessionStorage.getItem("gradesDiv") as "ALL" | "PRIMARY" | "SECONDARY") || "ALL";
+    }
+    return "ALL";
+  });
 
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
@@ -490,6 +496,40 @@ export default function GradesPage() {
 
       {/* Class and Subject Selectors */}
       <div className="card" style={{ marginBottom: 20 }}>
+        {/* Division Pill Switcher */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Section:
+          </span>
+          {(["ALL", "PRIMARY", "SECONDARY"] as const).map((div) => {
+            const labels: Record<typeof div, string> = { ALL: "All", PRIMARY: "Nursery & Primary", SECONDARY: "Secondary (JSS & SSS)" };
+            const isActive = divisionFilter === div;
+            return (
+              <button
+                key={div}
+                type="button"
+                onClick={() => {
+                  setDivisionFilter(div);
+                  setSelectedClassId("");
+                  if (typeof window !== "undefined") sessionStorage.setItem("gradesDiv", div);
+                }}
+                style={{
+                  padding: "4px 14px",
+                  borderRadius: 9999,
+                  border: isActive ? "none" : "1px solid var(--color-border, #E8ECE9)",
+                  backgroundColor: isActive ? "var(--color-brand-navy, #0B2545)" : "#FFFFFF",
+                  color: isActive ? "#FFFFFF" : "var(--color-text-secondary)",
+                  fontSize: 12,
+                  fontWeight: isActive ? 700 : 500,
+                  cursor: "pointer",
+                }}
+              >
+                {labels[div]}
+              </button>
+            );
+          })}
+        </div>
+
         <div
           style={{
             display: "grid",
@@ -512,12 +552,19 @@ export default function GradesPage() {
               <option value="">
                 {loadingClasses ? "Loading classes…" : "Select a class"}
               </option>
-              {classes.map((cls) => (
-                <option key={cls.id} value={cls.id}>
-                  {cls.name}
-                  {cls.level ? ` (${cls.level})` : ""}
-                </option>
-              ))}
+              {classes
+                .filter((cls) => {
+                  if (divisionFilter === "ALL") return true;
+                  const l = (cls.level || "").toUpperCase().trim();
+                  const isSecondary = l.startsWith("JSS") || l.startsWith("SSS") || l.startsWith("SS");
+                  return divisionFilter === "SECONDARY" ? isSecondary : !isSecondary;
+                })
+                .map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.name}
+                    {cls.level ? ` (${cls.level})` : ""}
+                  </option>
+                ))}
             </select>
           </div>
 

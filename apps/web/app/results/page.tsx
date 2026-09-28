@@ -182,6 +182,13 @@ export default function ResultsPage() {
   const [selectedClassId, setSelectedClassId] = useState("");
   const [selectedTermId, setSelectedTermId] = useState("");
   const [selectedStudentId, setSelectedStudentId] = useState("");
+  const [divisionFilter, setDivisionFilter] = useState<"ALL" | "PRIMARY" | "SECONDARY">(() => {
+    if (typeof window !== "undefined") {
+      return (sessionStorage.getItem("resultsDiv") as "ALL" | "PRIMARY" | "SECONDARY") || "ALL";
+    }
+    return "ALL";
+  });
+
 
   const [reportCard, setReportCard] = useState<ReportCardData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -1103,6 +1110,40 @@ export default function ResultsPage() {
         ) : (
           // Staff Mode: Class -> Term -> Student Selector
           <form onSubmit={handleCheckResult}>
+            {/* Division Pill Switcher */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                Section:
+              </span>
+              {(["ALL", "PRIMARY", "SECONDARY"] as const).map((div) => {
+                const labels: Record<typeof div, string> = { ALL: "All Sections", PRIMARY: "Nursery & Primary", SECONDARY: "Secondary (JSS & SSS)" };
+                const isActive = divisionFilter === div;
+                return (
+                  <button
+                    key={div}
+                    type="button"
+                    onClick={() => {
+                      setDivisionFilter(div);
+                      setSelectedClassId("");
+                      if (typeof window !== "undefined") sessionStorage.setItem("resultsDiv", div);
+                    }}
+                    style={{
+                      padding: "4px 14px",
+                      borderRadius: 9999,
+                      border: isActive ? "none" : "1px solid var(--color-border, #E8ECE9)",
+                      backgroundColor: isActive ? "var(--color-brand-navy, #0B2545)" : "#FFFFFF",
+                      color: isActive ? "#FFFFFF" : "var(--color-text-secondary)",
+                      fontSize: 12,
+                      fontWeight: isActive ? 700 : 500,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {labels[div]}
+                  </button>
+                );
+              })}
+            </div>
+
             <div
               style={{
                 display: "grid",
@@ -1120,11 +1161,18 @@ export default function ResultsPage() {
                   required
                 >
                   <option value="">Select a class</option>
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.level})
-                    </option>
-                  ))}
+                  {classes
+                    .filter((c) => {
+                      if (divisionFilter === "ALL") return true;
+                      const l = (c.level || "").toUpperCase().trim();
+                      const isSecondary = l.startsWith("JSS") || l.startsWith("SSS") || l.startsWith("SS");
+                      return divisionFilter === "SECONDARY" ? isSecondary : !isSecondary;
+                    })
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.level})
+                      </option>
+                    ))}
                 </select>
               </div>
 
